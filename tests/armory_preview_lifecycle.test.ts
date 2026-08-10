@@ -10,6 +10,8 @@ const inspect = readFileSync(new URL('../src/ui/armory_inspect.ts', import.meta.
 const store = readFileSync(new URL('../src/ui/daily_rewards_window.ts', import.meta.url), 'utf8');
 const hud = readFileSync(new URL('../src/ui/hud.ts', import.meta.url), 'utf8');
 const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+const renderer = readFileSync(new URL('../src/render/renderer.ts', import.meta.url), 'utf8');
+const visual = readFileSync(new URL('../src/render/characters/visual.ts', import.meta.url), 'utf8');
 
 describe('Armory preview lifecycle', () => {
   it('keeps one renderer and parks it instead of disposing on modal close', () => {
@@ -33,15 +35,27 @@ describe('Armory preview lifecycle', () => {
     expect(preview).toContain('composer.render();\n        prewarming = false;');
   });
 
-  it('warms every armory skin before the loading screen fades online', () => {
+  it('keeps preview warmers available but lazy so first input never pays their GPU work', () => {
     expect(store).toContain('WEAPON_SKIN_LIST.map((skin) => skin.id)');
     expect(hud).toContain('async prewarmArmoryPreview()');
-    const start = main.indexOf('await hud.prewarmCharacterPreview()');
-    const loadingWarm = main.slice(start, main.indexOf('setLoadingPercent(100', start));
-    expect(loadingWarm).toContain('await hud.prewarmArmoryPreview()');
+    expect(main).not.toContain('hud.prewarmCharacterPreview()');
+    expect(main).not.toContain('hud.prewarmArmoryPreview()');
   });
 
-  it('warms both portrait framings before Inspect can request a PNG capture', () => {
+  it('heals a selected cold-loaded skin in both the Armory and live world', () => {
+    expect(preview).toContain('onCharacterAssetReady((url) => {');
+    expect(preview).toContain('weaponSkinModelUrl(id) !== url');
+    expect(preview).toContain('rig.refreshWeaponSkin()');
+    expect(preview).toContain('unsubscribeCharacterAssetReady();');
+
+    expect(renderer).toContain('onCharacterAssetReady(this.onCharacterAssetReady);');
+    expect(renderer).toContain('weaponSkinModelUrl(skinId) !== url');
+    expect(renderer).toContain('this.weaponSkinApplies.enqueue(id, skinId);');
+    expect(renderer).toContain('v.visual.refreshWeaponSkin()');
+    expect(visual).toContain('refreshWeaponSkin(): THREE.Object3D[] | null');
+  });
+
+  it('the explicit portrait warmer covers both Inspect framings when invoked', () => {
     const start = hud.indexOf('async prewarmCharacterPreview()');
     const end = hud.indexOf('async prewarmArmoryPreview()', start);
     const warm = hud.slice(start, end);

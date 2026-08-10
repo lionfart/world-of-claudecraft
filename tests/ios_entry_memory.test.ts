@@ -62,22 +62,27 @@ describe('entry-crash recovery arms tight memory', () => {
   });
 });
 
-describe('tight-memory residency diet', () => {
-  it('skips the two secondary-context preview prewarms on the tight profile', () => {
-    const gateAt = mainSource.indexOf('if (!GFX.tightMemory) {');
-    const characterPrewarmAt = mainSource.indexOf('await hud.prewarmCharacterPreview();');
-    const armoryPrewarmAt = mainSource.indexOf('await hud.prewarmArmoryPreview();');
-    expect(gateAt).toBeGreaterThan(-1);
-    expect(characterPrewarmAt).toBeGreaterThan(gateAt);
-    expect(armoryPrewarmAt).toBeGreaterThan(characterPrewarmAt);
+describe('optional preview warmups', () => {
+  it('leaves secondary WebGL preview contexts lazy instead of janking first input', () => {
+    expect(mainSource).not.toContain('hud.prewarmCharacterPreview()');
+    expect(mainSource).not.toContain('hud.prewarmArmoryPreview()');
+  });
+
+  it('lets the far vista settle after first paint instead of holding the curtain', () => {
+    const firstPaintAt = mainSource.indexOf("checkpoint('first-paint')");
+    const farVistaAt = mainSource.indexOf(
+      'settleFarVista: () => renderer.farVistaReady(),',
+      firstPaintAt,
+    );
+    expect(firstPaintAt).toBeGreaterThan(-1);
+    expect(farVistaAt).toBeGreaterThan(firstPaintAt);
+    expect(mainSource).not.toContain('await renderer.farVistaReady()');
   });
 });
 
-describe('deferred skin atlases on every iOS WebKit host', () => {
-  it('gates the boot atlas sweep on the hint-stable iOS profile', () => {
-    expect(assetsSource).toContain(
-      'const eagerSkinAtlases = !(GFX.iosMemoryProfile || GFX.tightMemory);',
-    );
+describe('deferred cosmetic skin atlases', () => {
+  it('keeps the alternate-atlas sweep out of every boot gate', () => {
+    expect(assetsSource).toContain('const eagerSkinAtlases = false;');
     // The character-preview gate must not re-await atlases the boot deferred.
     expect(assetsSource).toContain('const missingSkins = eagerSkinAtlases');
   });
@@ -190,13 +195,13 @@ describe('preload registry retains no resolution values', () => {
   });
 });
 
-describe('post-entry mob-body streaming (every iOS WebKit host)', () => {
+describe('post-entry mob-body streaming', () => {
   // The heaviest character content (creatures + the skeleton family, embedded
   // 1024-class atlases) is carved out of the boot gate on every iOS WebKit host
   // (Safari, other iOS browsers, and the packaged app) and streamed after prewarm,
   // through the fail-soft view-create seam (#2079).
   // Measured before this: WebContent at 1.54 GB pre-renderer on an iPhone 17 Pro.
-  it('streams mob bodies and Armory skin models; base weapons stay in the gate', () => {
+  it('keeps desktop mobs critical, bulk-streams only iOS mobs, and leaves skins on demand', () => {
     expect(assetsSource).toContain(
       "const STREAMED_URL_PREFIXES = ['models/creatures/', 'models/chars/enemies/'];",
     );
@@ -209,6 +214,19 @@ describe('post-entry mob-body streaming (every iOS WebKit host)', () => {
     expect(assetsSource).toContain(
       'const preloadUrls = allPreloadUrls.filter((url) => !streamedUrlSet.has(url));',
     );
+    expect(assetsSource).toContain(
+      'streamedSkinUrls.has(url) ||\n      (profile.iosMemoryProfile && STREAMED_URL_PREFIXES.some((prefix) => url.includes(prefix)))',
+    );
+    expect(assetsSource).toContain('let streamedUrls = streamedCharacterUrlsFor(GFX);');
+    expect(assetsSource).toContain(
+      'let postEntryStreamUrls = postEntryStreamUrlsFor(streamedUrls);',
+    );
+    expect(assetsSource).toContain(
+      'return urls.filter((url) => STREAMED_URL_PREFIXES.some((prefix) => url.includes(prefix)));',
+    );
+    expect(assetsSource).toContain('for (const url of postEntryStreamUrls) {');
+    expect(assetsSource).toContain('return postEntryStreamUrls.length;');
+    expect(assetsSource).not.toContain('for (const url of streamedUrls) {');
   });
 
   it('degrades a not-yet-resident skin to the base weapon instead of throwing', () => {
@@ -256,12 +274,17 @@ describe('post-entry mob-body streaming (every iOS WebKit host)', () => {
     expect(assetsSource).toContain('if (streamedUrlSet.has(url)) ensureCharacterUrl(url);');
   });
 
-  it('starts the stream after prewarm, not inside the entry gate', () => {
-    const prewarmAt = mainSource.indexOf("checkpoint('prewarm-complete'");
-    const streamAt = mainSource.indexOf('startStreamedCharacterPreloads()');
+  it('starts the stream after first paint, not inside the entry gate', () => {
+    const firstPaintAt = mainSource.indexOf("checkpoint('first-paint')");
+    const schedulerAt = mainSource.indexOf('void runPostEntryWarmups({', firstPaintAt);
+    const streamAt = mainSource.indexOf(
+      'startCharacterPreloads: startStreamedCharacterPreloads,',
+      schedulerAt,
+    );
     const assetsAwaitAt = mainSource.indexOf('await assetsReady(');
-    expect(prewarmAt).toBeGreaterThan(-1);
-    expect(streamAt).toBeGreaterThan(prewarmAt);
+    expect(firstPaintAt).toBeGreaterThan(-1);
+    expect(schedulerAt).toBeGreaterThan(firstPaintAt);
+    expect(streamAt).toBeGreaterThan(firstPaintAt);
     expect(streamAt).toBeGreaterThan(assetsAwaitAt);
   });
 

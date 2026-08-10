@@ -58,7 +58,6 @@ export const EFFECTS_QUALITY_LOW_CUTOFF = 0.5;
 
 /** The loading curtain's normal opacity duration, also mirrored in shell.css. */
 export const LOADING_CURTAIN_FADE_MS = 350;
-export const WORLD_ENTRY_GPU_SETTLE_COVER_MS = 1800;
 
 /** Reduced motion removes the curtain synchronously instead of waiting on a visual fade. */
 export function loadingCurtainFadeMs(reduceMotion: boolean): number {
@@ -70,10 +69,11 @@ export function worldEntryGpuSettleCoverMs(input: {
   constrainedMemory: boolean;
   online: boolean;
 }): number {
-  // An online character is already live on the authoritative server. Do not
-  // hold movement behind a cosmetic GPU-settle cover after the first frame.
-  if (input.online) return 0;
-  return input.adaptiveBudget && !input.constrainedMemory ? WORLD_ENTRY_GPU_SETTLE_COVER_MS : 0;
+  // The first world frame has already painted when this resolver is called.
+  // Adaptive sampling can settle in view; a cosmetic hold here made an offline
+  // medium entry feel 1.8 seconds slower without protecting correctness.
+  void input;
+  return 0;
 }
 /**
  * Resolve the UI effects profile from the static preset label, the effectsQuality

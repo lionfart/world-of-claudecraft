@@ -15704,9 +15704,9 @@ export class Hud {
     this.charWindow.renderIfOpen();
   }
 
-  /** Build and GPU-warm the shared paperdoll preview before the loading screen
-   *  fades. The character painter remains hidden; its ResizeObserver keeps the
-   *  preview loop dormant until a real preview host becomes visible. */
+  /** Explicitly build and GPU-warm the shared paperdoll preview. World entry
+   *  deliberately leaves this lazy so secondary-context work cannot contend
+   *  with first input. The painter remains dormant until a host is visible. */
   async prewarmCharacterPreview(): Promise<void> {
     if (!this.charPreview) this.charWindow.render();
     const cls = this.sim.cfg.playerClass;
@@ -15735,8 +15735,8 @@ export class Hud {
     }
   }
 
-  /** Compile the online Armory's persistent WebGL context and all Season 1
-   *  skin variants while the world loading screen is still opaque. */
+  /** Explicitly compile the online Armory's persistent WebGL context and all
+   *  Season 1 skin variants. World entry deliberately leaves this lazy. */
   async prewarmArmoryPreview(): Promise<void> {
     if (!this.claudiumHooks) return;
     await this.dailyRewardsWindow.prewarmArmoryPreview();

@@ -118,6 +118,7 @@ import { padReelItemId } from './game/pad_reel';
 import { createPerfMonitor } from './game/perf';
 import { initPerfNudge } from './game/perf_nudge';
 import { startPerfReporter } from './game/perf_reporter';
+import { runPostEntryWarmups } from './game/post_entry_warmups_core';
 import { adaptiveSelfAlphaLead } from './game/self_alpha_lead';
 import { SelfMotionFrameBuffer } from './game/self_motion_frame_buffer';
 import {
@@ -217,6 +218,7 @@ import {
   ktx2MipsOnContextLost,
   ktx2MipsRestored,
 } from './render/assets/ktx2_mip_release';
+import { assetUrl } from './render/assets/media';
 import {
   assetsReady,
   beginBackgroundPreloads,
@@ -245,7 +247,6 @@ import {
   normalizeAppearance,
 } from './render/characters/modular';
 import {
-  onPortraitsReady,
   onPortraitUpdate,
   playerPortraitDataUrl,
   resetPortraitRendererForGraphicsRebuild,
@@ -396,6 +397,7 @@ import {
   prewarmIconCache,
 } from './ui/icon_prewarm';
 import { iconDataUrl } from './ui/icons';
+import { LoadingBackdropController } from './ui/loading_backdrop';
 import {
   noteLoadingProgress,
   startSlowConnectionWatch,
@@ -967,6 +969,8 @@ const LOADING_TIP_ROTATE_MS = 5000;
 let loadingHideTimer: number | null = null;
 let loadingTipRotation: LoadingTipRotation | null = null;
 let loadingTipTimer: number | null = null;
+const loadingBackdrop = new LoadingBackdropController($('#loading-screen'), assetUrl);
+loadingBackdrop.prepareInitial();
 
 function loadingCurtainFadeDelayMs(): number {
   const osReducedMotion =
@@ -984,6 +988,7 @@ function showLoadingScreen(statusText: string): void {
   }
   el.classList.remove('fade');
   el.classList.add('visible');
+  if (!wasVisible) loadingBackdrop.enterNewCycle();
   if (!wasVisible) $('#ls-fill').style.width = '0%';
   setLoadingStatus(statusText);
   startLoadingTips();
@@ -1044,6 +1049,7 @@ function hideLoadingScreen(): void {
   loadingHideTimer = window.setTimeout(() => {
     el.classList.remove('visible', 'fade');
     loadingHideTimer = null;
+    loadingBackdrop.prepareNextCycle();
   }, loadingCurtainFadeDelayMs());
 }
 
@@ -4738,47 +4744,6 @@ async function startGame(
     // has been materialized successfully.
     console.warn('Renderer prewarm failed', err);
   }
-  // The entry allocation spike is over: start streaming the mob bodies the
-  // iOS WebKit boot gate deliberately excluded (Safari, other iOS browsers, and
-  // the packaged app; empty everywhere else). A mob whose GLB is still arriving
-  // renders a beat late through the fail-soft view-create path, instead of its
-  // decode competing with the scene build for the WebContent memory ceiling.
-  const streamedCount = startStreamedCharacterPreloads();
-  if (streamedCount > 0) {
-    console.info(`[entry-guard] streaming ${streamedCount} deferred character assets`);
-  }
-  // Each preview prewarm mints a SECONDARY WebGL context beside the world
-  // renderer: real WebKit GPU-process residency held for a window the player
-  // may never open. The 4 GB-class tight profile skips both and keeps their
-  // documented lazy first-open path instead (the catch arms below already
-  // promise exactly that fallback).
-  if (!GFX.tightMemory) {
-    try {
-      await hud.prewarmCharacterPreview();
-    } catch (err) {
-      // The paperdoll preview is optional UI. If its secondary WebGL context
-      // cannot prewarm, opening the window can still take the normal lazy path.
-      console.warn('Character preview prewarm failed', err);
-    }
-    try {
-      await hud.prewarmArmoryPreview();
-    } catch (err) {
-      // The store is optional and online-only. A secondary-context failure must
-      // never prevent entering the world; opening it can retain the lazy path.
-      console.warn('Armory preview prewarm failed', err);
-    }
-  }
-  // The far vista has been building eagerly since the renderer was
-  // constructed, overlapping every asset wait above. Hold the curtain
-  // (bounded) until the grid can stand in for the fog, so the first visible
-  // frame carries the finished horizon; without this gate a loaded
-  // production boot starves the build and the fog lifts tens of seconds
-  // into play. On timeout the classic eased flip covers it, as before.
-  const farVistaReady = await renderer.farVistaReady();
-  entryDiagnostics.checkpoint('far-vista-ready', {
-    ...renderEntryDiagnostics(),
-    farVistaReady,
-  });
   setLoadingPercent(100, t('loading.enteringWorld'));
   await nextPaint();
   last = performance.now();
@@ -4791,18 +4756,6 @@ async function startGame(
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
       entryDiagnostics.checkpoint('first-paint');
-      // Open the background preload lane now that the first frame is actually on
-      // screen: content tagged 'background' (a lazily streamed-in proximity
-      // build that tolerates its assets arriving late) never had to share the
-      // boot gate with the launcher's own fetches; starting it here just keeps
-      // it from competing with the deferred-critical lane for bandwidth/decode
-      // slots during the loading screen either.
-      const backgroundStarted = beginBackgroundPreloads();
-      if (backgroundStarted > 0) {
-        console.info(
-          `[entry-guard] world assets: started ${backgroundStarted} background preloads`,
-        );
-      }
       const revealWorld = (): void => {
         hideLoadingScreen();
         // Start the intro clock as the loading screen begins to fade: the camera
@@ -4876,6 +4829,34 @@ async function startGame(
               },
             );
           }
+          // Fail-soft streams start only after the painted world is interactive.
+          // The classic fog remains the complete fallback while the far grid
+          // finishes in parallel. Optional secondary WebGL previews stay lazy:
+          // warming them here would contend with the player's first input.
+          void runPostEntryWarmups({
+            settleFarVista: () => renderer.farVistaReady(),
+            onFarVistaSettled: (farVistaReady) => {
+              entryDiagnostics.checkpoint('far-vista-ready', {
+                ...renderEntryDiagnostics(),
+                farVistaReady,
+              });
+            },
+            startCharacterPreloads: startStreamedCharacterPreloads,
+            onCharacterPreloadsStarted: (count) => {
+              if (count > 0) {
+                console.info(`[entry-guard] streaming ${count} deferred character assets`);
+              }
+            },
+            startBackgroundPreloads: beginBackgroundPreloads,
+            onBackgroundPreloadsStarted: (count) => {
+              if (count > 0) {
+                console.info(`[entry-guard] world assets: started ${count} background preloads`);
+              }
+            },
+            onWarmupError: (source, error) => {
+              if (source === 'far-vista') console.warn('Far vista settlement failed', error);
+            },
+          });
         }, loadingCurtainFadeDelayMs());
       };
       afterActiveAnimationMs(

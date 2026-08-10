@@ -19,35 +19,17 @@ describe('loading curtain reduced-motion timing', () => {
   });
 });
 
-it('keeps offline desktop settling covered without delaying an authoritative online player', () => {
-  expect(
-    worldEntryGpuSettleCoverMs({
-      adaptiveBudget: true,
-      constrainedMemory: false,
-      online: false,
-    }),
-  ).toBe(1800);
-  expect(
-    worldEntryGpuSettleCoverMs({
-      adaptiveBudget: true,
-      constrainedMemory: false,
-      online: true,
-    }),
-  ).toBe(0);
-  expect(
-    worldEntryGpuSettleCoverMs({
-      adaptiveBudget: false,
-      constrainedMemory: false,
-      online: false,
-    }),
-  ).toBe(0);
-  expect(
-    worldEntryGpuSettleCoverMs({
-      adaptiveBudget: true,
-      constrainedMemory: true,
-      online: false,
-    }),
-  ).toBe(0);
+it('never extends the loading curtain after the first painted world frame', () => {
+  for (const adaptiveBudget of [false, true]) {
+    for (const constrainedMemory of [false, true]) {
+      for (const online of [false, true]) {
+        expect(
+          worldEntryGpuSettleCoverMs({ adaptiveBudget, constrainedMemory, online }),
+          JSON.stringify({ adaptiveBudget, constrainedMemory, online }),
+        ).toBe(0);
+      }
+    }
+  }
 });
 // The resolver is the ONLY place the HUD effect precedence lives. These tests pin
 // every documented rule so a regression (a dropped clamp, glass dropped under
