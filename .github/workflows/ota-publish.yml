@@ -54,7 +54,7 @@ concurrency:
 jobs:
   publish:
     name: Build and publish the OTA bundle
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-small-2c-4g
     # A native build plus zipping a bundle of this size is slow; the desktop
     # jobs sit at 60 to 90 minutes for comparable work.
     timeout-minutes: 90
