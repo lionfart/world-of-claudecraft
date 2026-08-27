@@ -9534,7 +9534,6 @@ export class Renderer {
           this.bgViews.set(i, view);
         }
       }
-    } else if (inTerritorySiege) {
     } else if (inside && isArenaPos(px)) {
       void ensureDungeonAssets().catch(() => undefined);
       // build the Ashen Coliseum copy the player was matched into
@@ -9591,7 +9590,7 @@ export class Renderer {
           }
         }
       }
-    } else if (inside) {
+    } else if (inside && !inTerritorySiege) {
       void ensureDungeonAssets().catch(() => undefined);
       for (const dungeon of DUNGEON_LIST) {
         for (let i = 0; i < INSTANCE_SLOT_COUNT; i++) {

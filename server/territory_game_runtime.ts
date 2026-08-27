@@ -17,6 +17,8 @@ import {
   TerritoryService,
 } from './territory_service';
 
+export { TerritoryRepository } from './territory_db';
+
 const STRUCTURE_SLOTS = new Set<TerritoryStructureSlot>([
   'keep_core',
   'gate',
