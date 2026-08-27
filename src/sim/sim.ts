@@ -19,6 +19,7 @@ import type {
   PlayerProfessionsView,
   ToolEffectSlotView,
 } from '../world_api';
+import type { IWorldTerritory } from '../world_api/territory';
 import * as bagsMod from './bags';
 import {
   addStacked,
@@ -213,6 +214,7 @@ import {
   isBgPos,
   isDelvePos,
   isRiftPos,
+  isTerritorySiegePos,
   MOBS,
   migrateLegacyInstancePos,
   QUESTS,
@@ -574,6 +576,7 @@ import {
   CURRENT_CHARACTER_CONTENT_REVISION,
   migrateCharacterTalentsV2,
 } from './talent_save_migration';
+import { installTerritorySim, territorySimHasTeam, territorySimHostile } from './territory_local';
 import { updateAbilityDrill } from './tutorial/ability_drill';
 import { updateGauntletRuns } from './tutorial/gauntlet_run';
 import { resolveStartTutorial, updateTutorialGreeting } from './tutorial/greeting';
@@ -2004,8 +2007,8 @@ const OFFLINE_GUILD_BANK_LOG: import('../world_api').GuildBankLogView = Object.f
 // cast-toggle predicates (isFormToggle/isToggleBuff/isStealthToggle/preservesStealth/
 // isShamanShock/ignoresDamagePushback) live in combat/casting_lifecycle.ts (C4a).
 
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: the territory facet is installed and parity-tested below.
 export class Sim {
-  // Offline/local Sim always has the implementation bundled with its HUD.
   readonly petSpecialCommandsSupported = true;
   // `world` stays optional (a custom map for play-test, else undefined for the
   // built-in world); everything else is defaulted to a concrete value below.
@@ -2940,7 +2943,7 @@ export class Sim {
         legacyInstanceExit = true;
       }
     }
-    if (savedPos && isBgPos(savedPos.x)) {
+    if (savedPos && (isBgPos(savedPos.x) || isTerritorySiegePos(savedPos.x))) {
       // A save inside the Thornhollow Fields band (a crash mid-match) has no match to
       // rejoin: resume at the world start (dungeonAt() knows nothing about
       // this band, so the dungeon-door fallback below must never see it).
@@ -10141,20 +10144,8 @@ export class Sim {
   // No-op in offline mode
   reportTelemetry(): void {}
 
-  // Quest-credit math (onMobKilledForQuests / onInventoryChangedForQuests /
-  // checkQuestReady) moved to quests/quest_credit.ts (Q1) behind SimContext. Foreign
-  // callers reach the trio via this.ctx.<name>: the handleDeath party loop calls
-  // ctx.onMobKilledForQuests, the inventory hub (addItem/removeItem/buyBackItem) and
-  // finalizeQuestAccept call ctx.onInventoryChangedForQuests, and interactNpcForQuests
-  // plus the N1 crypt interactObjectForQuests call ctx.checkQuestReady.
-
-  // -------------------------------------------------------------------------
-  // Player death / respawn
-  // -------------------------------------------------------------------------
-
-  // Player death/respawn lives in entity_roster.ts (E1, merged E2). Thin delegate
-  // keeps the public IWorld surface (`sim.releaseSpirit`) resolving unchanged.
   releaseSpirit(pid?: number): void {
+    if (territorySimHasTeam(this, pid ?? this.player.id)) return;
     releasePlayerSpirit(
       this.ctx,
       pid,
@@ -10163,18 +10154,18 @@ export class Sim {
     );
   }
 
-  // Ghost resurrection (src/sim/spirit.ts): run the spirit back to its corpse to
-  // resurrect penalty-free, or accept a Spirit Healer's resurrection (with
-  // Resurrection Sickness). Thin delegates so the IWorld surface resolves unchanged.
   resurrectAtCorpse(pid?: number): void {
+    if (territorySimHasTeam(this, pid ?? this.player.id)) return;
     resurrectAtCorpse(this.ctx, pid);
   }
 
   resurrectAtSpiritHealer(pid?: number): boolean {
+    if (territorySimHasTeam(this, pid ?? this.player.id)) return false;
     return resurrectAtSpiritHealer(this.ctx, pid);
   }
 
   respondToResurrection(accept: boolean, pid?: number): void {
+    if (accept && territorySimHasTeam(this, pid ?? this.player.id)) return;
     resurrectionOfferMod.respondToResurrection(this.ctx, accept, pid);
   }
 
@@ -10190,9 +10181,8 @@ export class Sim {
     return chatMod.chat(this.ctx, text, pid);
   }
 
-  // Local recovery lives in unstuck.ts. Both the slash command and the direct
-  // Settings wire action enter through the same authoritative system.
   unstuck(pid?: number): boolean {
+    if (territorySimHasTeam(this, pid ?? this.player.id)) return false;
     return unstuckMod.requestUnstuck(this.ctx, pid);
   }
 
@@ -10268,6 +10258,8 @@ export class Sim {
       if (bg && bg.state === 'active' && this.bgMatches.get(target.id) === bg) {
         return bgMod.bgTeamOf(bg, attackerPlayer.id) !== bgMod.bgTeamOf(bg, target.id);
       }
+      const territoryHostile = territorySimHostile(this, attackerPlayer.id, target.id);
+      if (territoryHostile !== null) return territoryHostile;
       // The jail brawl: prisoners are hostile to each other, always (pets
       // resolve to their owner via pvpController above, so a prisoner's pet
       // fights too). A visiting moderator is never jailed, so no prisoner
@@ -12590,6 +12582,14 @@ export class Sim {
     return this.professionsStateFor(this.primaryId);
   }
 }
+
+export interface Sim extends IWorldTerritory {
+  setTerritorySiegeTeam(
+    pid: number,
+    team: { warId: string; side: 'attacker' | 'defender' } | null,
+  ): void;
+}
+installTerritorySim(Sim.prototype);
 
 // formatMoney now lives in ./format_money (a leaf module, to break the value-cycle
 // with market.ts and loot/loot_roll.ts). Re-exported here so existing importers

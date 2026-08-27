@@ -10675,6 +10675,122 @@
     border-color: var(--gold);
     color: #fff;
   }
+  #territory-panel {
+    position: absolute;
+    display: none;
+    left: 22px;
+    right: 68px;
+    bottom: 22px;
+    z-index: 2;
+    padding: 10px 12px;
+    color: var(--color-text);
+    background: linear-gradient(180deg, rgba(24, 16, 9, 0.92), rgba(11, 8, 5, 0.95));
+    border: 1px solid var(--gold-dim);
+    border-radius: 5px;
+    box-shadow: 0 3px 12px #000a;
+    pointer-events: auto;
+  }
+  #territory-cell-title {
+    color: var(--gold);
+    font-family: var(--title-font);
+    font-size: 15px;
+    font-weight: bold;
+  }
+  #territory-cell-detail,
+  #territory-economy {
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+  }
+  .territory-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .territory-actions button {
+    flex: 1;
+    min-height: 28px;
+    padding: 4px 7px;
+    color: var(--color-text);
+    background: #2b2116;
+    border: 1px solid #66502d;
+    border-radius: 3px;
+    cursor: var(--cursor-point);
+  }
+  .territory-actions button:disabled {
+    opacity: 0.42;
+    cursor: default;
+  }
+
+  #territory-siege-hud {
+    position: fixed;
+    display: none;
+    top: 64px;
+    left: 50%;
+    width: min(560px, calc(100vw - 24px));
+    z-index: 90;
+    transform: translateX(-50%);
+    padding: 10px 12px;
+    text-align: center;
+    color: var(--color-text);
+    border: 1px solid var(--color-territory-war);
+    background: linear-gradient(180deg, rgba(35, 18, 12, 0.94), rgba(13, 9, 7, 0.96));
+    pointer-events: auto;
+  }
+  #territory-siege-title {
+    color: var(--gold);
+    font-family: var(--title-font);
+    font-weight: bold;
+  }
+  #territory-siege-timer {
+    margin: 3px 0 7px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+  .territory-siege-progress {
+    height: 18px;
+    margin-top: 4px;
+    overflow: hidden;
+    border: 1px solid #66502d;
+    background: #100c08;
+  }
+  .territory-siege-progress span {
+    display: block;
+    height: 100%;
+    width: 0;
+    padding: 1px 5px;
+    box-sizing: border-box;
+    white-space: nowrap;
+    color: #fff;
+    font-size: 11px;
+    text-align: left;
+    background: linear-gradient(90deg, #7d321f, #c66a33);
+  }
+  .territory-siege-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    margin-top: 8px;
+  }
+  .territory-siege-actions button {
+    min-height: 30px;
+    color: var(--color-text);
+    border: 1px solid #79572e;
+    background: #2b2116;
+    cursor: var(--cursor-point);
+  }
+  .territory-siege-actions button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  @media (max-width: 620px) {
+    #territory-siege-hud {
+      top: 42px;
+    }
+    .territory-siege-actions {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
 
   /* ---------- Dungeon Finder ---------- */
   /* Closed by default: this @layer components rule outranks `.window { display: none }`

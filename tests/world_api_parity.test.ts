@@ -74,6 +74,7 @@ import type { IWorldSocialGraph } from '../src/world_api/social_graph';
 import type { IWorldTalents } from '../src/world_api/talents';
 import type { IWorldTargeting } from '../src/world_api/targeting';
 import type { IWorldTelemetry } from '../src/world_api/telemetry';
+import type { IWorldTerritory } from '../src/world_api/territory';
 import type { IWorldTrade } from '../src/world_api/trade';
 
 type IWorldMemberKind = 'method' | 'data';
@@ -277,6 +278,19 @@ export const IWORLD_MEMBERS = [
   { name: 'bgQueueLeave', kind: 'method' },
   { name: 'bgRespond', kind: 'method' },
   { name: 'bgFlagAction', kind: 'method' },
+  // --- seasonal guild territory + 20v20 keep siege (IWorldTerritory) ---
+  { name: 'territoryMap', kind: 'data' },
+  { name: 'territoryOpen', kind: 'method' },
+  { name: 'territoryClose', kind: 'method' },
+  { name: 'territoryPlaceKeep', kind: 'method' },
+  { name: 'territoryClaim', kind: 'method' },
+  { name: 'territoryBuild', kind: 'method' },
+  { name: 'territoryUpgrade', kind: 'method' },
+  { name: 'territoryRepair', kind: 'method' },
+  { name: 'territoryDeclareWar', kind: 'method' },
+  { name: 'territoryJoinWar', kind: 'method' },
+  { name: 'territoryLeaveWar', kind: 'method' },
+  { name: 'territorySiegeAction', kind: 'method' },
   // --- market commands ---
   { name: 'marketSearch', kind: 'method' },
   { name: 'marketSellPriceCheck', kind: 'method' },
@@ -614,9 +628,9 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
     // even when the total agrees. Only running the suite says what these
     // numbers really are; never reconcile them by arithmetic in the diff (the
     // numbers below were set from a suite run, not from this narrative).
-    expect(IWORLD_MEMBERS.length).toBe(325);
-    expect(DATA_MEMBERS.length).toBe(85);
-    expect(METHOD_MEMBERS.length).toBe(240);
+    expect(IWORLD_MEMBERS.length).toBe(337);
+    expect(DATA_MEMBERS.length).toBe(86);
+    expect(METHOD_MEMBERS.length).toBe(251);
   });
   it('has no duplicate member names', () => {
     const names = IWORLD_MEMBERS.map((m) => m.name);
@@ -929,6 +943,18 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'talents',
       'targetEntity',
       'targetNearestFriendly',
+      'territoryBuild',
+      'territoryClaim',
+      'territoryClose',
+      'territoryDeclareWar',
+      'territoryJoinWar',
+      'territoryLeaveWar',
+      'territoryMap',
+      'territoryOpen',
+      'territoryPlaceKeep',
+      'territoryRepair',
+      'territorySiegeAction',
+      'territoryUpgrade',
       'toggleMounted',
       'toggleWeaponStow',
       'toolEffectSlots',
@@ -1036,6 +1062,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'talentRole',
       'talentSpec',
       'talents',
+      'territoryMap',
       'toolEffectSlots',
       'townFocus',
       'tradeInfo',
@@ -1270,6 +1297,17 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'talentPoints',
       'targetEntity',
       'targetNearestFriendly',
+      'territoryBuild',
+      'territoryClaim',
+      'territoryClose',
+      'territoryDeclareWar',
+      'territoryJoinWar',
+      'territoryLeaveWar',
+      'territoryOpen',
+      'territoryPlaceKeep',
+      'territoryRepair',
+      'territorySiegeAction',
+      'territoryUpgrade',
       'toggleMounted',
       'toggleWeaponStow',
       'tradeAccept',
@@ -1586,6 +1624,24 @@ type _ExhaustBattleground = AssertNever<
   Exclude<keyof IWorldBattleground, (typeof FACET_BATTLEGROUND)[number]>
 >;
 
+const FACET_TERRITORY = [
+  'territoryMap',
+  'territoryOpen',
+  'territoryClose',
+  'territoryPlaceKeep',
+  'territoryClaim',
+  'territoryBuild',
+  'territoryUpgrade',
+  'territoryRepair',
+  'territoryDeclareWar',
+  'territoryJoinWar',
+  'territoryLeaveWar',
+  'territorySiegeAction',
+] as const satisfies readonly (keyof IWorldTerritory)[];
+type _ExhaustTerritory = AssertNever<
+  Exclude<keyof IWorldTerritory, (typeof FACET_TERRITORY)[number]>
+>;
+
 const FACET_CARD_MINIGAME = [
   'cardMinigameInfo',
   'joinCardDuelQueue',
@@ -1844,6 +1900,7 @@ const FACET_MEMBER_ARRAYS: Readonly<Record<string, readonly string[]>> = {
   chat: FACET_CHAT,
   duelArena: FACET_DUEL_ARENA,
   battleground: FACET_BATTLEGROUND,
+  territory: FACET_TERRITORY,
   cardMinigame: FACET_CARD_MINIGAME,
   socialGraph: FACET_SOCIAL_GRAPH,
   market: FACET_MARKET,
@@ -1867,7 +1924,7 @@ describe('W1: aggregate IWorld member set equals the disjoint union of the facet
     // +1 battleground facet (Thornhollow Fields) on the release line; +1
     // Reliquary facet on this branch: 33 total; -1 for the New Eastbrook
     // program's Vale Cup retirement: 32 total.
-    expect(Object.keys(FACET_MEMBER_ARRAYS).length).toBe(32);
+    expect(Object.keys(FACET_MEMBER_ARRAYS).length).toBe(33);
   });
 
   it('each facet array is non-empty and internally duplicate-free', () => {
@@ -1895,8 +1952,8 @@ describe('W1: aggregate IWorld member set equals the disjoint union of the facet
 
   it('the facet union equals the pinned IWORLD_MEMBERS set', () => {
     const union = Object.values(FACET_MEMBER_ARRAYS).flatMap((arr) => [...arr]);
-    expect(union.length, 'union size before dedup (catches a duplicated member)').toBe(325);
-    expect(new Set(union).size, 'union size after dedup (catches a duplicated member)').toBe(325);
+    expect(union.length, 'union size before dedup (catches a duplicated member)').toBe(337);
+    expect(new Set(union).size, 'union size after dedup (catches a duplicated member)').toBe(337);
     const sortedUnion = [...union].sort();
     const pinned = IWORLD_MEMBERS.map((m) => m.name).sort();
     expect(sortedUnion).toEqual(pinned);

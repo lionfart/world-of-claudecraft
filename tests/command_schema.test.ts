@@ -65,9 +65,10 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 // six vcup_* send + dispatch pairs (docs/design/eastbrook-revamp/master-plan.md);
 // the Proving Shore tutorial adds its one start_tutorial pair back on top, and
 // the v0.40.0 sync merge brings the release side's one new pair with it. The
-// directional combat branch adds the dodge pair.
-const EXPECTED_SEND_COUNT = 200;
-const EXPECTED_DISPATCH_COUNT = 213;
+// directional combat branch adds the dodge pair, and seasonal territory warfare
+// adds its ten watch/claim/build/war/siege command pairs.
+const EXPECTED_SEND_COUNT = 210;
+const EXPECTED_DISPATCH_COUNT = 223;
 const EXPECTED_DISPATCH_ONLY_COUNT = 13;
 
 // The chat sub-channel routing switch (server/game.ts `switch
@@ -126,20 +127,37 @@ function scanDispatchSet(src: string): Set<string> {
   return labels;
 }
 
+function scanLiteralSet(src: string, declaration: string): Set<string> {
+  const start = src.indexOf(declaration);
+  const end = src.indexOf(']);', start);
+  if (start === -1 || end === -1) throw new Error(`${declaration} set not found`);
+  const tokens = new Set<string>();
+  for (const match of src.slice(start, end).matchAll(/'([^']+)'/g)) tokens.add(match[1]);
+  return tokens;
+}
+
 function difference<T>(a: Set<T>, b: Set<T>): Set<T> {
   const out = new Set<T>();
   for (const v of a) if (!b.has(v)) out.add(v);
   return out;
 }
 
-const sendSet = scanSendSet(readSource('src/net/online.ts'));
+const sendSet = scanSendSet(
+  `${readSource('src/net/online.ts')}\n${readSource('src/net/territory_client.ts')}`,
+);
 const dispatchSet = scanDispatchSet(readSource('server/game.ts'));
+for (const command of scanLiteralSet(
+  readSource('server/territory_game_runtime.ts'),
+  'const TERRITORY_COMMANDS',
+)) {
+  dispatchSet.add(command);
+}
 const tableSet = new Set<CommandName>(COMMAND_NAMES);
 const allowlistSet = new Set<CommandName>(DISPATCH_ONLY_COMMANDS);
 
 describe('command schema parity (W0b)', () => {
   it('re-derives the verified set sizes from source', () => {
-    expect(sendSet.size, 'distinct cmd:X sends in online.ts').toBe(EXPECTED_SEND_COUNT);
+    expect(sendSet.size, 'distinct ClientWorld cmd:X sends').toBe(EXPECTED_SEND_COUNT);
     expect(dispatchSet.size, 'distinct case labels in dispatchMessage').toBe(
       EXPECTED_DISPATCH_COUNT,
     );

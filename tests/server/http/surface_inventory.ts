@@ -1221,6 +1221,29 @@ export const SURFACE_INVENTORY: readonly SurfaceRoute[] = [
     limiter: 'publicReadRateLimited',
     requireOwnedExpected: null,
   },
+  // Seasonal strategic territory: authenticated, registry-only snapshots and
+  // cursor deltas. The live character is resolved from the bearer account;
+  // neither path accepts an owner-controlled resource id.
+  {
+    dispatcher: DISPATCH.mainApi,
+    method: 'GET',
+    path: '/api/territory/map',
+    handler: 'server/territory_routes.ts mapHandler (registry-only RouteDef)',
+    contentType: PROBLEM_JSON,
+    authScope: AUTH_SCOPE.bearer,
+    limiter: null,
+    requireOwnedExpected: null,
+  },
+  {
+    dispatcher: DISPATCH.mainApi,
+    method: 'GET',
+    path: '/api/territory/changes',
+    handler: 'server/territory_routes.ts changesHandler (registry-only RouteDef)',
+    contentType: PROBLEM_JSON,
+    authScope: AUTH_SCOPE.bearer,
+    limiter: null,
+    requireOwnedExpected: null,
+  },
   // OTA update check (server/ota_updates.ts): registry-only RouteDef, same
   // new-route rule as the deeds trio. The Capgo capacitor-updater plugin in
   // the native mobile shells POSTs its device/version check-in here; the

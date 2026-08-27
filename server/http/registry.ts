@@ -45,6 +45,7 @@ import { routes as reliquaryRoutes } from '../reliquary';
 import { routes as reportsRoutes } from '../reports';
 import { routes as seekerEntitlementRoutes } from '../seeker_entitlement';
 import { routes as steamRoutes } from '../steam';
+import { routes as territoryRoutes } from '../territory_routes';
 import { routes as userAssetsRoutes } from '../user_assets_routes';
 import { routes as walletRoutes } from '../wallet';
 import { routes as wocMarketRoutes } from '../woc_market_routes';
@@ -156,6 +157,7 @@ export const apiRoutes: readonly RouteDef[] = [
   ...adSpendRoutes,
   ...wocMarketRoutes,
   ...guildRosterRoutes,
+  ...territoryRoutes,
   // new:endpoint spreads appear above this line (npm run new:endpoint)
 ];
 

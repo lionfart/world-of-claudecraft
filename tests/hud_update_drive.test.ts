@@ -957,6 +957,13 @@ const HUD_UPDATE_DRIVES: readonly DriveRow[] = [
     why: 'the Thornhollow Fields in-match strip, the wave-respawn overlay and the spawn-protection line; the view core short-circuits an inactive match',
   },
   {
+    call: 'this.territoryMap.updateSiegeHud',
+    band: 'medium',
+    gate: '',
+    surface: 'chrome',
+    why: 'the live territory siege timer, gate/core progress and attacker tool controls; it returns after one elided visibility write when no siege is active',
+  },
+  {
     call: 'this.bgKillFeed.update',
     band: 'medium',
     gate: '',
@@ -1648,7 +1655,8 @@ describe('Hud.update() drives exactly the registered set, on the registered band
       // chrome 82 -> 83: the controller-tutorial merge's gamepad control
       // hint apply.
       // chrome 83 -> 84: the always-on dodge endurance charge meter.
-    ).toEqual({ window: 44, chrome: 84, none: 17 });
+      // chrome 84 -> 85: the seasonal territory siege HUD joins the medium band.
+    ).toEqual({ window: 44, chrome: 85, none: 17 });
     const windows = HUD_UPDATE_DRIVES.filter((r) => r.surface === 'window');
     expect(windows.map((r) => r.call)).toContain('this.spellbookWindow.tickOpen');
     expect(windows.map((r) => r.call)).toContain('this.refreshOpenTownFocusIfChanged');

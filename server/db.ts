@@ -81,6 +81,7 @@ import { chooseArchiveName } from './reclaim_name';
 import { SEEKER_ENTITLEMENT_SCHEMA } from './seeker_entitlement_db';
 import { SOCIAL_SCHEMA } from './social_db';
 import { SUSPICION_FLAGS_SCHEMA } from './suspicion_flags_db';
+import { TERRITORY_SCHEMA } from './territory_schema';
 import { UNSTUCK_SCHEMA } from './unstuck_db';
 import { USER_ASSETS_SCHEMA } from './user_assets_db';
 import { bustWocAuthGuardAccount, bustWocAuthGuardToken } from './woc_auth_guard_cache';
@@ -1292,6 +1293,9 @@ export async function ensureSchema(): Promise<void> {
     // deliberately keep-forever (see ad_spend_db.ts).
     await client.query(AD_SPEND_SCHEMA);
     await client.query(SOCIAL_SCHEMA);
+    // Seasonal guild territory references guilds and guild_members, so it runs
+    // immediately after the social schema under the same boot lock.
+    await client.query(TERRITORY_SCHEMA);
     await client.query(ADMIN_GUILDS_SCHEMA);
     await client.query(SEEKER_ENTITLEMENT_SCHEMA);
     await client.query(OAUTH_SCHEMA);

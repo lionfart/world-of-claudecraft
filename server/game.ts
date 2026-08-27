@@ -342,6 +342,8 @@ import { SocialService } from './social';
 import { PgSocialDb } from './social_db';
 import { reconcileOnLogin as reconcileSteamOnLogin } from './steam/mirror';
 import { attachDetectorFlagHost } from './suspicion_flags';
+import { TerritoryRepository } from './territory_db';
+import { territoryGame } from './territory_game_runtime';
 import { TickProfiler } from './tick_profiler';
 import { hrtimeToMs, TickRateMeter } from './tick_rate_meter';
 import { maybeTrackDay7Retained, trackLevelMilestoneCapi } from './ua_capi';
@@ -647,7 +649,6 @@ const MAIL_WIRE_PROMPT_CMDS = new Set<string>([
   'mail_delete',
   'mail_read',
 ]);
-
 type ClientMessage = Record<string, unknown> & {
   ability?: string;
   accept?: boolean;
@@ -1986,6 +1987,7 @@ export class GameServer {
       // the shared ChatFilter instance.
       (text) => this.chatFilter.findHardHit(text),
     );
+    territoryGame.initialize(this, new TerritoryRepository(pool));
     this.moderation = new ModerationService(this.moderationHost(), {
       recordAction: (input) => recordInGameAction(input),
       mute: (input) => muteAccountChat(input),
@@ -2697,6 +2699,7 @@ export class GameServer {
           // than at midnight UTC (5 PM Pacific, mid-evening), and `eventLeadDay`
           // is the weekend event's early-open probe of the same boundary.
           const calendarNowMs = Date.now();
+          territoryGame.tick(this, calendarNowMs);
           this.sim.utcDay = new Date(calendarNowMs).toISOString().slice(0, 10);
           this.sim.resetDay = resetDayKey(calendarNowMs, REALM_RESET_TIME_ZONE);
           this.sim.eventLeadDay = eventLeadDayKey(calendarNowMs, REALM_RESET_TIME_ZONE);
@@ -3942,6 +3945,7 @@ export class GameServer {
   ): ClientSession {
     session.ws = ws;
     session.linkdead = false;
+    territoryGame.reconnect(this, session);
     session.graceUntil = 0;
     session.awaitingPong = false;
     const sessionIp = meta.ip ?? '';
@@ -4072,6 +4076,7 @@ export class GameServer {
     if (session.jailVisit) this.exitJailVisit(session, false);
     this.cancelAndRecordUnstuck(session);
     session.linkdead = true;
+    territoryGame.disconnect(this, session);
     session.graceUntil = Date.now() + LINKDEAD_GRACE_MS;
     this.botDetector.setTrackingConnection(session.botTrackingContext, false);
     // Stop any held movement now; the sim keeps ticking this entity (it can
@@ -4153,6 +4158,7 @@ export class GameServer {
     if (session.jailVisit) this.exitJailVisit(session, false);
     this.cancelAndRecordUnstuck(session);
     session.left = true;
+    territoryGame.leave(this, session);
     this.clients.delete(session.pid);
     if (![...this.clients.values()].some((live) => live.accountId === session.accountId)) {
       this.generalChatQuota.forgetAccount(session.accountId);
@@ -6408,12 +6414,6 @@ export class GameServer {
     return false;
   }
 
-  /** Draw a cosmetic-set guard token (Reliquary border review): a title or
-   *  border change bumps idVer, so every allowed set broadcasts the FULL
-   *  identity record to every in-range viewer before the distance tier can
-   *  thin it. Sets above the far-above-human budget are dropped and tally
-   *  into the same abuse window as every other shed frame. Returns whether to
-   *  run the set. */
   private consumeCosmeticOp(session: ClientSession, nowSec: number): boolean {
     if (consumeCosmeticOpToken(session.cosmeticOpGuard, nowSec)) return true;
     gameMetricsCounters().wsMessageDropped('cosmetic');
@@ -6607,6 +6607,7 @@ export class GameServer {
     if (typeof msg.cmd === 'string' && MAIL_WIRE_PROMPT_CMDS.has(msg.cmd)) {
       session.lastMailWireTick = -MAIL_WIRE_INTERVAL_TICKS;
     }
+    if (territoryGame.dispatch(this, session, msg, command)) return;
     switch (command) {
       case 'castSlot':
         if (typeof msg.slot === 'number') sim.castAbilityBySlot(msg.slot | 0, pid);
@@ -8351,7 +8352,7 @@ export class GameServer {
         // cover every CommandName. At runtime an unrecognised wire token lands
         // in this branch (the cast above is the deliberate boundary) and is
         // reported as a protocol anomaly, unchanged from before.
-        const _exhaustive: never = command;
+        const _exhaustive: never = command as Exclude<typeof command, `territory_${string}`>;
         void _exhaustive;
         this.botDetector.observeProtocolAnomaly(
           session.botTrackingContext,

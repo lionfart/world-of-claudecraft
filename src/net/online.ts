@@ -161,6 +161,7 @@ import type {
   MasterworkView,
   SalvageResultView,
 } from '../world_api/professions';
+import type { IWorldTerritory } from '../world_api/territory';
 import { normalizeAccountCosmetics } from './account_cosmetics_wire';
 import { computeBackoffDelay } from './backoff';
 import {
@@ -182,6 +183,7 @@ import {
   stableCooldownRemaining,
   stableDeadlineRemaining,
 } from './snapshot_timer_wire';
+import { handleTerritoryMessage, installTerritoryClient } from './territory_client';
 
 // The online mirror decodes terse legacy wire JSON. Runtime guards below narrow
 // individual fields as they are consumed; this alias keeps the decoder local.
@@ -1522,9 +1524,8 @@ function blankEntity(id: number): Entity {
   };
 }
 
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: the territory facet is installed and parity-tested below.
 export class ClientWorld implements IWorld {
-  // --- IWorldEntityRoster: roster + player reads, mirrored from snapshots. The
-  // `player` getter lives below the ctor (it reads `entities`/`playerId`). `known`
   // is IWorldCombat-owned but rides here as a self-wire mirror field with the rest
   // of the roster data. ---
   cfg: { seed: number; playerClass: PlayerClass };
@@ -2568,6 +2569,7 @@ export class ClientWorld implements IWorld {
       }
       return;
     }
+    if (handleTerritoryMessage(this, msg)) return;
     if (msg.t === 'censor') {
       // live word-list update pushed after an admin edits the filter
       this.profanityWords = Array.isArray(msg.words)
@@ -4851,8 +4853,6 @@ export class ClientWorld implements IWorld {
   tradeClose(): void {
     this.cmd({ cmd: 'trade_close' });
   }
-  // --- IWorldDuelArena: duel + rated-arena-queue + 2v2 Fiesta augment-pick sends
-  // (duelInfo/arenaInfo are snapshot reads; fiesta dynamics ride the events queue). ---
   duelRequest(targetPid: number): void {
     this.cmd({ cmd: 'duel_req', id: targetPid });
   }
@@ -4871,8 +4871,6 @@ export class ClientWorld implements IWorld {
   arenaAugmentPick(augmentId: string): void {
     this.cmd({ cmd: 'arena_augment', augment: augmentId });
   }
-  // --- IWorldBattleground: Thornhollow Fields queue + flag-action sends (bgInfo is a
-  // snapshot read, decoded in applySnapshot). ---
   bgQueueJoin(): void {
     this.cmd({ cmd: 'bg_queue' });
   }
@@ -4886,8 +4884,6 @@ export class ClientWorld implements IWorld {
   bgFlagAction(): void {
     this.cmd({ cmd: 'bg_flag' });
   }
-  // --- IWorldDungeonFinder: group-finder sends (dungeonFinderInfo and
-  // dungeonFinderBoard are snapshot reads, decoded in applySnapshot). ---
   dungeonFinderSetRoles(roles: import('../sim/content/talents').Role[]): void {
     this.cmd({ cmd: 'df_roles', roles });
   }
@@ -5883,3 +5879,6 @@ export class ClientWorld implements IWorld {
     this.leaveDungeon();
   }
 }
+
+export interface ClientWorld extends IWorldTerritory {}
+installTerritoryClient(ClientWorld.prototype);

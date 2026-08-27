@@ -352,6 +352,25 @@
     --color-map-region-hover-fill: rgba(255, 233, 160, 0.36);
     --color-map-region-current-fill: rgba(255, 209, 0, 0.18);
     --color-map-region-current-label: #ffd100;
+    /* Seasonal territory map: original parchment/ink palette, independent of
+       the reference screenshot artwork. Guild colors arrive as state data. */
+    --color-territory-parchment: #9d7b43;
+    --color-territory-parchment-shade: rgba(32, 19, 9, 0.58);
+    --color-territory-grid: rgba(72, 49, 24, 0.72);
+    --color-territory-border: #e8c66e;
+    --color-territory-hover: #fff0a8;
+    --color-territory-selected: #ffffff;
+    --color-territory-war: #ff4b3e;
+    --color-territory-keep: #d6c29b;
+    --color-territory-grassland: #8e8c4b;
+    --color-territory-forest: #47623b;
+    --color-territory-highland: #7a725f;
+    --color-territory-marsh: #4f7169;
+    --color-territory-wastes: #92724a;
+    --color-territory-resource-wood: #5d3b20;
+    --color-territory-resource-iron: #aab2ba;
+    --color-territory-resource-grain: #d8b34c;
+    --color-territory-resource-labor: #d4793c;
 
     /* overworld minimap markers (resolved by minimap_painter.ts via getComputedStyle:
        a 2D canvas context cannot read a CSS var directly). Exact pre-existing values

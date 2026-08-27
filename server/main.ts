@@ -269,6 +269,7 @@ import { teeMetricSink } from './http/middleware/metric_sink';
 import { withSecurityHeaders } from './http/middleware/security_headers';
 import { apiRegistry } from './http/registry';
 import { applyServerTimeouts, MAX_HEADER_SIZE_BYTES } from './http/server_timeouts';
+import { registerTerritoryMetrics } from './http/territory_metrics';
 import {
   contentLengthExceeds,
   isUniqueViolation,
@@ -374,6 +375,15 @@ import { readStaticSfxSnapshot, type StaticSfxSnapshot } from './static_sfx';
 import { stopSteamMirror } from './steam/mirror';
 import { configureSuspicionFlagDataset, suspicionFlagsIdle } from './suspicion_flags';
 import { listSuspicionFlagDataset } from './suspicion_flags_db';
+import { TERRITORY_CONFIG } from './territory_config';
+import {
+  pruneTerritoryChangesBatch,
+  pruneTerritoryClosedLiveBatch,
+  pruneTerritoryHistoryBatch,
+  pruneTerritoryParticipantsBatch,
+} from './territory_db';
+import { territoryGame } from './territory_game_runtime';
+import { configureTerritoryRoutesRuntime } from './territory_routes';
 import { passesTurnstile } from './turnstile';
 import { pruneUnstuckReportsBatch } from './unstuck_db';
 import { stopUnstuckRecords, UNSTUCK_RECORD_SHUTDOWN_DRAIN_MS } from './unstuck_records';
@@ -2838,6 +2848,12 @@ configureBattlegroundRuntime({
   getBgLeaderboard,
 });
 
+configureTerritoryRoutesRuntime({
+  snapshotForAccount: (accountId) => territoryGame.snapshotForAccount(liveGame(), accountId),
+  changesForAccount: (accountId, after) =>
+    territoryGame.changesForAccount(liveGame(), accountId, after),
+});
+
 // Inject the main.ts runtime the deeds handlers (server/deeds.ts) need but
 // cannot import without a cycle: the cache-fronted global rarity read. Done at
 // module load, before any request, mirroring configureLeaderboardRuntime above.
@@ -3609,6 +3625,9 @@ export async function startServer(): Promise<http.Server> {
     guildBankLogCache: () => guildBankLogCacheStats(),
   };
   setGameMetricsCounters(registerGameStateMetrics(httpMetrics.registry, gameStateSource));
+  registerTerritoryMetrics(httpMetrics.registry, () =>
+    territoryGame.service(game).activeSiegeCount(),
+  );
   registerParseMetrics(httpMetrics.registry, game.parseCapture.counters);
   // Hand the same live source to /livez, so a wedged loop answers 503 from outside
   // the process. Registered HERE rather than read from the route arm: the /livez arm
@@ -3815,6 +3834,26 @@ export async function startServer(): Promise<http.Server> {
         // constant is the window; deliberately no env knob).
         name: 'woc_market_stepup_challenges',
         pruneBatch: (n) => pruneExpiredWocStepUpChallengesBatch(pool, n),
+      },
+      {
+        name: 'territory_changes',
+        pruneBatch: (n) =>
+          pruneTerritoryChangesBatch(pool, TERRITORY_CONFIG.changeRetentionDays, n),
+      },
+      {
+        name: 'territory_closed_live_state',
+        pruneBatch: (n) =>
+          pruneTerritoryClosedLiveBatch(pool, TERRITORY_CONFIG.closedLiveRetentionDays, n),
+      },
+      {
+        name: 'territory_war_participants',
+        pruneBatch: (n) =>
+          pruneTerritoryParticipantsBatch(pool, TERRITORY_CONFIG.participantRetentionDays, n),
+      },
+      {
+        name: 'territory_war_and_audit_history',
+        pruneBatch: (n) =>
+          pruneTerritoryHistoryBatch(pool, TERRITORY_CONFIG.historyRetentionDays, n),
       },
       {
         // Closed, fully-disposed $WOC Exchange listings (bids + settlements

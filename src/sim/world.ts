@@ -25,6 +25,7 @@ import {
   instanceOrigin,
   instanceSlotForZ,
   isBgPos,
+  isTerritorySiegePos,
   STRIP_MAX_X,
   STRIP_MIN_X,
   STRIP_ZONES,
@@ -48,7 +49,7 @@ import {
   emberNearestOnLink,
 } from './ember_lava_layout';
 import { GALE_DECK_FREEBOARD, galeDeckSurface } from './gale_harbor';
-import { reachDeckClear, reachDeckSurface } from './reach_decks';
+import { reachDeckClear } from './reach_decks';
 import { fbm2, hash2, noise2 } from './rng';
 import {
   CALM_SKIRT_MAX_WIDTH,
@@ -3964,9 +3965,8 @@ function applyReachPoolWalkwayBed(x: number, z: number, h: number): number {
 }
 
 // Ground height including instanced dungeon floors (flat, far off-world, plus
-// the raised boss dais where the room stacks one), the walkable Vale Cup
-// grandstand lift, raised docks, and custom-map sculpt edits.
 export function groundHeight(x: number, z: number, seed: number): number {
+  if (isTerritorySiegePos(x)) return DUNGEON_FLOOR_Y;
   if (isBgPos(x)) {
     // The battleground band is the one instanced region with REAL terrain:
     // the Thornhollow field's sculpted heightfield, identical for sim,

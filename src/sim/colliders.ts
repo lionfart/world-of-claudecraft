@@ -44,6 +44,7 @@ import {
   isArenaPos,
   isBgPos,
   isDelvePos,
+  isOpenFieldBandPos,
   isRiftPos,
   isYumiMazePos,
   PORTALS,
@@ -54,6 +55,7 @@ import {
   STRIP_MIN_X,
   yumiMazeOriginAt,
 } from './data';
+import { territorySiegeBandColliders } from './territory_siege_layout';
 
 // Re-exported from the extracted cell-index module so existing importers keep
 // their './colliders' path.
@@ -1381,6 +1383,7 @@ function bandSlotColliders(): Collider[] {
       out.push({ ...c, x: c.x + o.x, z: c.z + o.z });
     }
   }
+  out.push(...territorySiegeBandColliders());
   return out;
 }
 
@@ -2021,7 +2024,7 @@ export function resolvePosition(
     const local = resolveAgainst(list, lx, lz, r, ignoreFences);
     return { x: local.x + region.ox, z: local.z + region.oz };
   }
-  if (x > DUNGEON_X_THRESHOLD && !isBgPos(x)) {
+  if (x > DUNGEON_X_THRESHOLD && !isOpenFieldBandPos(x)) {
     const { ox, oz, interior, dungeonId } = instanceLocal(x, z);
     const colliders = interiorCollidersFor(dungeonId, interior);
     // `mover` rides through so a jumping body passes over (and lands on) the
@@ -2043,19 +2046,16 @@ export function resolvePosition(
  * rim seats on top. Open-world grid only: instanced interiors have no props.
  * Returns -Infinity when nothing supports.
  */
-/**
- * Is (x) inside an instanced region (dungeon interior, delve, arena, Yumi
- * maze) rather than the open world? Those regions are flat-floored rooms of
- * full-height walls resolved in region-local coordinates, so the open-world
- * physics broadphase does not apply to them.
- */
 export function isInstancedRegion(x: number): boolean {
   // The battleground band is EXCLUDED although it sits past the dungeon
   // threshold: the Thornhollow field has sculpted terrain and standable decks,
   // so its movement runs the open-world character physics solver over the
   // grid, not the flat instanced kernel.
   return (
-    isYumiMazePos(x) || isDelvePos(x) || isArenaPos(x) || (x > DUNGEON_X_THRESHOLD && !isBgPos(x))
+    isYumiMazePos(x) ||
+    isDelvePos(x) ||
+    isArenaPos(x) ||
+    (x > DUNGEON_X_THRESHOLD && !isOpenFieldBandPos(x))
   );
 }
 
@@ -2134,7 +2134,7 @@ export function supportHeightAt(
   // threshold, so the specific bands must be ruled out FIRST (the same
   // routing resolvePosition uses).
   if (isYumiMazePos(x) || isDelvePos(x) || isArenaPos(x)) return -Infinity;
-  if (x > DUNGEON_X_THRESHOLD && !isBgPos(x)) {
+  if (x > DUNGEON_X_THRESHOLD && !isOpenFieldBandPos(x)) {
     // Dungeon interiors: the furniture tops (coffin lids, cargo stacks) are
     // standable surfaces exactly like the open world's crates and canopies.
     // (The battleground band falls through to the grid read below: its
@@ -2199,7 +2199,7 @@ export function slopeGlueHeight(
   let ox = 0;
   let oz = 0;
   if (isYumiMazePos(x) || isDelvePos(x) || isArenaPos(x)) return -Infinity;
-  if (x > DUNGEON_X_THRESHOLD && !isBgPos(x)) {
+  if (x > DUNGEON_X_THRESHOLD && !isOpenFieldBandPos(x)) {
     const inst = instanceLocal(x, z);
     list = interiorCollidersFor(inst.dungeonId, inst.interior);
     ox = inst.ox;
@@ -2258,7 +2258,7 @@ export function interiorColliderFrame(
   z: number,
 ): { list: Collider[]; ox: number; oz: number } | null {
   if (x <= DUNGEON_X_THRESHOLD) return null;
-  if (isYumiMazePos(x) || isDelvePos(x) || isArenaPos(x) || isBgPos(x)) return null;
+  if (isYumiMazePos(x) || isDelvePos(x) || isArenaPos(x) || isOpenFieldBandPos(x)) return null;
   const { ox, oz, interior, dungeonId } = instanceLocal(x, z);
   return { list: interiorCollidersFor(dungeonId, interior), ox, oz };
 }
@@ -2504,11 +2504,11 @@ function sightBlockedAt(
     }
     return false;
   };
-  if (isBgPos(x)) {
+  if (isOpenFieldBandPos(x)) {
     // The field's terrain is honest cover: the ravine slopes, the keep mounds
     // and the pit rim block casts wherever the ground itself crosses the eye
     // line (the band arm of groundHeight serves the sculpted heightfield).
-    if (groundHeight(x, z, seed) > sightY) return true;
+    if (isBgPos(x) && groundHeight(x, z, seed) > sightY) return true;
     // Colliders live in the grid at absolute coordinates with known tops, so
     // the low-obstacle skip applies exactly like the open world's.
     //

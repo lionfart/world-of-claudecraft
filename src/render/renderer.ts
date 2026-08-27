@@ -29,6 +29,7 @@ import {
   isBgPos,
   isDelvePos,
   isRiftPos,
+  isTerritorySiegePos,
   isYumiMazePos,
   MOBS,
   NPCS,
@@ -556,7 +557,6 @@ import { type PriestMarkersVisual, syncPriestMarkersVisual } from './priest_mark
 import { pieceProgramSettle } from './program_variant_settle';
 import { handleProjectileEventVfx } from './projectile_event_vfx';
 import { buildPropMaterialPrewarmGroup, buildProps, propResidencySources } from './props';
-
 import { makeQuestObjectGate, type QuestObjectGateOptions } from './quest_object_gate_core';
 import { buildGroundQuestObject } from './quest_objects';
 import { RaceLine } from './race_line';
@@ -657,6 +657,7 @@ import {
   type TemporalHourglassVisual,
 } from './temporal_hourglass_visual';
 import { buildTerrain, hasTerrainSplatAssets, type TerrainView } from './terrain';
+import { TerritorySiegeBand } from './territory_siege_band';
 import { runTexturePrepLane } from './texture_prep_lane';
 import { sweepMaterialTextures, sweepObjectTextures } from './texture_prewarm';
 import { uploadDataTextureInChunks } from './texture_upload';
@@ -9067,10 +9068,8 @@ export class Renderer {
   // Protect Yumi maze interiors, one per match slot, built lazily like the
   // arena copies; their update() anchors the team beacons each frame.
   private yumiMazeViews = new Map<number, YumiMazeView>();
-  // Thornhollow Fields battleground fields, one per match slot, built lazily like the
-  // yumi maze copies; the geometry is static, and the only per-frame work is the
-  // occluder fade the placements own (battleground_placements.ts).
   private bgViews = new Map<number, BattlegroundView>();
+  private territorySiegeBand: TerritorySiegeBand | null = null;
   // Reused ward-state carrier: setWardState only READS these fields, so the
   // per-frame push refills this object rather than minting a literal.
   private bgWardState = { countdown: false, ghost: false, myTeam: null as number | null };
@@ -9414,12 +9413,16 @@ export class Renderer {
   private updateAmbience(px: number, camY: number, dt: number): void {
     const inside = px > DUNGEON_X_THRESHOLD;
     const pz = this.sim.player.pos.z;
-    // The entry-curtain settle is one-shot and belongs to THIS update only:
-    // consumed by the outdoor arm below when the entry really is outdoors,
-    // discarded otherwise (an interior login must keep its normal eased
-    // transition when the player later walks outside).
     const settleVistaEntry = this.vistaEntrySettlePending;
     this.vistaEntrySettlePending = false;
+    const inTerritorySiege = inside && isTerritorySiegePos(px);
+    if (inTerritorySiege) {
+      this.territorySiegeBand ??= new TerritorySiegeBand(
+        this.scene,
+        () => this.sim.territoryMap?.siege ?? null,
+      );
+      this.territorySiegeBand.sync(px, pz, this.time);
+    }
     const biome = zoneBiomeAt(this.sim.player.pos.x, pz);
     // Per-biome god-ray strength, eased over about half a second so a border
     // crossing fades the shafts with the rest of the ambience.
@@ -9531,6 +9534,7 @@ export class Renderer {
           this.bgViews.set(i, view);
         }
       }
+    } else if (inTerritorySiege) {
     } else if (inside && isArenaPos(px)) {
       void ensureDungeonAssets().catch(() => undefined);
       // build the Ashen Coliseum copy the player was matched into
@@ -9589,7 +9593,6 @@ export class Renderer {
       }
     } else if (inside) {
       void ensureDungeonAssets().catch(() => undefined);
-      // build the interior copy the player is standing in
       for (const dungeon of DUNGEON_LIST) {
         for (let i = 0; i < INSTANCE_SLOT_COUNT; i++) {
           const key = `${dungeon.id}:${i}`;
@@ -9602,20 +9605,16 @@ export class Renderer {
         }
       }
     }
-    // the Drowned Temple reads as submerged: a teal murk instead of the
-    // crypt's near-black, so its flooded halls feel underwater, not just dark
     const inDelve = inside && isDelvePos(px);
     const inYumiMaze = inside && isYumiMazePos(px);
     const inBattleground = inside && isBgPos(px);
     const interior =
-      inside && !inDelve && !inYumiMaze && !inBattleground && !isArenaPos(px)
+      inside && !inDelve && !inYumiMaze && !inBattleground && !inTerritorySiege && !isArenaPos(px)
         ? dungeonAt(px)?.interior
         : null;
     encounterPrewarm.setEncounterPrewarmInterior(this, interior ?? null);
     const inTemple = interior === 'temple';
     const inNythraxis = interior === 'nythraxis';
-    // Wildheart is an OPEN-AIR jungle caldera, not a closed room: it keeps the
-    // sky dome and the daylight rig and only swaps in its own field haze.
     const inWildheartField = interior === 'wildheart';
     const inLastKeep = interior === 'lastkeep';
     const inDawnhold = interior === 'dawnhold';
@@ -9625,27 +9624,29 @@ export class Renderer {
         ? 'yumiMaze'
         : inBattleground
           ? 'battleground'
-          : inTemple
-            ? 'temple'
-            : inNythraxis
-              ? 'nythraxis'
-              : inWildheartField
-                ? 'wildheartField'
-                : inLastKeep
-                  ? 'lastkeep'
-                  : inDawnhold
-                    ? 'dawnhold'
-                    : inside
-                      ? 'dungeon'
-                      : camY <
-                          waterLevelAt(
-                            this.camera.position.x,
-                            this.camera.position.z,
-                            this.sim.cfg.seed,
-                          ) -
-                            0.05
-                        ? 'underwater'
-                        : 'outdoor';
+          : inTerritorySiege
+            ? 'battleground'
+            : inTemple
+              ? 'temple'
+              : inNythraxis
+                ? 'nythraxis'
+                : inWildheartField
+                  ? 'wildheartField'
+                  : inLastKeep
+                    ? 'lastkeep'
+                    : inDawnhold
+                      ? 'dawnhold'
+                      : inside
+                        ? 'dungeon'
+                        : camY <
+                            waterLevelAt(
+                              this.camera.position.x,
+                              this.camera.position.z,
+                              this.sim.cfg.seed,
+                            ) -
+                              0.05
+                          ? 'underwater'
+                          : 'outdoor';
     const fog = this.scene.fog as THREE.Fog;
     // Procedural rift: dynamic fog from the generated floor style, re-applied when
     // the floor changes (descent keeps fogState='rift' but swaps the palette).

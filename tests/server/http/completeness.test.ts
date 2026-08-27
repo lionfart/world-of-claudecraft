@@ -117,6 +117,8 @@ const REGISTRY_ONLY_PATHS = new Set<string>([
   '/api/steam/link',
   '/api/steam/status',
   '/api/battleground/leaderboard',
+  '/api/territory/map',
+  '/api/territory/changes',
   '/api/epic/link',
   '/api/epic/status',
   '/api/ota/updates',
@@ -354,6 +356,8 @@ describe('registry completeness: migrated baseline (public reads + auth + charac
     // The Thornhollow Fields ladder (server/battleground.ts): registry-only like the
     // deeds family, per the same new-route rule.
     { method: 'GET', path: '/api/battleground/leaderboard' },
+    { method: 'GET', path: '/api/territory/map' },
+    { method: 'GET', path: '/api/territory/changes' },
     // The Steam link trio (server/steam/routes.ts): registry-only like the
     // deeds pair, env-gated dark until STEAM_ENABLED=1.
     { method: 'POST', path: '/api/steam/link' },

@@ -576,8 +576,8 @@ describe('map_window_painter: cadence + cached background preserved', () => {
 
   it('wires landmark and gather hit targets: stores, clears, memos, and tooltip priority', () => {
     // The overworld paint stores this paint's hit-test markers; the delve,
-    // non-zone, and walk-in castle branches clear them so no stale zone icon
-    // answers a tap.
+    // non-zone, territory, and walk-in castle branches clear them so no stale
+    // zone icon answers a tap.
     expect(hud).toContain('this.mapMarkerInteraction.setOverworld(result);');
     expect(markerInteraction).toContain('this.gatherNodes = EMPTY_MARKERS;');
     expect(markerInteraction).toContain('this.stations = EMPTY_MARKERS;');
@@ -588,7 +588,7 @@ describe('map_window_painter: cadence + cached background preserved', () => {
     // overworld store, bounding its staleness at the same
     // mediumHud repaint that refreshes the painted icon.
     expect(markerInteraction.match(/this\.clearMemo\(\);/g)).toHaveLength(2);
-    expect(hud.match(/this\.mapView = null;/g)).toHaveLength(1);
+    expect(hud.match(/this\.mapView = null;/g)).toHaveLength(2);
     expect(hud).toContain('this.continentRegions.length = 0;');
     // Point markers resolve globally by distance. Exact-distance ties follow
     // visual top order in the pure resolver; quest areas remain the fallback.

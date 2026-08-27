@@ -93,6 +93,7 @@ import type { IWorldSocialGraph } from './world_api/social_graph';
 import type { IWorldTalents } from './world_api/talents';
 import type { IWorldTargeting } from './world_api/targeting';
 import type { IWorldTelemetry } from './world_api/telemetry';
+import type { IWorldTerritory } from './world_api/territory';
 import type { IWorldTrade } from './world_api/trade';
 
 // --- pass-through sim re-exports: downstream imports these FROM world_api ---
@@ -273,6 +274,21 @@ export type {
   PresenceStatus,
   SocialInfo,
 } from './world_api/social_graph';
+export type {
+  TerritoryGuildRank,
+  TerritoryGuildView,
+  TerritoryMapState,
+  TerritoryOwnedCellView,
+  TerritorySeasonView,
+  TerritorySiegeAction,
+  TerritorySiegeView,
+  TerritoryStructureKind,
+  TerritoryStructureSlot,
+  TerritoryStructureView,
+  TerritoryWarSide,
+  TerritoryWarStatus,
+  TerritoryWarView,
+} from './world_api/territory';
 export type { TradeInfo, TradeOffer } from './world_api/trade';
 
 // The aggregate seam. Empty body: every member lives on exactly one facet above,
@@ -310,7 +326,8 @@ export interface IWorld
     IWorldActionBar,
     IWorldDeeds,
     IWorldReliquary,
-    IWorldMounts {}
+    IWorldMounts,
+    IWorldTerritory {}
 
 // ---------------------------------------------------------------------------
 // Command schema (W0b): the shared wire-token vocabulary.
@@ -621,6 +638,17 @@ export const COMMAND_NAMES = [
   'tutorial_start',
   // Player dodge intent. Appended because wire tokens are never reordered.
   'dodge',
+  // Seasonal guild territory map and 20v20 keep siege. Append-only wire tokens.
+  'territory_watch',
+  'territory_place_keep',
+  'territory_claim',
+  'territory_build',
+  'territory_upgrade',
+  'territory_repair',
+  'territory_declare_war',
+  'territory_join_war',
+  'territory_leave_war',
+  'territory_siege_action',
 ] as const;
 
 // The union both the send path (`online.ts`) and the dispatch switch
@@ -702,7 +730,8 @@ export type WorldFacet =
   | 'IWorldActionBar'
   | 'IWorldDeeds'
   | 'IWorldReliquary'
-  | 'IWorldMounts';
+  | 'IWorldMounts'
+  | 'IWorldTerritory';
 
 export const COMMAND_FACETS = {
   // IWorldCombat: ability casts, auto-attack, spirit release.
@@ -939,4 +968,15 @@ export const COMMAND_FACETS = {
   // IWorldActionBar: the debounced action-bar layout upload. takeActionBarLayoutRestore
   // is a login-time read (no send, untagged).
   save_hotbar_layout: 'IWorldActionBar',
+  // IWorldTerritory: watch lifecycle, guild expansion/building and live siege actions.
+  territory_watch: 'IWorldTerritory',
+  territory_place_keep: 'IWorldTerritory',
+  territory_claim: 'IWorldTerritory',
+  territory_build: 'IWorldTerritory',
+  territory_upgrade: 'IWorldTerritory',
+  territory_repair: 'IWorldTerritory',
+  territory_declare_war: 'IWorldTerritory',
+  territory_join_war: 'IWorldTerritory',
+  territory_leave_war: 'IWorldTerritory',
+  territory_siege_action: 'IWorldTerritory',
 } as const satisfies Partial<Record<ClientCommand, WorldFacet>>;

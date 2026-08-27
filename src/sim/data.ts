@@ -1371,6 +1371,47 @@ export function bgOriginAt(z: number): { x: number; z: number; slot: number } {
   return { x: o.x, z: o.z, slot: best };
 }
 
+// ---------------------------------------------------------------------------
+// Seasonal territory sieges. Four compact 20v20 fields live in their own
+// bounded far-east band; the four slots mirror TERRITORY_REALM_WAR_SLOTS.
+// ---------------------------------------------------------------------------
+export const TERRITORY_SIEGE_BAND_X_MIN = INSTANCE_X_BASE + 35_000;
+export const TERRITORY_SIEGE_BAND_X_MAX = INSTANCE_X_BASE + 39_000;
+export const TERRITORY_SIEGE_X = INSTANCE_X_BASE + 35_400;
+export const TERRITORY_SIEGE_SLOT_COUNT = 4;
+const TERRITORY_SIEGE_Z0 = -1_650;
+const TERRITORY_SIEGE_SLOT_SPACING = 700;
+
+export function territorySiegeOrigin(slot: number): { x: number; z: number } {
+  return {
+    x: TERRITORY_SIEGE_X,
+    z:
+      TERRITORY_SIEGE_Z0 +
+      Math.max(0, Math.min(TERRITORY_SIEGE_SLOT_COUNT - 1, slot)) * TERRITORY_SIEGE_SLOT_SPACING,
+  };
+}
+
+export function isTerritorySiegePos(x: number): boolean {
+  return x >= TERRITORY_SIEGE_BAND_X_MIN && x < TERRITORY_SIEGE_BAND_X_MAX;
+}
+
+export function isOpenFieldBandPos(x: number): boolean {
+  return isBgPos(x) || isTerritorySiegePos(x);
+}
+
+export function territorySiegeOriginAt(z: number): { x: number; z: number; slot: number } {
+  let slot = 0;
+  let distance = Number.POSITIVE_INFINITY;
+  for (let candidate = 0; candidate < TERRITORY_SIEGE_SLOT_COUNT; candidate += 1) {
+    const origin = territorySiegeOrigin(candidate);
+    const next = Math.abs(z - origin.z);
+    if (next >= distance) continue;
+    slot = candidate;
+    distance = next;
+  }
+  return { ...territorySiegeOrigin(slot), slot };
+}
+
 export const DELVES: Record<string, DelveDef> = {
   [COLLAPSED_RELIQUARY_DELVE.id]: COLLAPSED_RELIQUARY_DELVE,
   [DROWNED_LITANY_DELVE.id]: DROWNED_LITANY_DELVE,

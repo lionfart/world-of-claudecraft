@@ -734,6 +734,7 @@ import { TargetAurasWindow } from './target_auras_window';
 import { targetOfTargetId } from './target_of_target';
 import { targetPortraitSourceId, targetPortraitUrl } from './target_portrait_view';
 import { targetRankView, targetUsesEliteFrame } from './target_rank_view';
+import { TerritoryMapController } from './territory_map_controller';
 import type { PresetId, ThemeKnob, ThemeState } from './theme';
 import { toolEffectNameKey } from './tool_effect_name';
 import { toolEffectTooltipLines } from './tool_effect_tooltip';
@@ -1911,7 +1912,7 @@ export class Hud {
   } | null = null;
   private readonly mapMarkerTooltipContent: MapMarkerTooltipContent;
   private readonly mapMarkerInteraction: MapMarkerInteractionController;
-  private mapLevel: 'zone' | 'continent' = 'zone';
+  private mapLevel: 'zone' | 'continent' | 'territory' = 'zone';
   // The zone id under the cursor on the continent overview (drives the highlight
   // + hover tooltip), and the last paint's clickable zone regions for hit-testing.
   private mapHoverZone: string | null = null;
@@ -2009,6 +2010,13 @@ export class Hud {
     private readonly features: HudFeatures = { dailyRewardsEnabled: true },
   ) {
     hydrateCrestImageFallbacks(document);
+    this.territoryMap = new TerritoryMapController(
+      this.sim,
+      $('#map-canvas') as HTMLCanvasElement,
+      this.writerFacet,
+      () => this.updateMapWindow(),
+      () => this.setMapLevel('continent'),
+    );
     this.mapMarkerTooltipContent = new MapMarkerTooltipContent(this.sim);
     this.mapMarkerInteraction = new MapMarkerInteractionController({
       names: {
@@ -2734,13 +2742,11 @@ export class Hud {
       }
       this.toggleReliquaryTrackerCollapsed();
     });
-    // Chrome focus hygiene (the shared Enter/Space key guard + pointer-only focus
-    // drop) over the trackers, the non-modal overlay panels, and the micromenu rail:
-    // src/ui/chrome_focus_wiring.ts owns the root list and the rationale.
     wireChromeFocus($);
     $('#mm-map').addEventListener('click', () => this.toggleMap());
     $('#map-close').addEventListener('click', () => {
       $('#map-window').style.display = 'none';
+      this.territoryMap.close();
       this.hideTooltip(); // a touch marker tip can outlive the window otherwise
       this.syncAnyWindowOpenState();
     });
@@ -2749,7 +2755,11 @@ export class Hud {
       'wheel',
       (ev) => {
         ev.preventDefault();
-        if (this.mapLevel !== 'zone') return; // no per-zone zoom on the overview
+        if (this.mapLevel === 'continent') return;
+        if (this.mapLevel === 'territory') {
+          this.territoryMap.zoomBy((ev as WheelEvent).deltaY < 0 ? 1.2 : 1 / 1.2);
+          return;
+        }
         this.zoomMap((ev as WheelEvent).deltaY < 0 ? 1.2 : 1 / 1.2);
       },
       { passive: false },
@@ -2763,25 +2773,25 @@ export class Hud {
       },
       onZoom: (factor) => this.zoomMap(factor),
     });
-    // drag to pan (only meaningful while zoomed in; at zoom 1 the whole zone fits)
     mapCanvas.addEventListener('pointerdown', (ev) => {
+      if (this.mapLevel === 'territory') {
+        this.territoryMap.pointerDown(ev, mapPinch.isPinching());
+        return;
+      }
       if (mapPinch.isPinching() || !this.mapView || this.mapZoom <= 1) return;
-      const base = this.mapCenter ?? {
-        x: this.sim.player.pos.x,
-        z: this.sim.player.pos.z,
-      };
+      const base = this.mapCenter ?? { x: this.sim.player.pos.x, z: this.sim.player.pos.z };
       this.mapCenter = { ...base };
       this.mapDrag = { px: ev.clientX, py: ev.clientY, cx: base.x, cz: base.z };
       mapCanvas.setPointerCapture(ev.pointerId);
       mapCanvas.style.cursor = 'grabbing';
     });
     mapCanvas.addEventListener('pointermove', (ev) => {
+      if (this.mapLevel === 'territory') {
+        this.territoryMap.pointerMove(ev, mapPinch.isPinching());
+        return;
+      }
       if (mapPinch.isPinching() || !this.mapDrag || !this.mapView) return;
       const rect = mapCanvas.getBoundingClientRect();
-      // "grab the paper" pan: the world point under the cursor stays under it.
-      // toMap draws +X to the left and +Z up (mx = (maxX-x)/span, my = (maxZ-z)/
-      // span), so a cursor delta of (dx, dy) px shifts the centre by (+dx, +dy)
-      // world units on each axis.
       const wppx = this.mapView.spanX / rect.width;
       const wppy = this.mapView.spanZ / rect.height;
       this.mapCenter = {
@@ -2791,19 +2801,12 @@ export class Hud {
       this.updateMapWindow();
     });
     const endDrag = () => {
+      this.territoryMap.endDrag();
       this.mapDrag = null;
       mapCanvas.style.cursor = '';
     };
     mapCanvas.addEventListener('pointerup', endDrag);
     mapCanvas.addEventListener('pointercancel', endDrag);
-    // The map reveals a marker's quest text as a tooltip: on desktop it follows
-    // the mouse (hover); on touch there is no hover, so a TAP on a marker shows it
-    // (a press that moves beyond the tolerance is a pan, not a tap). Point
-    // markers resolve globally by distance; exact ties follow visual top order:
-    // quest glyph, navigation, station, civic service, gather node. Quest-objective areas
-    // remain the final fallback. An arm that resolves no html falls through to
-    // the next candidate. Touch expands the radius to a 40 CSS-pixel diameter,
-    // converted to the backing space the model projects into.
     let mapAreaTipShown = false;
     let mapTapStart: { x: number; y: number } | null = null;
     const hideMapAreaTip = (): void => {
@@ -2811,9 +2814,6 @@ export class Hud {
       mapAreaTipShown = false;
       this.hideTooltip();
     };
-    // Paint the shared #tooltip for the marker under a client-space point and
-    // report whether one was shown (the attachTooltip idiom: map into author
-    // space, then clamp the tooltip box against the viewport).
     const showMapTipAt = (clientX: number, clientY: number, touchTarget = false): boolean => {
       if (!this.showMapTipAt(mapCanvas, clientX, clientY, touchTarget)) return false;
       mapAreaTipShown = true;
@@ -2827,14 +2827,9 @@ export class Hud {
       }
       if (!showMapTipAt(ev.clientX, ev.clientY)) hideMapAreaTip();
     });
-    // Mouse only: a touch pointer fires pointerleave the instant the finger lifts
-    // (and again when a zoomed-in drag releases its pointer capture), which would
-    // wipe the tip the tap just opened. Touch dismisses via the next pointerdown.
     mapCanvas.addEventListener('pointerleave', (ev) => {
       if (ev.pointerType === 'mouse') hideMapAreaTip();
     });
-    // A new press clears any open tip; for touch, remember where it started so the
-    // release can tell a stationary marker tap from a pan.
     mapCanvas.addEventListener('pointerdown', (ev) => {
       hideMapAreaTip();
       mapTapStart =
@@ -2842,9 +2837,6 @@ export class Hud {
           ? null
           : { x: ev.clientX, y: ev.clientY };
     });
-    // A stationary touch release reveals the marker under the finger. iOS can raise
-    // pointercancel (not pointerup) for a tap it briefly mistook for a gesture, so
-    // both end the tap; a release that moved past the tolerance was a pan.
     const endMapTap = (ev: PointerEvent): void => {
       finishMapTap(
         mapPinch,
@@ -2856,11 +2848,6 @@ export class Hud {
     mapCanvas.addEventListener('pointerup', endMapTap);
     mapCanvas.addEventListener('pointercancel', endMapTap);
 
-    // Continent overview interactions. These are separate from the per-zone
-    // pan/zoom/tooltip handlers above, which early-return at the continent level.
-    // Right-click (or the level-toggle button) zooms out to the overview; a mouse
-    // hover highlights the zone under the cursor and shows its name + level band;
-    // a left-click / tap on a region opens that zone's detail map.
     const canvasPoint = (clientX: number, clientY: number): { cx: number; cy: number } => {
       const rect = mapCanvas.getBoundingClientRect();
       return {
@@ -2879,8 +2866,12 @@ export class Hud {
       this.toggleMapLevel();
     });
     mapCanvas.addEventListener('click', (ev) => {
-      if (this.mapLevel !== 'continent') return;
       const { cx, cy } = canvasPoint(ev.clientX, ev.clientY);
+      if (this.mapLevel === 'territory') {
+        this.territoryMap.click(cx, cy);
+        return;
+      }
+      if (this.mapLevel !== 'continent') return;
       const zoneId = continentZoneAt(this.continentRegions, cx, cy);
       if (zoneId) {
         hideContinentTip();
@@ -2888,8 +2879,12 @@ export class Hud {
       }
     });
     mapCanvas.addEventListener('pointermove', (ev) => {
-      if (this.mapLevel !== 'continent' || ev.pointerType !== 'mouse') return;
+      if (ev.pointerType !== 'mouse') return;
       const { cx, cy } = canvasPoint(ev.clientX, ev.clientY);
+      if (this.mapLevel === 'territory') {
+        return;
+      }
+      if (this.mapLevel !== 'continent') return;
       const zoneId = continentZoneAt(this.continentRegions, cx, cy);
       if (zoneId !== this.mapHoverZone) {
         this.mapHoverZone = zoneId; // repaint the highlight (+ cursor via updateMapWindow)
@@ -2905,6 +2900,7 @@ export class Hud {
     mapCanvas.addEventListener('pointerleave', (ev) => {
       if (ev.pointerType !== 'mouse') return;
       hideContinentTip();
+      if (this.mapLevel === 'territory') this.territoryMap.pointerLeave();
       if (this.mapLevel === 'continent' && this.mapHoverZone !== null) {
         this.mapHoverZone = null;
         this.updateMapWindow();
@@ -4443,18 +4439,13 @@ export class Hud {
     moveWheel: () => document.querySelector('#mobile-move-joystick'),
     moveZone: () => document.querySelector('#mobile-move-zone'),
   });
-  // Overworld world-map painter (the delve branch stays with delvePainter). Owns
-  // the cached current-zone decorations; redraws from the mediumHud band while open.
-  // classCss colors party member dots the same way it colors the minimap/delve ones.
   private readonly mapPainter = new MapWindowPainter(
     classCss,
     this.mapMarkerArt,
     this.mapMarkerProfile,
   );
-  // Continent overview painter (the world map's "zoom out to the whole world"
-  // level). Loads the painted world_overview plate once; redraws from the
-  // mediumHud band like the per-zone map. classCss colors its party dots too.
   private readonly continentPainter = new ContinentMapPainter(classCss);
+  private readonly territoryMap: TerritoryMapController;
   // The aura strips are the keyed-pool aura painter, two instances of the
   // auras_view core + AurasPainter: the player buff bar (#buff-bar, mode
   // 'all') and the target strip (#tf-debuffs, mode 'all' too: a target's buffs AND
@@ -9223,6 +9214,7 @@ export class Hud {
       this.updateArenaStatus();
       this.updateFiestaHud();
       this.bgScoreboard.update(buildBgScoreboardView(this.sim.bgInfo, this.sim.playerId));
+      this.territoryMap.updateSiegeHud();
       this.bgKillFeed.update(performance.now() / 1000);
       this.yumiPainter.update(this.sim.arenaInfo);
       if ($('#map-window').style.display === 'block') this.updateMapWindow();
@@ -10250,7 +10242,6 @@ export class Hud {
       );
       return;
     }
-    // Inside Dawnhold Castle: the same castle-plan surface, dawnhold spec.
     if (dawnholdMapActive(this.sim)) {
       this.dawnholdMapPainter.paintMinimap(
         ctx,
@@ -10370,6 +10361,7 @@ export class Hud {
     const el = $('#map-window');
     if (el.style.display === 'block') {
       el.style.display = 'none';
+      this.territoryMap.close();
       this.hideTooltip(); // a touch marker tip can outlive the window otherwise
       this.mapPing = null;
       this.mapZoneOverride = null;
@@ -10388,16 +10380,24 @@ export class Hud {
     this.syncAnyWindowOpenState();
   }
 
-  // Toggle the world map between the per-zone detail level and the continent
-  // overview (WoW-style right-click zoom out / the level-toggle button). Not
-  // available in a delve, whose map is the schematic branch.
   private toggleMapLevel(): void {
     if (mapWindowMode(this.sim) !== 'overworld') return;
-    this.setMapLevel(this.mapLevel === 'continent' ? 'zone' : 'continent');
+    this.setMapLevel(
+      this.mapLevel === 'zone'
+        ? 'continent'
+        : this.mapLevel === 'continent'
+          ? 'territory'
+          : 'continent',
+    );
   }
 
-  private setMapLevel(level: 'zone' | 'continent'): void {
+  private setMapLevel(level: 'zone' | 'continent' | 'territory'): void {
     if (this.mapLevel === level) return;
+    if (level === 'territory') {
+      this.territoryMap.open();
+    } else if (this.mapLevel === 'territory') {
+      this.territoryMap.close();
+    }
     this.mapLevel = level;
     this.mapHoverZone = null;
     this.mapDrag = null;
@@ -10405,8 +10405,6 @@ export class Hud {
     if ($('#map-window').style.display === 'block') this.updateMapWindow();
   }
 
-  // Open a specific zone's detail map from the continent overview (a left-click on
-  // its region). Reuses the Show-on-Map override; never teleports the player.
   private openZoneFromContinent(zoneId: string): void {
     this.mapZoneOverride = zoneId;
     this.mapZoom = MAP_OPEN_ZOOM;
@@ -10415,19 +10413,14 @@ export class Hud {
     this.mapHoverZone = null;
     this.hideTooltip();
     this.mapLevel = 'zone';
+    this.territoryMap.close();
     this.updateMapWindow();
   }
 
-  // Dungeon Finder "Show on Map": open the world map on the entrance's zone
-  // band, pan to the authored door position, and ring it. Never teleports; the
-  // highlight clears when the map closes or is reopened normally. The pan/zoom
-  // + forced per-zone level all come from showOnMapPanState (map_show_on_map_core.ts):
-  // see its header for why the level write is not optional (the continent
-  // overview branch of updateMapWindow never reads mapPing/mapZoom/mapCenter
-  // at all, so a map left open on that level swallowed the ping silently).
   showFinderOnMap(x: number, z: number): void {
     const el = $('#map-window');
     if (el.style.display !== 'block') this.toggleMap();
+    if (this.mapLevel === 'territory') this.territoryMap.close();
     const next = showOnMapPanState(this.mapZoom, x, z, zoneAt(x, z).id);
     this.mapZoneOverride = next.zoneOverride;
     this.mapPing = next.ping;
@@ -10438,20 +10431,18 @@ export class Hud {
     this.updateMapWindow();
   }
 
-  // scroll-wheel / button zoom for the world map (clamped to [1, MAP_MAX_ZOOM])
   private zoomMap(factor: number): void {
     if (mapWindowMode(this.sim) !== 'overworld') return;
-    // One more zoom-out at the zone map's full extent leaves the zone and opens
-    // the continent overview (the level toggle's other half), instead of clamping
-    // at the minimum and doing nothing. A delve has no overview to go to.
+    if (this.mapLevel === 'territory') {
+      this.territoryMap.zoomBy(factor);
+      return;
+    }
     if (this.mapLevel === 'zone' && zoomOutExitsZoneLevel(this.mapZoom, factor)) {
       this.setMapLevel('continent');
       return;
     }
     const prev = this.mapZoom;
     this.mapZoom = nextMapZoom(this.mapZoom, factor);
-    // zooming back to 1 resumes following the player; a fresh zoom-in from the
-    // follow view anchors the pan at the player so dragging starts from there
     if (this.mapZoom === 1) this.mapCenter = null;
     else if (prev === 1 && !this.mapCenter)
       this.mapCenter = { x: this.sim.player.pos.x, z: this.sim.player.pos.z };
@@ -10462,12 +10453,6 @@ export class Hud {
     return this.mapMarkerInteraction.showAt(canvas, x, y, touch);
   }
 
-  // The map window shows the zone band the player is standing in (each band is a
-  // square); POIs and dungeon portals come from the zone/dungeon data. It redraws
-  // while open from hud.update()'s mediumHud band; the painter owns the canvas
-  // draw, the cached terrain blit, and the cadence. The delve branch is owned by
-  // delve_map_painter (paintWorldMapDelve), the overworld branch by
-  // map_window_painter; the pure geometry lives in map_window_view.ts.
   private clearMapHitState(canvas: HTMLCanvasElement): void {
     this.mapMarkerInteraction.clear();
     this.mapView = null;
@@ -10486,6 +10471,7 @@ export class Hud {
     this.mapHoverZone = null;
     this.mapZoom = MAP_OPEN_ZOOM;
     this.mapLevel = 'zone';
+    this.territoryMap.close();
     this.hideTooltip();
   }
 
@@ -10539,11 +10525,28 @@ export class Hud {
     this.setText(
       $('#map-level-toggle'),
       t(
-        this.mapLevel === 'continent'
-          ? 'hudChrome.continentMap.toZone'
-          : 'hudChrome.continentMap.toWorld',
+        this.mapLevel === 'zone'
+          ? 'hudChrome.continentMap.toWorld'
+          : this.mapLevel === 'continent'
+            ? 'hudChrome.territoryMap.toWar'
+            : 'hudChrome.territoryMap.toWorld',
       ),
     );
+
+    this.setDisplay($('#territory-panel'), this.mapLevel === 'territory' ? 'block' : 'none');
+    if (this.mapLevel === 'territory') {
+      this.mapMarkerInteraction.clear();
+      this.mapView = null;
+      this.continentRegions.length = 0;
+      const territory = this.territoryMap.paint(ctx, S);
+      this.setText(summaryEl, territory.summary);
+      this.setText(
+        markerSummaryEl,
+        this.mapMarkerInteraction.semantics.updateSimple(territory.title, S),
+      );
+      return;
+    }
+    this.territoryMap.invalidate();
 
     if (this.mapLevel === 'continent') {
       this.clearMapHitState(canvas); // panning/zoom belong to the per-zone level only
@@ -10562,9 +10565,6 @@ export class Hud {
     }
     this.continentRegions = [];
 
-    // Inside The Last Keep: the whole-plan floor plate for the player's
-    // current story (title drawn on-canvas, the delve branch pattern); the
-    // continent overview above still wins when the player toggles up to it.
     if (lastKeepMapActive(this.sim)) {
       this.clearMapHitState(canvas);
       const title = this.lastKeepMapPainter.paintWorldMap(ctx, this.sim, S);

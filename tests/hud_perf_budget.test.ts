@@ -697,6 +697,9 @@ const CANVAS_PAINTERS: ReadonlyArray<ScannedPainter> = [
   { file: 'map_window_painter.ts', allow: {}, reflowAllow: { getComputedStyle: 1 } },
   { file: 'minimap_painter.ts', allow: {}, reflowAllow: { getComputedStyle: 1 } },
   { file: 'perf_graph_painter.ts', allow: {}, reflowAllow: {} },
+  // Seasonal territory view: canvas-only and signature-cached by its controller. The
+  // palette is resolved once for each invalidated redraw from the shared CSS token set.
+  { file: 'territory_map_painter.ts', allow: {}, reflowAllow: { getComputedStyle: 1 } },
   { file: 'unit_portrait_painter.ts', allow: { '.dataset': 4 }, reflowAllow: {} },
 ];
 
@@ -751,6 +754,14 @@ interface ColdPainter {
 }
 
 const COLD_PAINTER_ALLOWANCES: ReadonlyArray<ColdPainter> = [
+  // The strategic-map adapter has no clock. Its two canvas rect sites are entered only
+  // from pointer movement: one maps a drag delta into axial-world space and one maps the
+  // pointer into canvas hit-test space. Ordinary redraws and siege HUD ticks read neither.
+  {
+    file: 'territory_map_controller.ts',
+    reflowAllow: { '.getBoundingClientRect': 2 },
+    driverAllow: {},
+  },
   // One app-viewport rect when the player starts dragging an aura in setup mode. The cached
   // rect converts pointer moves to persisted normalized X/Y values; the controller owns no
   // clock and performs no layout read during ordinary combat painting.

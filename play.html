@@ -463,12 +463,22 @@
     <div id="town-focus-window" class="window panel"></div>
     <div id="map-window" class="window panel">
       <button class="x-btn" id="map-close" data-i18n-title="hud.core.closeMap" data-i18n-aria="hud.core.closeMap" title="Close map" aria-label="Close map" data-icon="close"></button>
-      <button type="button" id="map-level-toggle" data-i18n="hudChrome.continentMap.toWorld" data-i18n-title="hudChrome.continentMap.toggleAria" data-i18n-aria="hudChrome.continentMap.toggleAria" title="Switch between the world map and the zone map" aria-label="Switch between the world map and the zone map">World map</button>
+      <button type="button" id="map-level-toggle" data-i18n="hudChrome.continentMap.toWorld" data-i18n-title="hudChrome.territoryMap.toggleAria" data-i18n-aria="hudChrome.territoryMap.toggleAria" title="Switch between the zone, world, and war maps" aria-label="Switch between the zone, world, and war maps">World map</button>
       <div id="map-zoom">
         <button class="map-zoom-btn" id="map-zoom-in" data-i18n-title="hud.core.zoomIn" data-i18n-aria="hud.core.zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
         <button class="map-zoom-btn" id="map-zoom-out" data-i18n-title="hud.core.zoomOut" data-i18n-aria="hud.core.zoomOut" title="Zoom out" aria-label="Zoom out">&minus;</button>
       </div>
       <canvas id="map-canvas" width="560" height="560" role="img" aria-describedby="map-summary map-marker-summary" data-i18n-aria="hud.core.mapCanvasLabel" aria-label="Map"></canvas>
+      <div id="territory-panel">
+        <div id="territory-cell-title"></div>
+        <div id="territory-cell-detail"></div>
+        <div id="territory-economy"></div>
+        <div class="territory-actions">
+          <button type="button" id="territory-primary-action"></button>
+          <button type="button" id="territory-build-action"></button>
+          <button type="button" id="territory-upgrade-action"></button>
+        </div>
+      </div>
       <span id="map-summary" class="visually-hidden" role="status" aria-live="polite"></span>
       <span id="map-marker-summary" class="visually-hidden"></span>
     </div>
@@ -489,6 +499,18 @@
     <div id="professions-window" class="window panel"></div>
     <div id="calendar-window" class="window panel"></div>
     <div id="arena-status"></div>
+    <div id="territory-siege-hud" class="panel" role="status" aria-live="polite" aria-atomic="true">
+      <div id="territory-siege-title"></div>
+      <div id="territory-siege-timer"></div>
+      <div class="territory-siege-progress"><span id="territory-gate-progress"></span></div>
+      <div class="territory-siege-progress"><span id="territory-core-progress"></span></div>
+      <div class="territory-siege-actions">
+        <button type="button" id="territory-deploy-ram"></button>
+        <button type="button" id="territory-ram-gate"></button>
+        <button type="button" id="territory-deploy-ramp"></button>
+        <button type="button" id="territory-strike-core"></button>
+      </div>
+    </div>
     <div id="options-menu" class="window panel"></div>
     <div id="emote-editor" class="window panel"></div>
     <div id="social-window" class="window panel"></div>

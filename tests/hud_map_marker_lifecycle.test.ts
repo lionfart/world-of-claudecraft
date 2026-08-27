@@ -396,6 +396,7 @@ function lifecycleHarness(): {
     mapSemanticAccessibility: semanticCore(),
     mapGatherTipMemo: { nodeId: 'stale' },
     continentRegions: [],
+    territoryMap: { close: vi.fn(), invalidate: vi.fn() },
     setDisplay: vi.fn(),
     setStyleProp: vi.fn((element: HTMLElement, prop: string, value: string) => {
       (element.style as unknown as Record<string, string>)[prop] = value;
