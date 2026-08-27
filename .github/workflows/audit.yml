@@ -37,7 +37,6 @@ on:
     # top-of-hour spike in GitHub's shared cron scheduler.
     - cron: '17 6 * * 1'
   workflow_dispatch:
-
 permissions:
   contents: read
 
@@ -48,7 +47,7 @@ concurrency:
 jobs:
   audit:
     name: pnpm audit
-    runs-on: ubuntu-latest
+    runs-on: tenki-standard-small-2c-4g
 
     steps:
       - name: Check out repository
