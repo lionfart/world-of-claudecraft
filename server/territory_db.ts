@@ -224,7 +224,7 @@ export class TerritoryRepository {
                   summary = jsonb_build_object(
                     'reason', 'manifest_upgrade',
                     'fromManifestVersion', manifest_version,
-                    'toManifestVersion', $3
+                    'toManifestVersion', $3::integer
                   )
             WHERE id = $1`,
           [season.id, now, this.manifest.version],
