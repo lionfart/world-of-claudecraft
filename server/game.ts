@@ -35,11 +35,7 @@ import {
 import { devTierIndexForMergedPrs } from '../src/sim/dev_tier';
 import { parseRelayCommand } from '../src/sim/discord_relay';
 import { specialRoleChatTag } from '../src/sim/discord_roles';
-import {
-  GUILD_CREATION_FEE_COPPER,
-  type GuildBankOpDelta,
-  guildBankRungsBought,
-} from '../src/sim/guild_bank';
+import { type GuildBankOpDelta, guildBankRungsBought } from '../src/sim/guild_bank';
 import { itemInstancePayloadsEqual } from '../src/sim/item_instance_merge';
 import {
   isInJailCage,
@@ -265,6 +261,7 @@ import {
   type GuildBankWriteResult,
   loadGuildBanksIntoSim,
 } from './guild_bank_state';
+import { guildCreationFeeFromEnv, guildCreationFeeGold } from './guild_creation_fee';
 import { gameMetricsCounters, type WsDropCause } from './http/game_signals';
 import { buildSharedInterestCandidates } from './interest_candidates';
 import { IpBlockList } from './ip_block';
@@ -1674,24 +1671,6 @@ export interface PerfCaptureStatus {
   last: PerfCaptureResult | null;
 }
 
-// The creation fee as WHOLE GOLD, computed once for the two refusal emits.
-//
-// The client matcher splices an INTEGER (src/ui/server_i18n.ts guild.createFee,
-// `You need (\\d+) gold to found a guild.`), so a fee that stopped being whole
-// gold would emit "1.5" and silently ship raw English to every locale with
-// nothing reddening. The requirement is asserted HERE, where the number is
-// made, rather than left to a comment: a non-whole fee fails at import (and so
-// in every server test) instead of at a player's screen.
-const GUILD_CREATION_FEE_GOLD = ((): number => {
-  const gold = GUILD_CREATION_FEE_COPPER / 10_000;
-  if (!Number.isInteger(gold) || gold <= 0) {
-    throw new Error(
-      `GUILD_CREATION_FEE_COPPER must be a positive whole number of gold for the guild.createFee matcher, got ${GUILD_CREATION_FEE_COPPER}`,
-    );
-  }
-  return gold;
-})();
-
 export class GameServer {
   sim: Sim;
   clients = new Map<number, ClientSession>(); // by pid
@@ -1912,8 +1891,13 @@ export class GameServer {
   private readonly ipSessionCounts = new Map<string, number>();
   private readonly riftUpgrader: RiftUpgradeCoordinator;
   private readonly riftAssets: RiftAssetCoordinator;
+  private readonly guildCreationFeeAmountGold: number;
 
-  constructor(generalChatQuotaMaxInFlight = GENERAL_CHAT_QUOTA_MAX_IN_FLIGHT) {
+  constructor(
+    generalChatQuotaMaxInFlight = GENERAL_CHAT_QUOTA_MAX_IN_FLIGHT,
+    private readonly guildCreationFeeCopper = guildCreationFeeFromEnv(),
+  ) {
+    this.guildCreationFeeAmountGold = guildCreationFeeGold(this.guildCreationFeeCopper);
     attachDetectorFlagHost(this.botDetector);
     this.generalChatQuota = new GeneralChatQuotaCoordinator({
       consume: consumeGeneralChatQuota,
@@ -7516,7 +7500,7 @@ export class GameServer {
       case 'guild_create':
         if (typeof msg.name === 'string') {
           // The creation-fee gate, BEFORE any DB work (Guild Bank Phase 3):
-          // a founder whose sim purse cannot cover GUILD_CREATION_FEE_COPPER
+          // a founder whose sim purse cannot cover the configured fee
           // is refused right here, so a refused create never touches the
           // database. RESERVE-AT-GATE (Phase 3 QA, revising the original
           // create-then-charge decision in state.md): the fee is deducted
@@ -7531,10 +7515,10 @@ export class GameServer {
           // (src/ui/server_i18n.ts guild.createFee, pinned byte-for-byte in
           // tests/server_i18n.test.ts).
           const meta = this.sim.meta(pid);
-          if (!meta || meta.copper < GUILD_CREATION_FEE_COPPER) {
+          if (!meta || meta.copper < this.guildCreationFeeCopper) {
             this.sendChatNotice(
               session,
-              `You need ${GUILD_CREATION_FEE_GOLD} gold to found a guild.`,
+              `You need ${this.guildCreationFeeAmountGold} gold to found a guild.`,
             );
             break;
           }
@@ -7543,21 +7527,21 @@ export class GameServer {
           // success/refund arms can never mismatch reservations.
           if (this.pendingGuildCreateFees.has(session.characterId)) break;
           const purseBefore = meta.copper;
-          const charged = this.sim.chargeGuildCreationFeeFor(pid);
+          const charged = this.sim.chargeGuildCreationFeeFor(pid, this.guildCreationFeeCopper);
           // What the PURSE actually did, read back from the sim rather than
           // inferred from `charged`: the create_fee row records both, so a
           // charge the sim reported taking that the purse never gave up is a
           // finding instead of an arithmetic identity.
           const pursePaid = (this.sim.meta(pid)?.copper ?? purseBefore) - purseBefore;
-          if (charged < GUILD_CREATION_FEE_COPPER) {
+          if (charged < this.guildCreationFeeCopper) {
             // The purse check above passed but the charge came back short: the
             // pid resolved meta-only (no live entity) or a state edge. Never
-            // found a discounted or free guild: return whatever was taken and
-            // refuse with the same line.
+            // accept an underpayment: return whatever was taken and refuse
+            // with the same line.
             if (charged > 0) this.sim.refundGuildCreationFeeFor(pid, charged);
             this.sendChatNotice(
               session,
-              `You need ${GUILD_CREATION_FEE_GOLD} gold to found a guild.`,
+              `You need ${this.guildCreationFeeAmountGold} gold to found a guild.`,
             );
             break;
           }

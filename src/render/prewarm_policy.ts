@@ -323,12 +323,14 @@ export function prewarmSubmitShouldStop(
  * char preview lane at BACKGROUND) cannot starve them, which production
  * measured as minutes of unpaid debt after the reveal.
  *
- * Deliberately NOT in the set: the per-family VFX warmers
- * (props.ghost-fade-variants, vfx.weapon-skins, vfx.ability-primitives).
+ * Deliberately NOT in the set: most per-family VFX warmers
+ * (props.ghost-fade-variants, vfx.weapon-skins).
  * They also carry compile/upload units, but a handful per family whose first
  * use is a specific event (a school's first impact, a skin's first draw),
  * not the ambient scene: they stay on the cosmetic BOOT_RESUME arm below
- * the preview lane, the pre-change behavior.
+ * the preview lane. Ability primitives are the exception: projectile casts
+ * are latency-sensitive input and their first-use shader/texture work was
+ * measured in the live submit path, so that entry is actionable debt.
  * `programs.compile-submit` here names the SYNTHETIC dropped entry the
  * deferred-submit hand-off pushes (the manifest entry of that id declares no
  * resumeUnits, so no other resume entry can carry it).
@@ -343,6 +345,7 @@ const PREWARM_DEBT_RESUME_IDS: ReadonlySet<string> = new Set([
   'textures.scene',
   'surface-detail.textures',
   'foliage.materials',
+  'vfx.ability-primitives',
 ]);
 
 /** True when a dropped entry's resume units are hitch-causing debt. */
@@ -373,14 +376,16 @@ export function orderPrewarmResumeEntries<T extends { id: string }>(entries: rea
   // on surface-detail + textures.scene (151 units) and never reached the 19
   // programs.compile-submit units, so the town's unique materials linked cold.
   const programDebt: T[] = [];
+  const latencySensitiveVfx: T[] = [];
   const otherDebt: T[] = [];
   const cosmetic: T[] = [];
   for (const entry of entries) {
     if (!prewarmResumeIsDebt(entry.id)) cosmetic.push(entry);
     else if (entry.id.startsWith('programs.')) programDebt.push(entry);
+    else if (entry.id === 'vfx.ability-primitives') latencySensitiveVfx.push(entry);
     else otherDebt.push(entry);
   }
-  return [...programDebt, ...otherDebt, ...cosmetic];
+  return [...programDebt, ...latencySensitiveVfx, ...otherDebt, ...cosmetic];
 }
 
 /** The mesh-shape bits three folds into a program's cache key, structurally
@@ -765,14 +770,25 @@ export function prewarmEntryResumesAfterSkip(id: string, policy: PrewarmPolicy):
  * The manifest id order after applying the policy: when compileBeforeFirstFrame is
  * set, programs.compile moves to just before world.initial-frame so the first
  * full-scene pass draws already-linked programs instead of force-linking them in one
- * synchronous block. Otherwise the order is unchanged. Pure over ids for testing.
+ * synchronous block. On the full desktop manifest, ability primitives move
+ * directly after required views so their bounded warm completes before the
+ * optional catalog entries can exhaust the loading-cover budget. Pure over
+ * ids for testing.
  */
 export function orderedPrewarmIds(ids: readonly string[], policy: PrewarmPolicy): string[] {
-  if (!policy.compileBeforeFirstFrame) return [...ids];
-  const compileIdx = ids.indexOf('programs.compile');
-  const frameIdx = ids.indexOf('world.initial-frame');
-  if (frameIdx < 0 || compileIdx < 0 || compileIdx <= frameIdx) return [...ids];
   const out = [...ids];
+  if (!policy.minimalManifest) {
+    const abilityIdx = out.indexOf('vfx.ability-primitives');
+    const requiredIdx = out.indexOf('views.required');
+    if (abilityIdx >= 0 && requiredIdx >= 0 && abilityIdx !== requiredIdx + 1) {
+      const [abilityId] = out.splice(abilityIdx, 1);
+      out.splice(out.indexOf('views.required') + 1, 0, abilityId);
+    }
+  }
+  if (!policy.compileBeforeFirstFrame) return out;
+  const compileIdx = out.indexOf('programs.compile');
+  const frameIdx = out.indexOf('world.initial-frame');
+  if (frameIdx < 0 || compileIdx < 0 || compileIdx <= frameIdx) return out;
   const [compileId] = out.splice(compileIdx, 1);
   out.splice(out.indexOf('world.initial-frame'), 0, compileId);
   return out;

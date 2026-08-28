@@ -11248,8 +11248,8 @@ export class Sim {
   // Reserve-at-gate (state.md, revised by Phase 3 QA): the server charges this
   // synchronously at the guild_create dispatch gate, before any DB work, and
   // refunds on every refusal arm. Returns the copper actually charged.
-  chargeGuildCreationFeeFor(pid: number): number {
-    return guildBankMod.chargeGuildCreationFee(this.ctx, pid);
+  chargeGuildCreationFeeFor(pid: number, amount = guildBankMod.GUILD_CREATION_FEE_COPPER): number {
+    return guildBankMod.chargeGuildCreationFee(this.ctx, pid, amount);
   }
 
   // The refusal arm of the reserve-at-gate flow: return a reserved creation

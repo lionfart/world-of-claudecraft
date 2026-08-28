@@ -51,13 +51,10 @@ import {
   AbilityRangeReticleVisual,
   type AbilityRangeVisualKind,
 } from './ability_range_reticle_visual';
-import {
-  AbilityVfx,
-  AbilityVfxFx,
-  abilityVfxTexturePrewarmSteps,
-  collectAbilityVfxCompileTargets,
-} from './ability_vfx';
+import { AbilityVfx, AbilityVfxFx, collectAbilityVfxCompileTargets } from './ability_vfx';
 import type { AbilityVfxTextures } from './ability_vfx/fx_textures';
+import { createAbilityVfxPrewarmEntry } from './ability_vfx/prewarm_entry';
+import { AbilityVfxPrewarmGate } from './ability_vfx/prewarm_gate';
 import { ABILITY_VFX_FULL_SPECS } from './ability_vfx_full_specs';
 import { shouldDrawLegacyCastSparkle, syncAbilityVfxCast } from './ability_vfx_registry';
 import { ABILITY_VFX_SPECS } from './ability_vfx_specs';
@@ -569,11 +566,7 @@ import {
   renderBudgetShaderPrewarmLevels,
 } from './render_budget';
 import { gpuPrepMode } from './render_dev_flags';
-import {
-  emptyRenderDiagnosticsSnapshot,
-  type RenderableDiagnosticObject,
-  RenderDiagnostics,
-} from './render_diagnostics';
+import { emptyRenderDiagnosticsSnapshot, RenderDiagnostics } from './render_diagnostics';
 import { measureFeatureFootprint, setRenderCategory } from './renderer_diagnostics';
 import { snapshotRendererFrameStats } from './renderer_frame_stats_snapshot';
 import {
@@ -1815,6 +1808,7 @@ export class Renderer {
   // see src/render/ability_vfx/).
   private abilityVfx: AbilityVfx;
   private abilityVfxFx: AbilityVfxFx;
+  private readonly abilityVfxPrewarmGate = new AbilityVfxPrewarmGate();
   private needleOfFateVfx!: NeedleOfFateVfx;
   private sentenceVfx!: SentenceVfx;
   private lightPulses: LightPulses;
@@ -6718,59 +6712,19 @@ export class Renderer {
         detail: () => `objects=${weaponVfxPrewarmGroup?.children.length ?? 0}`,
       },
       {
-        // Spawn one of every pooled ability-VFX primitive (rings, decals,
-        // pillar, shell, slash ribbon, overlay sprite). The pools build their
-        // meshes visible=false, so no render pass ever draws them: their
-        // textures and geometry stay un-uploaded, and the first spec'd cast in
-        // the open world used to pay for both synchronously. The spawns bind
-        // the per-style decal textures and the six impact sheets, so the
-        // texture re-walk below uploads the whole canvas set now.
-        // abilityVfxFx.clear() in the finally block hides everything again.
-        //
-        // resumeUnits deliberately does NOT replay the spawn: run live it
-        // would pop a white ring/decal/flipbook burst at the player's feet
-        // (the same reason vfx.atlas retains nothing). It carries the
-        // invisible half instead, one impact sheet per unit plus one program
-        // link per distinct pooled material. That is also the MINIMAL variant
-        // constrained devices get in place of this entry
-        // (CONSTRAINED_PREWARM_RESUME): there the whole entry is skipped, so
-        // each 512px sheet is otherwise drawn on the first impact of its
-        // school, i.e. mid-combat.
         id: 'vfx.ability-primitives',
-        category: 'vfx',
-        priority: 62,
-        required: false,
-        resumeUnits: () => [
-          ...abilityVfxTexturePrewarmSteps().map((step) => ({
-            id: `texture:${step.id}`,
-            run: () => {
-              for (const texture of step.build()) this.prewarmTexture(texture);
-            },
-          })),
-          ...abilityMaterialSlot.resumeUnits(),
-          ...combatSkillMaterialSlot.resumeUnits(),
-          ...abilityPrimitiveProgramUnits(),
-        ],
-        run: async () => {
-          this.abilityVfxFx.prewarmSpawn(p.pos.x, p.pos.y, p.pos.z - 5, p.id);
-          // Compile the exact hidden spell, range-guide and structural combat
-          // materials now. Staging alone left them outside the visible-scene
-          // compile and moved their first link into the player's first cast.
-          abilityMaterialSlot.run();
-          combatSkillMaterialSlot.run();
-          const slotGroups = [abilityMaterialSlot.group, combatSkillMaterialSlot.group].filter(
-            (group): group is THREE.Group => group !== null,
-          );
-          await Promise.all([
-            ...slotGroups.map((group) => this.compilePrewarmColorPrograms(group, false)),
-            ...abilityPrimitiveProgramUnits().map((unit) => unit.run()),
-          ]);
-          this.scene.traverse((child) => {
-            const renderable = child as RenderableDiagnosticObject;
-            if (renderable.userData.renderCategory !== 'vfx' || !renderable.material) return;
-            this.prewarmMaterialTextures(renderable.material);
-          });
-        },
+        ...createAbilityVfxPrewarmEntry({
+          gate: this.abilityVfxPrewarmGate,
+          fx: this.abilityVfxFx,
+          player: p,
+          scene: this.scene,
+          abilityMaterialSlot,
+          combatSkillMaterialSlot,
+          primitiveProgramUnits: abilityPrimitiveProgramUnits,
+          prewarmTexture: (texture) => this.prewarmTexture(texture),
+          prewarmMaterialTextures: (material) => this.prewarmMaterialTextures(material),
+          compileColorPrograms: (group) => this.compilePrewarmColorPrograms(group, false),
+        }),
       },
       {
         // Rideable mounts: worn by whoever is riding one, so the FIRST
@@ -7287,6 +7241,7 @@ export class Renderer {
             afterEntry: hidePrewarmArtifacts,
             onUnitError: (entry, unit, error) => {
               resumeLedger.noteFailure(entry.id, unit.id);
+              this.abilityVfxPrewarmGate.failEntry(entry.id);
               // Per SKIN, never the whole catalog: the ledger's boundary is
               // one unit, and the skins staged before this one keep their
               // linked programs (see WeaponVfxPrewarmSkinStage).
@@ -7464,7 +7419,10 @@ export class Renderer {
     ) {
       return;
     }
-    if (handleProjectileEventVfx(ev, () => this.sim.cfg.seed, this.vfx, this.abilityVfx)) return;
+    const warmedAbilityVfx = this.abilityVfxPrewarmGate?.readyValue(this.abilityVfx);
+    if (handleProjectileEventVfx(ev, () => this.sim.cfg.seed, this.vfx, warmedAbilityVfx)) {
+      return;
+    }
     switch (ev.type) {
       case 'castStart': {
         if (ev.ability === 'needle_of_fate') {

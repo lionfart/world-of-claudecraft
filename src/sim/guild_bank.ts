@@ -295,10 +295,18 @@ export function guildBankHoldings(
  *  The gate refuses a poor founder first, so the clamp here is defensive
  *  only. Deliberately emits NO player line (the "You found the guild" arm is
  *  the celebration; the purse delta rides the normal self snapshot). */
-export function chargeGuildCreationFee(ctx: SimContext, pid: number): number {
+export function chargeGuildCreationFee(
+  ctx: SimContext,
+  pid: number,
+  amount = GUILD_CREATION_FEE_COPPER,
+): number {
   const r = resolveActor(ctx, pid);
   if (!r) return 0;
-  const charged = Math.min(r.meta.copper, GUILD_CREATION_FEE_COPPER);
+  if (!Number.isSafeInteger(amount) || amount < 0) {
+    throw new Error(`Guild creation fee must be a non-negative integer, got ${amount}`);
+  }
+  if (amount === 0) return 0;
+  const charged = Math.min(r.meta.copper, amount);
   if (charged <= 0) return 0;
   r.meta.copper -= charged;
   return charged;

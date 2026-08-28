@@ -305,22 +305,24 @@ describe('the manifest wiring (source pins)', () => {
   const renderer = codeWithoutLineComments(
     readFileSync(new URL('../src/render/renderer.ts', import.meta.url), 'utf8'),
   );
+  const entry = codeWithoutLineComments(
+    readFileSync(new URL('../src/render/ability_vfx/prewarm_entry.ts', import.meta.url), 'utf8'),
+  );
 
   it('rides the ability-primitives entry, on both arms', () => {
-    const start = renderer.indexOf("        id: 'vfx.ability-primitives',");
-    expect(start).toBeGreaterThan(0);
-    const entryStart = renderer.lastIndexOf('      {', start);
-    const entry = renderer.slice(entryStart, renderer.indexOf('\n      {', start));
-    expect(entry).toContain('abilityMaterialSlot.run();');
-    expect(entry).toContain('...abilityMaterialSlot.resumeUnits(),');
+    expect(renderer).toContain("id: 'vfx.ability-primitives',");
+    expect(renderer).toContain('...createAbilityVfxPrewarmEntry({');
+    expect(entry).toContain('options.abilityMaterialSlot.run();');
+    expect(entry).toContain('...options.abilityMaterialSlot.resumeUnits(),');
   });
 
   it('links the real visual group explicitly before the first cast can reveal it', () => {
     expect(renderer).toContain(
       "const abilityMaterialSlot = createVariantPrewarmSlot(\n      variantSlotHost,\n      'ability-materials',\n      buildAbilityMaterialPrewarmGroup,\n    );",
     );
+    expect(entry).toContain('...groups.map(options.compileColorPrograms),');
     expect(renderer).toContain(
-      '...slotGroups.map((group) => this.compilePrewarmColorPrograms(group, false)),',
+      'compileColorPrograms: (group) => this.compilePrewarmColorPrograms(group, false),',
     );
     expect(renderer).not.toContain('abilityMaterialSlot.staged(),');
   });

@@ -151,18 +151,21 @@ describe('collectAbilityVfxCompileTargets', () => {
 
 describe('the renderer wires the units into boot and resume prewarm', () => {
   const renderer = readFileSync(new URL('../src/render/renderer.ts', import.meta.url), 'utf8');
-  const entryStart = renderer.indexOf("id: 'vfx.ability-primitives'");
-  const entry = renderer.slice(renderer.lastIndexOf('{', entryStart), entryStart + 4000);
+  const entry = readFileSync(
+    new URL('../src/render/ability_vfx/prewarm_entry.ts', import.meta.url),
+    'utf8',
+  );
 
   it('retains texture and program units, never the visible spawn', () => {
-    expect(entryStart).toBeGreaterThan(-1);
-    const unitsStart = entry.indexOf('resumeUnits: () => [');
+    expect(renderer).toContain("id: 'vfx.ability-primitives'");
+    expect(renderer).toContain('...createAbilityVfxPrewarmEntry({');
+    const unitsStart = entry.indexOf('const resumeUnits = (): readonly PrewarmResumeUnit[] => [');
     expect(unitsStart).toBeGreaterThan(-1);
-    const units = entry.slice(unitsStart, entry.indexOf('\n        ],', unitsStart));
+    const units = entry.slice(unitsStart, entry.indexOf('\n  ];', unitsStart));
     expect(units).toContain('abilityVfxTexturePrewarmSteps()');
-    expect(units).toContain('this.prewarmTexture(texture)');
-    expect(units).toContain('abilityPrimitiveProgramUnits()');
-    expect(units).toContain('combatSkillMaterialSlot.resumeUnits()');
+    expect(units).toContain('options.prewarmTexture(texture)');
+    expect(units).toContain('options.primitiveProgramUnits()');
+    expect(units).toContain('options.combatSkillMaterialSlot.resumeUnits()');
     // Replaying prewarmSpawn live would pop a white primitive burst.
     expect(units).not.toContain('prewarmSpawn');
   });
@@ -174,13 +177,13 @@ describe('the renderer wires the units into boot and resume prewarm', () => {
     );
     expect(renderer).toContain('buildCombatSkillMaterialPrewarmGroup');
 
-    const runStart = entry.indexOf('run: async () => {');
+    const runStart = entry.indexOf('const run = async (): Promise<void> => {');
     expect(runStart).toBeGreaterThan(-1);
-    const run = entry.slice(runStart, entry.indexOf('\n        },', runStart));
-    expect(run).toContain('abilityMaterialSlot.run();');
-    expect(run).toContain('combatSkillMaterialSlot.run();');
+    const run = entry.slice(runStart, entry.indexOf('\n  };', runStart));
+    expect(run).toContain('options.abilityMaterialSlot.run();');
+    expect(run).toContain('options.combatSkillMaterialSlot.run();');
     expect(run).toContain('await Promise.all([');
-    expect(run).toContain('...abilityPrimitiveProgramUnits().map((unit) => unit.run()),');
+    expect(run).toContain('...options.primitiveProgramUnits().map((unit) => unit.run()),');
   });
 
   it('hands a policy-skipped entry its units instead of dropping them', () => {

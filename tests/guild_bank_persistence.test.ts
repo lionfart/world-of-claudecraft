@@ -7,19 +7,39 @@
 // layer mocked (the guild_stamp_fence idiom).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const dbMock = vi.hoisted(() => ({
-  // biome-ignore lint/suspicious/noExplicitAny: the hoisted double predates its typed impl
-  saveCharacterState: vi.fn(async (..._args: any[]) => true),
-  // Both are given a real implementation in beforeEach (they run the REAL
-  // escrow merge against a fake durable table); the loose signature here keeps
-  // vi.hoisted free of imports.
-  // biome-ignore lint/suspicious/noExplicitAny: the hoisted double predates its typed impl
-  saveCharacterAndGuildBankState: vi.fn(async (..._args: any[]) => true),
-  // biome-ignore lint/suspicious/noExplicitAny: the hoisted double predates its typed impl
-  saveCharacterAndMarketState: vi.fn(async (..._args: any[]) => true),
-  insertBankLedgerRow: vi.fn(async () => {}),
-  loadGuildBankRows: vi.fn(async (): Promise<unknown[]> => []),
-}));
+const dbMock = vi.hoisted(() => {
+  return {
+    // biome-ignore lint/suspicious/noExplicitAny: the hoisted double predates its typed impl
+    saveCharacterState: vi.fn(async (..._args: any[]) => true),
+    // Both are given a real implementation in beforeEach (they run the REAL
+    // escrow merge against a fake durable table); the loose signature here keeps
+    // vi.hoisted free of imports.
+    // biome-ignore lint/suspicious/noExplicitAny: the hoisted double predates its typed impl
+    saveCharacterAndGuildBankState: vi.fn(async (..._args: any[]) => true),
+    // biome-ignore lint/suspicious/noExplicitAny: the hoisted double predates its typed impl
+    saveCharacterAndMarketState: vi.fn(async (..._args: any[]) => true),
+    insertBankLedgerRow: vi.fn(async () => {}),
+    loadGuildBankRows: vi.fn(async (): Promise<unknown[]> => []),
+  };
+});
+
+// This suite exercises guild-bank persistence only. Keep the independent
+// territory runtime from booting a season against this deliberately narrow DB
+// double; territory behavior has its own repository/runtime suites.
+vi.mock('../server/territory_game_runtime', () => {
+  const TerritoryRepository = vi.fn();
+  return {
+    TerritoryRepository,
+    territoryGame: {
+      initialize: vi.fn(),
+      tick: vi.fn(),
+      reconnect: vi.fn(),
+      disconnect: vi.fn(),
+      leave: vi.fn(),
+      dispatch: vi.fn(() => false),
+    },
+  };
+});
 
 // DURABLE guild membership, the source the escrow CARRIER is now chosen from
 // (GameServer.guildBankSaveCarrier reads socialDb.guildMembers, not the session
@@ -1237,6 +1257,36 @@ describe('mergeGuildBankRow (the escrow merge, unit)', () => {
 });
 
 describe('the guild_create fee gate + the create/disband hooks', () => {
+  it('can waive the fee for a test realm without bypassing the in-flight create guard', async () => {
+    const server = new GameServer(undefined, 0);
+    const { session } = joinServer(server, 1, 'FreeFounder');
+    const meta = server.sim.players.get(session.pid);
+    if (!meta) throw new Error('missing meta');
+    meta.copper = 0;
+    let resolveCreate: ((created: boolean) => void) | undefined;
+    priv(server).social.guildCreate = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+
+    dispatch(server, session, { cmd: 'guild_create', name: 'Test Vanguard' });
+    dispatch(server, session, { cmd: 'guild_create', name: 'Second Banner' });
+
+    expect(meta.copper).toBe(0);
+    expect(priv(server).social.guildCreate).toHaveBeenCalledTimes(1);
+    expect(priv(server).pendingGuildCreateFees.get(session.characterId)).toEqual({
+      accountId: session.accountId,
+      amount: 0,
+      pursePaid: 0,
+    });
+
+    resolveCreate?.(false);
+    await vi.waitFor(() => expect(priv(server).pendingGuildCreateFees.size).toBe(0));
+    expect(meta.copper).toBe(0);
+  });
+
   it('refuses a poor founder BEFORE any DB work, with the pinned localized line', () => {
     const server = new GameServer();
     const { session, sent } = joinServer(server, 1, 'Pauper');

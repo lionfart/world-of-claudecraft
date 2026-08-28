@@ -346,14 +346,16 @@ describe('resolvePrewarmPolicy: unconstrained desktop', () => {
     // The foliage species stream in with travel (ambient scene, not an
     // event), so their dropped material units are debt too.
     expect(prewarmResumeIsDebt('foliage.materials')).toBe(true);
-    // Negative arm over REACHABLE inputs: these three entries declare real
+    // Negative arm over REACHABLE inputs: these entries declare real
     // resumeUnits, so they are the ids a misclassification would actually
     // route to BOOT_DEBT. They stay cosmetic (below the preview lane) by the
     // per-family criterion in the debt set's doc.
     expect(prewarmResumeIsDebt('props.ghost-fade-variants')).toBe(false);
     expect(prewarmResumeIsDebt('vfx.weapon-skins')).toBe(false);
     expect(prewarmResumeIsDebt('vfx.mount-programs')).toBe(false);
-    expect(prewarmResumeIsDebt('vfx.ability-primitives')).toBe(false);
+    // Projectile input is latency-sensitive: a cold authored cast must not
+    // wait behind the large texture-upload debt or cosmetic preview lane.
+    expect(prewarmResumeIsDebt('vfx.ability-primitives')).toBe(true);
   });
 
   it('admits only the visible scene compile group before first paint', () => {
@@ -379,7 +381,7 @@ describe('resolvePrewarmPolicy: unconstrained desktop', () => {
     }
   });
 
-  it('orders resume entries program debt, upload debt, then cosmetic, stable within each class', () => {
+  it('orders resume entries program debt, latency-sensitive VFX, upload debt, then cosmetic', () => {
     // The resume lane is strictly serial in array order, so this ordering is
     // the ONLY thing that can put the link/upload debt ahead of the cosmetic
     // entries (BOOT_DEBT priority arbitrates against other lanes, never
@@ -388,6 +390,7 @@ describe('resolvePrewarmPolicy: unconstrained desktop', () => {
       { id: 'props.ghost-fade-variants' },
       { id: 'textures.scene' },
       { id: 'vfx.weapon-skins' },
+      { id: 'vfx.ability-primitives' },
       { id: 'programs.compile' },
       { id: 'programs.compile-submit' },
     ]);
@@ -396,6 +399,7 @@ describe('resolvePrewarmPolicy: unconstrained desktop', () => {
     expect(ordered.map((entry) => entry.id)).toEqual([
       'programs.compile',
       'programs.compile-submit',
+      'vfx.ability-primitives',
       'textures.scene',
       'props.ghost-fade-variants',
       'vfx.weapon-skins',
@@ -404,6 +408,18 @@ describe('resolvePrewarmPolicy: unconstrained desktop', () => {
     expect(orderPrewarmResumeEntries([{ id: 'vfx.weapon-skins' }])).toEqual([
       { id: 'vfx.weapon-skins' },
     ]);
+  });
+
+  it('moves ability VFX directly behind required views on the full manifest', () => {
+    const ordered = orderedPrewarmIds(MANIFEST_IDS, resolvePrewarmPolicy(BASE));
+    const requiredAt = ordered.indexOf('views.required');
+    expect(ordered[requiredAt + 1]).toBe('vfx.ability-primitives');
+
+    const constrained = resolvePrewarmPolicy({ ...BASE, constrainedMemory: true });
+    const constrainedOrder = orderedPrewarmIds(MANIFEST_IDS, constrained);
+    expect(constrainedOrder.indexOf('vfx.ability-primitives')).toBe(
+      MANIFEST_IDS.indexOf('vfx.ability-primitives'),
+    );
   });
 
   it('ties the debt set to real resume-capable manifest entries', () => {
