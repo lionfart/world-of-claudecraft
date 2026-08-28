@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS territory_seasons (
   status TEXT NOT NULL CHECK (status IN ('active', 'closing', 'closed')),
   manifest_version INT NOT NULL,
   manifest_checksum TEXT NOT NULL,
-  radius INT NOT NULL CHECK (radius BETWEEN 63 AND 141),
+  radius INT NOT NULL CHECK (radius BETWEEN 20 AND 141),
   revision BIGINT NOT NULL DEFAULT 1 CHECK (revision > 0),
   starts_at TIMESTAMPTZ NOT NULL,
   ends_at TIMESTAMPTZ NOT NULL,
@@ -20,6 +20,14 @@ CREATE TABLE IF NOT EXISTS territory_seasons (
   UNIQUE (realm, season_no),
   CHECK (ends_at > starts_at)
 );
+-- Manifest v1 seasons used radius 63 to 141. Manifest v2 uses radius 20 to 44,
+-- while closed v1 rows remain as retained history, so the durable constraint
+-- must accept both ranges. Replacing the old generated-name constraint is the
+-- idempotent upgrade path for databases created before manifest v2.
+ALTER TABLE territory_seasons
+  DROP CONSTRAINT IF EXISTS territory_seasons_radius_check;
+ALTER TABLE territory_seasons
+  ADD CONSTRAINT territory_seasons_radius_check CHECK (radius BETWEEN 20 AND 141);
 CREATE UNIQUE INDEX IF NOT EXISTS territory_seasons_one_active
   ON territory_seasons(realm) WHERE status = 'active';
 CREATE INDEX IF NOT EXISTS territory_seasons_retention

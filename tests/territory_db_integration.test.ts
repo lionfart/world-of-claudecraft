@@ -215,6 +215,15 @@ describeDb('territory persistence (real PostgreSQL)', () => {
           SET status = 'closed', closed_at = now()
         WHERE status = 'active'`,
     );
+    // Reproduce the production upgrade shape: a database created by manifest
+    // v1 still rejects radius 20 until the idempotent schema pass replaces its
+    // generated radius check constraint.
+    await pool.query(`
+      ALTER TABLE territory_seasons
+        DROP CONSTRAINT territory_seasons_radius_check;
+      ALTER TABLE territory_seasons
+        ADD CONSTRAINT territory_seasons_radius_check CHECK (radius BETWEEN 63 AND 141);
+    `);
     const nextNumber = await pool.query<{ value: number }>(
       `SELECT COALESCE(max(season_no), 0)::int + 1 AS value FROM territory_seasons`,
     );
@@ -233,6 +242,7 @@ describeDb('territory persistence (real PostgreSQL)', () => {
       [legacy.rows[0].id, guild.rows[0].id],
     );
 
+    await pool.query(TERRITORY_SCHEMA);
     await repository.ensureActiveSeason(new Date('2026-02-02T00:00:00.000Z'));
 
     const oldSeason = await pool.query<{ status: string; reason: string; cells: string }>(
