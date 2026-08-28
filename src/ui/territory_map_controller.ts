@@ -248,8 +248,11 @@ export class TerritoryMapController {
     const owned = state.cells.find((entry) => entry.cellId === cellId);
     const manifestCell = createTerritoryManifest(state.season.radius).byId.get(cellId);
     if (!owned) {
-      if (state.guild.ownedCellCount === 0)
-        return manifestCell?.starter ? { kind: 'place', cellId } : null;
+      if (state.guild.ownedCellCount === 0) {
+        const firstKeepAllowed =
+          !!manifestCell && (!state.season.requirementsEnabled || manifestCell.starter);
+        return firstKeepAllowed ? { kind: 'place', cellId } : null;
+      }
       if (state.guild.ownedCellCount >= state.guild.cellCapacity || !manifestCell) return null;
       return this.adjacentToGuild(manifestCell.neighbors) ? { kind: 'claim', cellId } : null;
     }

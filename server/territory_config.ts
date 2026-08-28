@@ -1,5 +1,6 @@
 export interface TerritoryConfig {
   enabled: boolean;
+  requirementsEnabled: boolean;
   seasonWeeks: number;
   warNoticeSeconds: number;
   warDurationSeconds: number;
@@ -24,6 +25,7 @@ function whole(raw: string | undefined, fallback: number, min: number, max: numb
 export function territoryConfigFromEnv(env: NodeJS.ProcessEnv = process.env): TerritoryConfig {
   return {
     enabled: env.TERRITORY_ENABLED !== '0',
+    requirementsEnabled: env.TERRITORY_REQUIREMENTS_ENABLED === '1',
     seasonWeeks: whole(env.TERRITORY_SEASON_WEEKS, 12, 1, 52),
     warNoticeSeconds: whole(env.TERRITORY_WAR_NOTICE_SECONDS, 300, 60, 7 * 86_400),
     warDurationSeconds: whole(env.TERRITORY_WAR_DURATION_SECONDS, 3_600, 600, 7_200),

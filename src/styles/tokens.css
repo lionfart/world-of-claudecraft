@@ -354,14 +354,20 @@
     --color-map-region-current-label: #ffd100;
     /* Seasonal territory map: original parchment/ink palette, independent of
        the reference screenshot artwork. Guild colors arrive as state data. */
-    --color-territory-parchment: #9d7b43;
-    --color-territory-parchment-shade: rgba(32, 19, 9, 0.58);
-    --color-territory-grid: rgba(72, 49, 24, 0.72);
-    --color-territory-border: #e8c66e;
+    --color-territory-parchment: #b99a61;
+    --color-territory-parchment-light: #d8c58e;
+    --color-territory-parchment-shade: rgba(32, 19, 9, 0.64);
+    --color-territory-ink: #3f2a16;
+    --color-territory-grid: rgba(64, 51, 31, 0.74);
+    --color-territory-border: #f0ce73;
     --color-territory-hover: #fff0a8;
     --color-territory-selected: #ffffff;
     --color-territory-war: #ff4b3e;
     --color-territory-keep: #d6c29b;
+    --color-territory-castle-roof: #70422e;
+    --color-territory-castle-shadow: #3e3028;
+    --color-territory-water: #497d85;
+    --color-territory-road: rgba(91, 61, 31, 0.48);
     --color-territory-grassland: #8e8c4b;
     --color-territory-forest: #47623b;
     --color-territory-highland: #7a725f;

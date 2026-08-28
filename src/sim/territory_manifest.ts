@@ -4,10 +4,10 @@
 // instead of being copied into PostgreSQL.  The checksum is persisted with the
 // season row and makes a code/data mismatch fail closed during server startup.
 
-export const TERRITORY_MANIFEST_VERSION = 1 as const;
-export const TERRITORY_MIN_RADIUS = 63 as const;
-export const TERRITORY_MAX_RADIUS = 141 as const;
-export const TERRITORY_CELLS_PER_ACTIVE_GUILD = 120 as const;
+export const TERRITORY_MANIFEST_VERSION = 2 as const;
+export const TERRITORY_MIN_RADIUS = 20 as const;
+export const TERRITORY_MAX_RADIUS = 44 as const;
+export const TERRITORY_CELLS_PER_ACTIVE_GUILD = 12 as const;
 
 export type TerritoryTerrain = 'grassland' | 'forest' | 'highland' | 'marsh' | 'wastes';
 export type TerritoryResourceKind = 'wood' | 'iron' | 'grain' | 'labor';
@@ -32,7 +32,7 @@ export interface TerritoryManifest {
   readonly byAxial: ReadonlyMap<string, TerritoryManifestCell>;
 }
 
-const AXIAL_DIRECTIONS = [
+export const TERRITORY_AXIAL_DIRECTIONS = [
   [1, 0],
   [1, -1],
   [0, -1],
@@ -130,7 +130,7 @@ export function createTerritoryManifest(radius: number = TERRITORY_MIN_RADIUS): 
 
   const cells: TerritoryManifestCell[] = provisional.map((cell) => ({
     ...cell,
-    neighbors: AXIAL_DIRECTIONS.map(([dq, dr]) =>
+    neighbors: TERRITORY_AXIAL_DIRECTIONS.map(([dq, dr]) =>
       idByAxial.get(axialKey(cell.q + dq, cell.r + dr)),
     ).filter((neighbor): neighbor is number => neighbor !== undefined),
   }));

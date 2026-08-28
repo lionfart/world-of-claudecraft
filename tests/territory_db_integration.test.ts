@@ -57,8 +57,8 @@ describeDb('territory persistence (real PostgreSQL)', () => {
       guildName: 'A',
       rank: 'leader' as const,
     };
-    const starter = repository.manifest.cells.find((cell) => cell.starter);
-    if (!starter) throw new Error('territory manifest has no starter cell');
+    const starter = repository.manifest.cells.find((cell) => !cell.starter);
+    if (!starter) throw new Error('territory manifest has no unrestricted test cell');
     const commandId = randomUUID();
     const racing = await Promise.all([
       repository.placeKeep({ ...actor, commandId, expectedRevision: 1 }, starter.id),
@@ -207,5 +207,48 @@ describeDb('territory persistence (real PostgreSQL)', () => {
     );
     expect(durable.rows[0]).toMatchObject({ guild_id: attacker.rows[0].id, level: 2 });
     expect(Number(durable.rows[0].audits)).toBe(1);
+  });
+
+  it('closes a legacy manifest season and preserves its rows during the v2 pointer swap', async () => {
+    await pool.query(
+      `UPDATE territory_seasons
+          SET status = 'closed', closed_at = now()
+        WHERE status = 'active'`,
+    );
+    const nextNumber = await pool.query<{ value: number }>(
+      `SELECT COALESCE(max(season_no), 0)::int + 1 AS value FROM territory_seasons`,
+    );
+    const legacy = await pool.query<{ id: string }>(
+      `INSERT INTO territory_seasons
+         (realm, season_no, status, manifest_version, manifest_checksum, radius, starts_at, ends_at)
+       VALUES ('territory-test', $1, 'active', 1, 'legacy-checksum', 63,
+               '2026-02-01T00:00:00.000Z', '2026-05-01T00:00:00.000Z')
+       RETURNING id`,
+      [nextNumber.rows[0].value],
+    );
+    const guild = await pool.query<{ id: number }>(`SELECT id FROM guilds ORDER BY id LIMIT 1`);
+    await pool.query(
+      `INSERT INTO territory_cells(season_id, cell_id, guild_id, keep_root)
+       VALUES ($1, 1, $2, TRUE)`,
+      [legacy.rows[0].id, guild.rows[0].id],
+    );
+
+    await repository.ensureActiveSeason(new Date('2026-02-02T00:00:00.000Z'));
+
+    const oldSeason = await pool.query<{ status: string; reason: string; cells: string }>(
+      `SELECT s.status, s.summary->>'reason' AS reason,
+              (SELECT count(*) FROM territory_cells c WHERE c.season_id = s.id) AS cells
+         FROM territory_seasons s WHERE s.id = $1`,
+      [legacy.rows[0].id],
+    );
+    const active = await pool.query<{ manifest_version: number; radius: number }>(
+      `SELECT manifest_version, radius FROM territory_seasons WHERE status = 'active'`,
+    );
+    expect(oldSeason.rows[0]).toMatchObject({
+      status: 'closed',
+      reason: 'manifest_upgrade',
+      cells: '1',
+    });
+    expect(active.rows[0]).toEqual({ manifest_version: 2, radius: 20 });
   });
 });

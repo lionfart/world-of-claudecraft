@@ -146,7 +146,9 @@ export class TerritoryService {
               color: territoryGuildColor(actor.guildId),
               rank: actor.rank,
               territoryLevel: 1,
-              cellCapacity: 24,
+              cellCapacity: base.season.requirementsEnabled
+                ? 24
+                : this.repository.manifest.cells.length,
               ownedCellCount: 0,
               resources: { wood: 250, iron: 250, grain: 250, labor: 250 },
               resourceCapacity: 2_000,

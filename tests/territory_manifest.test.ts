@@ -12,11 +12,12 @@ import {
 } from '../src/sim/territory_topology';
 
 describe('seasonal territory manifest', () => {
-  it('has the exact v1 and maximum cell counts', () => {
-    expect(territoryCellCount(TERRITORY_MIN_RADIUS)).toBe(12_097);
-    expect(createTerritoryManifest(TERRITORY_MIN_RADIUS).cells).toHaveLength(12_097);
-    expect(territoryCellCount(TERRITORY_MAX_RADIUS)).toBe(60_067);
-    expect(createTerritoryManifest(TERRITORY_MAX_RADIUS).cells).toHaveLength(60_067);
+  it('ships the compact test map at roughly one tenth of the original cell counts', () => {
+    expect(territoryCellCount(TERRITORY_MIN_RADIUS)).toBe(1_261);
+    expect(createTerritoryManifest(TERRITORY_MIN_RADIUS).cells).toHaveLength(1_261);
+    expect(territoryCellCount(TERRITORY_MAX_RADIUS)).toBe(5_941);
+    expect(createTerritoryManifest(TERRITORY_MAX_RADIUS).cells).toHaveLength(5_941);
+    expect(createTerritoryManifest().version).toBe(2);
   });
 
   it('is deterministic, reciprocal, and checksum-pinned', () => {

@@ -9,6 +9,7 @@ describe('territory config', () => {
     expect(config.realmWarSlots).toBe(4);
     expect(config.disconnectGraceSeconds).toBe(120);
     expect(config.constructionBaseSeconds).toBe(300);
+    expect(config.requirementsEnabled).toBe(false);
   });
 
   it('turns a future 24-hour notice into configuration only', () => {
@@ -21,5 +22,11 @@ describe('territory config', () => {
     expect(
       territoryConfigFromEnv({ TERRITORY_CONSTRUCTION_BASE_SECONDS: '12' }).constructionBaseSeconds,
     ).toBe(12);
+  });
+
+  it('can restore progression requirements with configuration only', () => {
+    expect(
+      territoryConfigFromEnv({ TERRITORY_REQUIREMENTS_ENABLED: '1' }).requirementsEnabled,
+    ).toBe(true);
   });
 });

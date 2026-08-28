@@ -10,6 +10,7 @@ function state(): TerritoryMapState {
       manifestVersion: 1,
       manifestChecksum: 'checksum',
       radius: 63,
+      requirementsEnabled: false,
       startsAt: '2026-01-01T00:00:00.000Z',
       endsAt: '2026-03-26T00:00:00.000Z',
     },

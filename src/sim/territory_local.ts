@@ -7,7 +7,6 @@ import { createTerritoryManifest } from './territory_manifest';
 import { isTerritoryClaimAdjacent } from './territory_topology';
 
 const STARTING_RESOURCES = 250;
-const LEVEL_CAPACITY = [0, 24, 36, 48, 64, 80] as const;
 const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>> = {
   keep_core: 'keep',
   gate: 'gate',
@@ -31,6 +30,7 @@ export class LocalTerritoryState {
         manifestVersion: this.manifest.version,
         manifestChecksum: this.manifest.checksum,
         radius: this.manifest.radius,
+        requirementsEnabled: false,
         startsAt: '1970-01-01T00:00:00.000Z',
         endsAt: '9999-12-31T23:59:59.999Z',
       },
@@ -44,7 +44,7 @@ export class LocalTerritoryState {
         color: '#bd7a32',
         rank: 'leader',
         territoryLevel: 1,
-        cellCapacity: LEVEL_CAPACITY[1],
+        cellCapacity: this.manifest.cells.length,
         ownedCellCount: 0,
         resources: {
           wood: STARTING_RESOURCES,
@@ -62,7 +62,7 @@ export class LocalTerritoryState {
   placeKeep(cellId: number): boolean {
     const cell = this.manifest.byId.get(cellId);
     const guild = this.state.guild;
-    if (!cell?.starter || !guild || this.state.cells.length > 0) return false;
+    if (!cell || !guild || this.state.cells.length > 0) return false;
     this.state.cells.push({
       cellId,
       ownerGuildId: guild.id,

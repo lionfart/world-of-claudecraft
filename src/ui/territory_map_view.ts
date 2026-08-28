@@ -5,6 +5,7 @@ import {
   axialKey,
   axialToWorld,
   createTerritoryManifest,
+  TERRITORY_AXIAL_DIRECTIONS,
   type TerritoryManifest,
   type TerritoryResourceKind,
   type TerritoryTerrain,
@@ -146,9 +147,11 @@ export function buildTerritoryMapModel(input: {
         atWar: warCells.has(cell.id),
         hovered: cell.id === input.hoveredCellId,
         selected: cell.id === input.selectedCellId,
-        borderSides: cell.neighbors.map(
-          (neighbor) => owned.get(neighbor)?.ownerGuildId !== owner?.ownerGuildId,
-        ),
+        borderSides: TERRITORY_AXIAL_DIRECTIONS.map(([dq, dr]) => {
+          if (!owner) return false;
+          const neighbor = manifest.byAxial.get(axialKey(q + dq, r + dr));
+          return !neighbor || owned.get(neighbor.id)?.ownerGuildId !== owner.ownerGuildId;
+        }),
       });
     }
   }

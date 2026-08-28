@@ -28,6 +28,7 @@ export interface TerritorySeasonView {
   manifestVersion: number;
   manifestChecksum: string;
   radius: number;
+  requirementsEnabled: boolean;
   startsAt: string;
   endsAt: string;
 }

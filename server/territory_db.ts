@@ -27,12 +27,16 @@ import type {
 import { territoryMetrics } from './http/territory_metrics';
 import { REALM } from './realm';
 import { TERRITORY_CONFIG, type TerritoryConfig } from './territory_config';
+import {
+  territoryCellCapacity,
+  territoryFirstKeepAllowed,
+  territoryRequiresSpend,
+} from './territory_rules';
 
 const RESOURCE_TICK_MS = 5 * 60_000;
 const TERRITORY_LOCK_TIMEOUT_MS = 2_000;
 const TERRITORY_STATEMENT_TIMEOUT_MS = 5_000;
 const TERRITORY_IDLE_TX_TIMEOUT_MS = 10_000;
-const LEVEL_CAPACITY = [0, 24, 36, 48, 64, 80] as const;
 const CLAIM_COST = { wood: 10, iron: 5, grain: 10, labor: 5 } as const;
 const WAR_COST = { wood: 50, iron: 75, grain: 50, labor: 50 } as const;
 const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>> = {
@@ -202,10 +206,35 @@ export class TerritoryRepository {
         [this.realm],
       );
       if (existing.rows[0]) {
-        this.manifest = createTerritoryManifest(existing.rows[0].radius);
-        this.assertManifest(existing.rows[0]);
-        await client.query('COMMIT');
-        return;
+        const season = existing.rows[0];
+        if (season.manifest_version > this.manifest.version) {
+          throw new Error(
+            `territory manifest version ${season.manifest_version} is newer than code version ${this.manifest.version}`,
+          );
+        }
+        if (season.manifest_version === this.manifest.version) {
+          this.manifest = createTerritoryManifest(season.radius);
+          this.assertManifest(season);
+          await client.query('COMMIT');
+          return;
+        }
+        await client.query(
+          `UPDATE territory_seasons
+              SET status = 'closed', closed_at = $2, ends_at = LEAST(ends_at, $2),
+                  summary = jsonb_build_object(
+                    'reason', 'manifest_upgrade',
+                    'fromManifestVersion', manifest_version,
+                    'toManifestVersion', $3
+                  )
+            WHERE id = $1`,
+          [season.id, now, this.manifest.version],
+        );
+        await client.query(
+          `UPDATE territory_wars SET status = 'cancelled', version = version + 1,
+                  result_reason = 'season_closed', resolved_at = $2
+            WHERE season_id = $1 AND status IN ('declared', 'forming', 'active')`,
+          [season.id, now],
+        );
       }
       const sequence = await client.query<{ next_no: number }>(
         `SELECT COALESCE(MAX(season_no), 0)::int + 1 AS next_no FROM territory_seasons WHERE realm = $1`,
@@ -441,6 +470,7 @@ export class TerritoryRepository {
         manifestVersion: season.manifest_version,
         manifestChecksum: season.manifest_checksum,
         radius: season.radius,
+        requirementsEnabled: this.config.requirementsEnabled,
         startsAt: iso(season.starts_at),
         endsAt: iso(season.ends_at),
       },
@@ -539,7 +569,11 @@ export class TerritoryRepository {
         name: state.guild_name,
         color: territoryGuildColor(state.guild_id),
         territoryLevel: level,
-        cellCapacity: LEVEL_CAPACITY[level] ?? LEVEL_CAPACITY[1],
+        cellCapacity: territoryCellCapacity(
+          level,
+          this.manifest.cells.length,
+          this.config.requirementsEnabled,
+        ),
         ownedCellCount: cellIds.length,
         resources: {
           wood: Math.min(capacity, num(state.wood) + production.wood),
@@ -658,7 +692,11 @@ export class TerritoryRepository {
         color: territoryGuildColor(actor.guildId),
         rank: actor.rank,
         territoryLevel: level,
-        cellCapacity: LEVEL_CAPACITY[level] ?? LEVEL_CAPACITY[1],
+        cellCapacity: territoryCellCapacity(
+          level,
+          this.manifest.cells.length,
+          this.config.requirementsEnabled,
+        ),
         ownedCellCount: num(owned.rows[0]?.count ?? 0),
         resources: {
           wood: num(state.wood),
@@ -856,7 +894,9 @@ export class TerritoryRepository {
     return this.mutate(ctx, 'place_keep', cellId, async (client, season) => {
       if (ctx.rank !== 'leader') return 'forbidden';
       const cell = this.manifest.byId.get(cellId);
-      if (!cell?.starter) return 'invalid_cell';
+      if (!territoryFirstKeepAllowed(cell, this.config.requirementsEnabled)) {
+        return 'invalid_cell';
+      }
       const existing = await client.query(
         `SELECT 1 FROM territory_cells WHERE season_id = $1 AND (cell_id = $2 OR guild_id = $3) LIMIT 1`,
         [season.id, cellId, ctx.guildId],
@@ -905,9 +945,16 @@ export class TerritoryRepository {
             AND status IN ('declared', 'forming', 'active')`,
         [season.id, ctx.guildId],
       );
-      const capacity = LEVEL_CAPACITY[state.rows[0]?.territory_level ?? 1];
+      const capacity = territoryCellCapacity(
+        state.rows[0]?.territory_level ?? 1,
+        this.manifest.cells.length,
+        this.config.requirementsEnabled,
+      );
       if (owned.size + num(reserved.rows[0]?.count ?? 0) >= capacity) return 'capacity';
-      if (!(await this.spend(client, num(season.id), ctx.guildId, CLAIM_COST))) {
+      if (
+        territoryRequiresSpend(this.config.requirementsEnabled) &&
+        !(await this.spend(client, num(season.id), ctx.guildId, CLAIM_COST))
+      ) {
         return 'insufficient_resources';
       }
       await client.query(
@@ -944,7 +991,10 @@ export class TerritoryRepository {
             AND (s.state = 'active' OR s.target_level > s.level)`,
         [season.id, ctx.guildId],
       );
-      if (!(await this.spend(client, num(season.id), ctx.guildId, buildCost(kind, 1)))) {
+      if (
+        territoryRequiresSpend(this.config.requirementsEnabled) &&
+        !(await this.spend(client, num(season.id), ctx.guildId, buildCost(kind, 1)))
+      ) {
         return 'insufficient_resources';
       }
       const completesAt = new Date(
@@ -1001,6 +1051,7 @@ export class TerritoryRepository {
         [season.id, ctx.guildId],
       );
       if (
+        territoryRequiresSpend(this.config.requirementsEnabled) &&
         !(await this.spend(client, num(season.id), ctx.guildId, buildCost(current.kind, nextLevel)))
       ) {
         return 'insufficient_resources';
@@ -1070,7 +1121,11 @@ export class TerritoryRepository {
           [season.id, ctx.guildId],
         ),
       ]);
-      const capacity = LEVEL_CAPACITY[guildState.rows[0]?.territory_level ?? 1];
+      const capacity = territoryCellCapacity(
+        guildState.rows[0]?.territory_level ?? 1,
+        this.manifest.cells.length,
+        this.config.requirementsEnabled,
+      );
       if (owned.rows.length + num(outgoing.rows[0]?.count ?? 0) >= capacity) return 'capacity';
       const startsAt = new Date(Date.now() + this.config.warNoticeSeconds * 1_000);
       const endsAt = new Date(startsAt.getTime() + this.config.warDurationSeconds * 1_000);
@@ -1090,7 +1145,10 @@ export class TerritoryRepository {
       const conflictRow = conflict.rows[0];
       if (conflictRow?.attacker_conflict || conflictRow?.defender_conflict) return 'war_conflict';
       if (num(conflictRow?.slots ?? 0) >= this.config.realmWarSlots) return 'war_slots_full';
-      if (!(await this.spend(client, num(season.id), ctx.guildId, WAR_COST))) {
+      if (
+        territoryRequiresSpend(this.config.requirementsEnabled) &&
+        !(await this.spend(client, num(season.id), ctx.guildId, WAR_COST))
+      ) {
         return 'insufficient_resources';
       }
       const warId = randomUUID();
