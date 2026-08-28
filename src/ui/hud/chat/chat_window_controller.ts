@@ -60,6 +60,7 @@ export interface ChatWindowControllerDeps {
   selectedQuestId(): string | null;
   hasQuest(questId: string): boolean;
   showError(text: string): void;
+  onPaneActivated?(pane: HTMLElement): void;
 }
 
 /** Owns chat tabs, send-channel state, draft links, persistence, and their DOM wiring. */
@@ -453,6 +454,7 @@ export class ChatWindowController {
     const showCombat = tab === 'combat';
     this.deps.chatLog.classList.toggle('active', !showCombat);
     this.deps.combatLog.classList.toggle('active', showCombat);
+    this.deps.onPaneActivated?.(showCombat ? this.deps.combatLog : this.deps.chatLog);
     if (!showCombat) this.applyFilter();
     this.updateActiveTabStyles();
     if (persist) this.persist();

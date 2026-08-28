@@ -23,10 +23,9 @@ describe('character preview memory policy', () => {
   });
 
   it('submits preview frames only while its canvas has a visible host', () => {
-    expect(characterPreviewFrameVisible(true, 260, 320)).toBe(true);
-    expect(characterPreviewFrameVisible(false, 260, 320)).toBe(false);
-    expect(characterPreviewFrameVisible(true, 0, 320)).toBe(false);
-    expect(characterPreviewFrameVisible(true, 260, 0)).toBe(false);
+    expect(characterPreviewFrameVisible(true, true)).toBe(true);
+    expect(characterPreviewFrameVisible(false, true)).toBe(false);
+    expect(characterPreviewFrameVisible(true, false)).toBe(false);
   });
 
   it('is wired through the HUD device profile and preview render loop', () => {

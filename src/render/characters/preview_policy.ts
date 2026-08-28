@@ -23,8 +23,7 @@ export function resolveCharacterPreviewPolicy(constrainedMemory: boolean): Chara
 /** A hidden preview keeps its RAF alive for reuse but submits no GPU work. */
 export function characterPreviewFrameVisible(
   canvasConnected: boolean,
-  width: number,
-  height: number,
+  renderActive: boolean,
 ): boolean {
-  return canvasConnected && width > 0 && height > 0;
+  return canvasConnected && renderActive;
 }

@@ -705,13 +705,7 @@ export class CharacterPreview {
     if (this.destroyed) return;
     this.animationFrameId = requestAnimationFrame(this.animate);
 
-    if (
-      !characterPreviewFrameVisible(
-        this.canvas.isConnected,
-        this.container.clientWidth,
-        this.container.clientHeight,
-      )
-    ) {
+    if (!characterPreviewFrameVisible(this.canvas.isConnected, this.renderActive)) {
       // Re-anchor the timer while hidden so reopening cannot produce a large
       // animation step.
       this.timer.reset();

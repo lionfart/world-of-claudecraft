@@ -85,4 +85,21 @@ describe('server-authoritative action combat aim', () => {
     expect(wolf.hp).toBe(hpBefore);
     expect(damageEvents(events)).toHaveLength(0);
   });
+
+  it('never traces line of sight to realm entities outside directional attack reach', () => {
+    const { sim, player } = makeMage();
+    const near = spawnWolf(sim, player, 0, 3);
+    const remote = spawnWolf(sim, player, 200, 0);
+    const tracedTargets: number[] = [];
+    const lineOfSightBlocked = sim.ctx.lineOfSightBlocked;
+    sim.ctx.lineOfSightBlocked = (source, target, ability) => {
+      tracedTargets.push(target.id);
+      return lineOfSightBlocked(source, target, ability);
+    };
+
+    sim.castAbilityToward('fireball', { x: player.pos.x, z: player.pos.z + 4 });
+
+    expect(tracedTargets).toContain(near.id);
+    expect(tracedTargets).not.toContain(remote.id);
+  });
 });

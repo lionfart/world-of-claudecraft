@@ -454,6 +454,7 @@ import {
 import { type ChatClock, clampChatClock, formatChatTimestamp } from './hud/chat/chat_timestamp';
 import { ChatWindowController } from './hud/chat/chat_window_controller';
 import { DEED_NAME_TOKEN, deedChatLinkEl, deedLineNodes } from './hud/chat/deed_chat_line';
+import { LOG_SCROLL_BOTTOM, LogScrollFollower } from './hud/chat/log_scroll_follower';
 import { SkinEventController } from './hud/cosmetics/skin_event_controller';
 import {
   CrossHotbarController,
@@ -1376,6 +1377,8 @@ export class Hud {
   private chatTimestamps = localStorage.getItem('chatTimestamps') === '1';
   private chatClock: ChatClock = clampChatClock(localStorage.getItem('chatClock'));
   private combatLogEl = $('#combatlog');
+  private readonly chatLogScroll = new LogScrollFollower();
+  private readonly combatLogScroll = new LogScrollFollower();
   // Off-screen polite live region for the throttled combat summary. The 3D
   // world / game canvas is OUT of accessibility scope (not screen-readable), so this
   // announces only the combat-log text, never the game world.
@@ -2323,6 +2326,8 @@ export class Hud {
       hasStorePromoCard: () => this.storePromoCard !== null,
       uiScale: getUiScale,
     });
+    this.observeLogScroll(this.chatLogEl, this.chatLogScroll);
+    this.observeLogScroll(this.combatLogEl, this.combatLogScroll);
     this.chatWindow = new ChatWindowController({
       document,
       storage: localStorage,
@@ -2349,6 +2354,7 @@ export class Hud {
       selectedQuestId: () => this.questlogWindow.selectedQuestId,
       hasQuest: (questId) => this.sim.questLog.has(questId),
       showError: (text) => this.showError(text),
+      onPaneActivated: (pane) => this.requestLogBottom(pane),
     });
     this.chatWindow.init();
     this.chatGeometry.init();
@@ -13930,8 +13936,6 @@ export class Hud {
     fromTitle?: string,
     classId?: PlayerClass,
   ): void {
-    const wasNearBottom =
-      this.chatLogEl.scrollHeight - this.chatLogEl.scrollTop - this.chatLogEl.clientHeight < 24;
     const div = document.createElement('div');
     // The line color is a pure function of its channel (the single source of truth
     // shared with the chat input tint), so it is derived here rather than passed in.
@@ -14012,7 +14016,7 @@ export class Hud {
       if (!first) break;
       this.chatLogEl.removeChild(first);
     }
-    if (wasNearBottom) this.chatLogEl.scrollTop = this.chatLogEl.scrollHeight;
+    this.requestLogBottom(this.chatLogEl);
   }
 
   // Append a chat message body, rendering [[q:id]] tokens as clickable quest links
@@ -14391,7 +14395,6 @@ export class Hud {
     // region when its durable channel line is filtered by another active tab.
     announceWhenFiltered = false,
   ): void {
-    const wasNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
     const div = document.createElement('div');
     div.style.color = color;
     if (timestamp) this.prependTimestamp(div);
@@ -14430,7 +14433,34 @@ export class Hud {
       if (!first) break;
       el.removeChild(first);
     }
-    if (wasNearBottom) el.scrollTop = el.scrollHeight;
+    this.requestLogBottom(el);
+  }
+
+  private logScrollFollower(el: HTMLElement): LogScrollFollower {
+    return el === this.chatLogEl ? this.chatLogScroll : this.combatLogScroll;
+  }
+
+  private observeLogScroll(el: HTMLElement, follower: LogScrollFollower): void {
+    el.addEventListener(
+      'scroll',
+      () => {
+        if (!el.classList.contains('active')) return;
+        follower.observeScroll(el.scrollHeight, el.scrollTop, el.clientHeight);
+      },
+      { passive: true },
+    );
+  }
+
+  private requestLogBottom(el: HTMLElement): void {
+    this.logScrollFollower(el).requestBottom(
+      () => el.classList.contains('active'),
+      (callback) => requestAnimationFrame(callback),
+      () => {
+        // A fixed large value is clamped by the scroll container. Avoid reading
+        // scrollHeight after an append, which synchronously flushes the whole HUD.
+        el.scrollTop = LOG_SCROLL_BOTTOM;
+      },
+    );
   }
 
   // A floating note over the local player (e.g. "Can't move!" when a movement command

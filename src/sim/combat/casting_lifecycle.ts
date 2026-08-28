@@ -874,8 +874,16 @@ function aimedHostileTargets(
 ): Entity[] {
   const maxRange = ability.range > 0 ? ability.range : MELEE_RANGE;
   const candidates: Entity[] = [];
-  for (const entity of ctx.entities.values()) {
-    if (entity.id === p.id || entity.dead || !ctx.isHostileTo(p, entity)) continue;
+  // Directional selection used to walk every entity in the realm and run a
+  // collider LOS trace before checking whether the body could possibly touch
+  // this short attack segment. A remote hostile can be thousands of yards
+  // away, so one cast sampled the world in 0.5 yd steps once per remote mob.
+  // On the live realm that blocked the Node event loop at both cast admission
+  // and cast completion. The spatial query is a strict superset of both
+  // selectors' reach: entityCombatRadius is capped at 2 yd, and both the melee
+  // cone and segment selectors accept centers no farther than range + radius.
+  // Selection still owns its exact range/angle/min-range rules below.
+  for (const entity of ctx.hostilesInRadius(p, p.pos, maxRange + 2)) {
     if (hasEscapeStealth(entity) || ctx.lineOfSightBlocked(p, entity, ability)) continue;
     candidates.push(entity);
   }
