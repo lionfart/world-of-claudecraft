@@ -35,6 +35,8 @@ describe('territory siege asset kit', () => {
     expect(TERRITORY_SIEGE_ASSET_URLS).toMatchObject({
       naturalPine: '/models/foliage/pine_2.glb',
       naturalOak: '/models/foliage/oak_3.glb',
+      boundaryRock: '/models/biome/desert_rock_formation_1.glb',
+      boundaryCliff: '/models/props/wildheart_limestone_cliff.glb',
       fern: '/models/foliage/fern.glb',
       rock: '/models/foliage/rock_1.glb',
       bush: '/models/foliage/bush.glb',

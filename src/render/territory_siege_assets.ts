@@ -17,6 +17,8 @@ export const TERRITORY_SIEGE_ASSET_URLS = {
   fern: '/models/foliage/fern.glb',
   naturalPine: '/models/foliage/pine_2.glb',
   naturalOak: '/models/foliage/oak_3.glb',
+  boundaryRock: '/models/biome/desert_rock_formation_1.glb',
+  boundaryCliff: '/models/props/wildheart_limestone_cliff.glb',
   homeA: '/models/biome/hex_home_a.glb',
   homeB: '/models/biome/hex_home_b.glb',
   well: '/models/biome/hex_well.glb',

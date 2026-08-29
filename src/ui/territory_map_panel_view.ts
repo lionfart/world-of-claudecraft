@@ -100,7 +100,9 @@ export function territorySlotModels(
 
 export interface TerritoryWarNoticeModel {
   visible: boolean;
+  active: boolean;
   secondsUntilStart: number;
+  secondsRemaining: number;
   automaticTeleport: boolean;
 }
 
@@ -109,11 +111,17 @@ export function territoryWarNoticeModel(
   nowMs: number,
 ): TerritoryWarNoticeModel {
   const startsAtMs = war ? new Date(war.startsAt).getTime() : Number.NaN;
+  const endsAtMs = war ? new Date(war.endsAt).getTime() : Number.NaN;
+  const active = war?.status === 'active' && war.mySide === 'defender';
   return {
-    visible: !!war && (war.status === 'declared' || war.status === 'forming'),
+    visible: !!war && (war.status === 'declared' || war.status === 'forming' || active),
+    active,
     secondsUntilStart: Number.isFinite(startsAtMs)
       ? Math.max(0, Math.ceil((startsAtMs - nowMs) / 1_000))
       : 0,
-    automaticTeleport: war?.registered === true,
+    secondsRemaining: Number.isFinite(endsAtMs)
+      ? Math.max(0, Math.ceil((endsAtMs - nowMs) / 1_000))
+      : 0,
+    automaticTeleport: !active && war?.registered === true,
   };
 }

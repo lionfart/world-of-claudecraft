@@ -16,6 +16,7 @@ import {
   territorySiegeLocalColliders,
   territorySiegeSpawn,
   territorySiegeTowerPositions,
+  territorySiegeWallPlacements,
 } from '../src/sim/territory_siege_layout';
 
 describe('territory siege instance layout', () => {
@@ -34,10 +35,37 @@ describe('territory siege instance layout', () => {
         );
       }
     }
-    expect(TERRITORY_SIEGE_FIELD_HALF_X * TERRITORY_SIEGE_FIELD_HALF_Z * 4).toBeGreaterThan(80_000);
-    expect(territorySiegeSpawn(0, 'attacker', 1).z - territorySiegeOrigin(0).z).toBeGreaterThan(
-      120,
+    expect(TERRITORY_SIEGE_FIELD_HALF_X * TERRITORY_SIEGE_FIELD_HALF_Z * 4).toBeGreaterThan(
+      130_000,
     );
+    expect(territorySiegeSpawn(0, 'attacker', 1).z - territorySiegeOrigin(0).z).toBeGreaterThan(
+      170,
+    );
+  });
+
+  it('snaps every wall run shut and faces opposing runs outwards', () => {
+    const placements = territorySiegeWallPlacements();
+    expect(placements).toHaveLength(30);
+    expect(placements.find((wall) => wall.run === 'left')?.yaw).toBe(-Math.PI / 2);
+    expect(placements.find((wall) => wall.run === 'right')?.yaw).toBe(Math.PI / 2);
+    expect(placements.find((wall) => wall.run === 'back')?.yaw).toBe(Math.PI);
+    expect(placements.find((wall) => wall.run === 'front_left')?.yaw).toBe(0);
+
+    for (const run of ['left', 'right', 'back', 'front_left', 'front_right'] as const) {
+      const alongZ = run === 'left' || run === 'right';
+      const pieces = placements
+        .filter((wall) => wall.run === run)
+        .sort((a, b) => (alongZ ? a.z - b.z : a.x - b.x));
+      for (let index = 1; index < pieces.length; index += 1) {
+        const previous = pieces[index - 1];
+        const current = pieces[index];
+        const previousCenter = alongZ ? previous.z : previous.x;
+        const currentCenter = alongZ ? current.z : current.x;
+        expect(currentCenter - current.scaleX).toBeLessThanOrEqual(
+          previousCenter + previous.scaleX,
+        );
+      }
+    }
   });
 
   it('restricts ram construction to the marked gate apron', () => {

@@ -31,6 +31,98 @@ export const TERRITORY_SIEGE_CORE_Z = -42;
 export const TERRITORY_SIEGE_CORE_ATTACK_RADIUS = 12;
 export const TERRITORY_SIEGE_CORE_COLLIDER_RADIUS = 2.8;
 
+export type TerritorySiegeWallRun = 'left' | 'right' | 'back' | 'front_left' | 'front_right';
+
+export interface TerritorySiegeWallPlacement {
+  run: TerritorySiegeWallRun;
+  x: number;
+  z: number;
+  /** The source wall is two units long on local X, so this is also its half-length. */
+  scaleX: number;
+  yaw: number;
+}
+
+const WALL_SEAM_OVERLAP = 0.24;
+
+function wallRunX(
+  run: TerritorySiegeWallRun,
+  z: number,
+  startX: number,
+  endX: number,
+  count: number,
+  yaw: number,
+): TerritorySiegeWallPlacement[] {
+  const step = (endX - startX) / count;
+  return Array.from({ length: count }, (_, index) => ({
+    run,
+    x: startX + step * (index + 0.5),
+    z,
+    scaleX: (step + WALL_SEAM_OVERLAP) / 2,
+    yaw,
+  }));
+}
+
+function wallRunZ(
+  run: TerritorySiegeWallRun,
+  x: number,
+  startZ: number,
+  endZ: number,
+  count: number,
+  yaw: number,
+): TerritorySiegeWallPlacement[] {
+  const step = (endZ - startZ) / count;
+  return Array.from({ length: count }, (_, index) => ({
+    run,
+    x,
+    z: startZ + step * (index + 0.5),
+    scaleX: (step + WALL_SEAM_OVERLAP) / 2,
+    yaw,
+  }));
+}
+
+/**
+ * A closed, grid-snapped visual perimeter. Opposing runs face opposite ways,
+ * and the tiny deliberate overlap removes daylight between modular pieces.
+ */
+export function territorySiegeWallPlacements(): readonly TerritorySiegeWallPlacement[] {
+  const outside = TERRITORY_SIEGE_WALL_HALF_X + 2;
+  return [
+    ...wallRunZ(
+      'left',
+      -TERRITORY_SIEGE_WALL_HALF_X,
+      TERRITORY_SIEGE_BACK_WALL_Z - 2,
+      TERRITORY_SIEGE_GATE_Z + 2,
+      8,
+      -Math.PI / 2,
+    ),
+    ...wallRunZ(
+      'right',
+      TERRITORY_SIEGE_WALL_HALF_X,
+      TERRITORY_SIEGE_BACK_WALL_Z - 2,
+      TERRITORY_SIEGE_GATE_Z + 2,
+      8,
+      Math.PI / 2,
+    ),
+    ...wallRunX('back', TERRITORY_SIEGE_BACK_WALL_Z, -outside, outside, 8, Math.PI),
+    ...wallRunX(
+      'front_left',
+      TERRITORY_SIEGE_GATE_Z,
+      -outside,
+      -TERRITORY_SIEGE_GATE_HALF_WIDTH,
+      3,
+      0,
+    ),
+    ...wallRunX(
+      'front_right',
+      TERRITORY_SIEGE_GATE_Z,
+      TERRITORY_SIEGE_GATE_HALF_WIDTH,
+      outside,
+      3,
+      0,
+    ),
+  ];
+}
+
 /** Stable, separated spawn rows for the first twenty seats on each side. */
 export function territorySiegeSpawn(
   slot: number,
@@ -43,7 +135,7 @@ export function territorySiegeSpawn(
   const row = Math.floor(index / 5);
   return {
     x: origin.x + (column - 2) * 3.2,
-    z: origin.z + (side === 'attacker' ? 128 - row * 4 : -57 + row * 4),
+    z: origin.z + (side === 'attacker' ? 178 - row * 4 : -57 + row * 4),
     facing: side === 'attacker' ? Math.PI : 0,
   };
 }
@@ -229,39 +321,39 @@ export function territorySiegeLocalColliders(): Collider[] {
     },
     {
       type: 'obb',
-      x: -TERRITORY_SIEGE_FIELD_HALF_X,
+      x: -(TERRITORY_SIEGE_FIELD_HALF_X - 24),
       z: 0,
       hw: 1.5,
-      hd: TERRITORY_SIEGE_FIELD_HALF_Z,
+      hd: TERRITORY_SIEGE_FIELD_HALF_Z - 22,
       rot: 0,
-      moveTopY: y + 20,
+      moveTopY: y + 30,
     },
     {
       type: 'obb',
-      x: TERRITORY_SIEGE_FIELD_HALF_X,
+      x: TERRITORY_SIEGE_FIELD_HALF_X - 24,
       z: 0,
       hw: 1.5,
-      hd: TERRITORY_SIEGE_FIELD_HALF_Z,
+      hd: TERRITORY_SIEGE_FIELD_HALF_Z - 22,
       rot: 0,
-      moveTopY: y + 20,
+      moveTopY: y + 30,
     },
     {
       type: 'obb',
       x: 0,
-      z: -TERRITORY_SIEGE_FIELD_HALF_Z,
-      hw: TERRITORY_SIEGE_FIELD_HALF_X,
+      z: -(TERRITORY_SIEGE_FIELD_HALF_Z - 24),
+      hw: TERRITORY_SIEGE_FIELD_HALF_X - 22,
       hd: 1.5,
       rot: 0,
-      moveTopY: y + 20,
+      moveTopY: y + 30,
     },
     {
       type: 'obb',
       x: 0,
-      z: TERRITORY_SIEGE_FIELD_HALF_Z,
-      hw: TERRITORY_SIEGE_FIELD_HALF_X,
+      z: TERRITORY_SIEGE_FIELD_HALF_Z - 24,
+      hw: TERRITORY_SIEGE_FIELD_HALF_X - 22,
       hd: 1.5,
       rot: 0,
-      moveTopY: y + 20,
+      moveTopY: y + 30,
     },
     ...scenery,
   ];

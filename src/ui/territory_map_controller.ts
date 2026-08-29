@@ -326,7 +326,15 @@ export class TerritoryMapController {
     const root = element('#territory-war-notice');
     this.writers.setDisplay(root, model.visible && !siegeVisible ? 'block' : 'none');
     if (!war || !model.visible || siegeVisible) return;
-    this.writers.setText(element('#territory-war-kicker'), t('hudChrome.territoryMap.warDeclared'));
+    this.writers.setText(
+      element('#territory-war-kicker'),
+      model.active
+        ? t('hudChrome.territoryMap.siegeTitle', {
+            attackers: war.attackerCount,
+            defenders: war.defenderCount,
+          })
+        : t('hudChrome.territoryMap.warDeclared'),
+    );
     this.writers.setText(
       element('#territory-war-title'),
       t('hudChrome.territoryMap.warTitle', {
@@ -343,13 +351,17 @@ export class TerritoryMapController {
     );
     this.writers.setText(
       element('#territory-war-start'),
-      t('hudChrome.territoryMap.warStartsAt', {
-        time: formatDateTime(new Date(war.startsAt), { timeStyle: 'short' }),
-      }),
+      model.active
+        ? ''
+        : t('hudChrome.territoryMap.warStartsAt', {
+            time: formatDateTime(new Date(war.startsAt), { timeStyle: 'short' }),
+          }),
     );
     this.writers.setText(
       element('#territory-war-countdown'),
-      t('hudChrome.territoryMap.warStartsIn', { seconds: model.secondsUntilStart }),
+      model.active
+        ? t('hudChrome.territoryMap.siegeTimer', { seconds: model.secondsRemaining })
+        : t('hudChrome.territoryMap.warStartsIn', { seconds: model.secondsUntilStart }),
     );
     this.writers.setText(
       element('#territory-war-teleport'),
@@ -360,7 +372,11 @@ export class TerritoryMapController {
     const action = element<HTMLButtonElement>('#territory-war-action');
     this.writers.setText(
       action,
-      t(war.registered ? 'hudChrome.territoryMap.leaveWar' : 'hudChrome.territoryMap.joinWar'),
+      t(
+        !model.active && war.registered
+          ? 'hudChrome.territoryMap.leaveWar'
+          : 'hudChrome.territoryMap.joinWar',
+      ),
     );
     action.disabled = war.mySide === null;
   }
@@ -446,7 +462,8 @@ export class TerritoryMapController {
   private performWarNoticeAction(): void {
     const war = this.world.territoryWarNotice;
     if (!war?.mySide) return;
-    if (war.registered) this.world.territoryLeaveWar(war.id);
+    if (war.status === 'active') this.world.territoryJoinWar(war.id);
+    else if (war.registered) this.world.territoryLeaveWar(war.id);
     else this.world.territoryJoinWar(war.id);
   }
 

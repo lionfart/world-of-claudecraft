@@ -8,6 +8,7 @@ import {
 import {
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
+  TERRITORY_SIEGE_VISUAL_MARGIN,
   territorySiegeGroundLiftLocal,
   territorySiegeTerrainLiftLocal,
 } from '../sim/territory_siege_ground';
@@ -50,18 +51,18 @@ function texturedMaterial(kind: 'grass' | 'dirt'): THREE.Material {
     color: grass ? 0xffffff : 0xa89172,
     map: cloneTerritorySiegeTexture(
       grass ? 'grassColor' : 'dirtColor',
-      grass ? 40 : 2.2,
-      grass ? 56 : 15,
+      grass ? 54 : 2.2,
+      grass ? 74 : 19,
     ),
     normalMap: cloneTerritorySiegeTexture(
       grass ? 'grassNormal' : 'dirtNormal',
-      grass ? 40 : 2.2,
-      grass ? 56 : 15,
+      grass ? 54 : 2.2,
+      grass ? 74 : 19,
     ),
     roughnessMap: cloneTerritorySiegeTexture(
       grass ? 'grassRoughness' : 'dirtRoughness',
-      grass ? 40 : 2.2,
-      grass ? 56 : 15,
+      grass ? 54 : 2.2,
+      grass ? 74 : 19,
     ),
     roughness: 1,
     vertexColors: grass,
@@ -74,12 +75,9 @@ function texturedMaterial(kind: 'grass' | 'dirt'): THREE.Material {
 }
 
 function buildTerrain(): THREE.Mesh {
-  const geometry = new THREE.PlaneGeometry(
-    TERRITORY_SIEGE_FIELD_HALF_X * 2,
-    TERRITORY_SIEGE_FIELD_HALF_Z * 2,
-    90,
-    128,
-  );
+  const visualHalfX = TERRITORY_SIEGE_FIELD_HALF_X + TERRITORY_SIEGE_VISUAL_MARGIN;
+  const visualHalfZ = TERRITORY_SIEGE_FIELD_HALF_Z + TERRITORY_SIEGE_VISUAL_MARGIN;
+  const geometry = new THREE.PlaneGeometry(visualHalfX * 2, visualHalfZ * 2, 112, 156);
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
   const colors = new Float32Array(positions.count * 3);
@@ -179,7 +177,7 @@ function buildApproachRoad(): THREE.Mesh {
   const segments = 30;
   for (let index = 0; index <= segments; index += 1) {
     const t = index / segments;
-    const z = 146 - t * 126;
+    const z = 190 - t * 170;
     const center = Math.sin(t * Math.PI * 2.2) * 0.7 * Math.sin(t * Math.PI);
     const halfWidth = 7.2 + Math.sin(t * 13.1 + 0.4) * 0.65;
     for (const side of [-1, 1]) {
@@ -269,6 +267,11 @@ function buildBillboardGrass(): THREE.InstancedMesh {
       if (patch < 0.37 || hash01(x + 5.3, z - 8.9) < 0.43) continue;
       const px = x + (hash01(x + 19.2, z) - 0.5) * 2.2;
       const pz = z + (hash01(x, z - 12.7) - 0.5) * 2.2;
+      const edgeDistance = Math.min(
+        TERRITORY_SIEGE_FIELD_HALF_X - Math.abs(px),
+        TERRITORY_SIEGE_FIELD_HALF_Z - Math.abs(pz),
+      );
+      if (edgeDistance < 38) continue;
       const insideCastle = pz > -78 && pz < 23 && Math.abs(px) < 50;
       const onCastleLane = insideCastle && (Math.abs(px) < 6 || Math.abs(pz + 24) < 6);
       const onApproach = pz >= 16 && Math.abs(px) < 9.5;
@@ -309,6 +312,66 @@ function buildBillboardGrass(): THREE.InstancedMesh {
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+interface BoundaryPlacement {
+  x: number;
+  z: number;
+  yaw: number;
+  index: number;
+}
+
+/**
+ * An overlapping mountain-and-cliff silhouette sits behind the authoritative
+ * collision ring. The terrain continues beyond it, so no camera angle exposes
+ * a floating rectangular arena edge.
+ */
+function buildMountainBoundary(root: THREE.Object3D): void {
+  const placements: BoundaryPlacement[] = [];
+  let index = 0;
+  const boundaryX = TERRITORY_SIEGE_FIELD_HALF_X - 19;
+  const boundaryZ = TERRITORY_SIEGE_FIELD_HALF_Z - 19;
+  for (let x = -boundaryX; x <= boundaryX; x += 23.5) {
+    const jitter = (hash01(x, 33.1) - 0.5) * 6;
+    placements.push({ x, z: -boundaryZ + jitter, yaw: 0, index: index++ });
+    placements.push({ x, z: boundaryZ - jitter, yaw: Math.PI, index: index++ });
+  }
+  for (let z = -boundaryZ + 18; z <= boundaryZ - 18; z += 23.5) {
+    const jitter = (hash01(z, 71.4) - 0.5) * 6;
+    placements.push({ x: -boundaryX + jitter, z, yaw: Math.PI / 2, index: index++ });
+    placements.push({ x: boundaryX - jitter, z, yaw: -Math.PI / 2, index: index++ });
+  }
+
+  for (const boundary of placements) {
+    const variation = hash01(boundary.x + 9.2, boundary.z - 4.7);
+    const cliff = boundary.index % 5 === 0;
+    const baseHeight = territorySiegeTerrainLiftLocal(boundary.x, boundary.z);
+    place(
+      root,
+      cliff ? 'boundaryCliff' : 'boundaryRock',
+      boundary.x,
+      cliff ? baseHeight - 0.5 : baseHeight + 5.5,
+      boundary.z,
+      cliff
+        ? [2.35 + variation * 0.45, 1.8 + variation * 0.45, 2.35 + variation * 0.45]
+        : [3.9 + variation, 5.2 + variation * 1.35, 3.9 + variation],
+      boundary.yaw + (variation - 0.5) * 0.55,
+    );
+
+    if (boundary.index % 3 === 1) {
+      const treeX = boundary.x - Math.sin(boundary.yaw) * 7;
+      const treeZ = boundary.z - Math.cos(boundary.yaw) * 7;
+      place(
+        root,
+        'naturalPine',
+        treeX,
+        territorySiegeTerrainLiftLocal(treeX, treeZ),
+        treeZ,
+        3.2 + variation * 1.2,
+        boundary.yaw + variation,
+      );
+    }
+  }
 }
 
 /** Low, clustered pebbles break up the soil without reading as repeated spikes. */
@@ -371,6 +434,7 @@ export function buildTerritorySiegeNaturalField(root: THREE.Object3D): void {
     buildBillboardGrass(),
     buildGroundStoneScatter(),
   );
+  buildMountainBoundary(root);
 
   for (let index = 0; index < TERRITORY_SIEGE_TREES.length; index += 1) {
     const tree = TERRITORY_SIEGE_TREES[index];

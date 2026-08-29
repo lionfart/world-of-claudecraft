@@ -11,11 +11,19 @@ import {
 import { groundHeight } from '../src/sim/world';
 
 describe('territory siege shared ground', () => {
-  it('adds restrained natural relief without unsafe cliffs', () => {
+  it('keeps the playable interior gently rolling while reserving cliffs for the boundary', () => {
     let minimum = Number.POSITIVE_INFINITY;
     let maximum = Number.NEGATIVE_INFINITY;
-    for (let z = -TERRITORY_SIEGE_FIELD_HALF_Z; z <= TERRITORY_SIEGE_FIELD_HALF_Z; z += 2) {
-      for (let x = -TERRITORY_SIEGE_FIELD_HALF_X; x <= TERRITORY_SIEGE_FIELD_HALF_X; x += 2) {
+    for (
+      let z = -TERRITORY_SIEGE_FIELD_HALF_Z + 40;
+      z <= TERRITORY_SIEGE_FIELD_HALF_Z - 40;
+      z += 2
+    ) {
+      for (
+        let x = -TERRITORY_SIEGE_FIELD_HALF_X + 40;
+        x <= TERRITORY_SIEGE_FIELD_HALF_X - 40;
+        x += 2
+      ) {
         const height = territorySiegeGroundLiftLocal(x, z);
         minimum = Math.min(minimum, height);
         maximum = Math.max(maximum, height);
@@ -26,17 +34,20 @@ describe('territory siege shared ground', () => {
     expect(maximum - minimum).toBeGreaterThan(0.9);
   });
 
-  it('keeps the assault road, courtyard and arena edge level', () => {
+  it('keeps the assault road and courtyard level', () => {
     for (const point of [
-      { x: 0, z: 96 },
+      { x: 0, z: 178 },
       { x: 5, z: 48 },
       { x: 0, z: -42 },
       { x: 30, z: -24 },
-      { x: TERRITORY_SIEGE_FIELD_HALF_X, z: 0 },
-      { x: 0, z: TERRITORY_SIEGE_FIELD_HALF_Z },
     ]) {
       expect(territorySiegeTerrainLiftLocal(point.x, point.z)).toBeCloseTo(0, 5);
     }
+  });
+
+  it('raises a natural ridge before the impassable arena boundary', () => {
+    expect(territorySiegeTerrainLiftLocal(TERRITORY_SIEGE_FIELD_HALF_X - 20, 0)).toBeGreaterThan(3);
+    expect(territorySiegeTerrainLiftLocal(0, TERRITORY_SIEGE_FIELD_HALF_Z)).toBeGreaterThan(3);
   });
 
   it('matches the flattened castle paving with a low authoritative walk surface', () => {

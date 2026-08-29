@@ -1,5 +1,7 @@
-export const TERRITORY_SIEGE_FIELD_HALF_X = 120;
-export const TERRITORY_SIEGE_FIELD_HALF_Z = 168;
+export const TERRITORY_SIEGE_FIELD_HALF_X = 160;
+export const TERRITORY_SIEGE_FIELD_HALF_Z = 220;
+/** Extra rendered terrain behind the impassable mountain ring hides the arena seam. */
+export const TERRITORY_SIEGE_VISUAL_MARGIN = 64;
 export const TERRITORY_SIEGE_STONE_LANE_HEIGHT = 0.072;
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
@@ -18,7 +20,7 @@ export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
     TERRITORY_SIEGE_FIELD_HALF_X - Math.abs(x),
     TERRITORY_SIEGE_FIELD_HALF_Z - Math.abs(z),
   );
-  if (edgeDistance <= 0) return 0;
+  if (edgeDistance <= -TERRITORY_SIEGE_VISUAL_MARGIN) return 0;
 
   const edgeFade = smoothstep(0, 12, edgeDistance);
   const assaultRoadFade = z > 14 ? smoothstep(8, 20, Math.abs(x)) : 1;
@@ -31,7 +33,13 @@ export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
   const cross = Math.sin(z * 0.071 - x * 0.033 + 1.7) * 0.31;
   const ridge = Math.sin((x + z) * 0.039 - 0.8) * 0.2;
   const detail = Math.sin(x * 0.13 - z * 0.11 + 2.4) * 0.08;
-  return Math.max(-0.48, Math.min(1.18, (0.24 + broad + cross + ridge + detail) * mask));
+  const gentle = Math.max(-0.48, Math.min(1.18, (0.24 + broad + cross + ridge + detail) * mask));
+  const ridgeInside = 1 - smoothstep(12, 38, edgeDistance);
+  const ridgeOutside = 1 - smoothstep(0, TERRITORY_SIEGE_VISUAL_MARGIN, -edgeDistance);
+  const boundaryMask = edgeDistance >= 0 ? ridgeInside : ridgeOutside;
+  const mountainNoise =
+    5.8 + Math.sin(x * 0.071 + z * 0.029) * 1.25 + Math.sin(z * 0.097 - x * 0.043 + 1.3) * 0.75;
+  return gentle + Math.max(0, mountainNoise * boundaryMask);
 }
 
 /**

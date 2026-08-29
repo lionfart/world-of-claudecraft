@@ -108,8 +108,24 @@ describe('territory pre-war notice', () => {
   it('projects a deterministic countdown and automatic teleport state', () => {
     expect(territoryWarNoticeModel(war, Date.parse('2026-01-01T00:04:11.100Z'))).toEqual({
       visible: true,
+      active: false,
       secondsUntilStart: 49,
+      secondsRemaining: 3_649,
       automaticTeleport: true,
     });
+  });
+
+  it('keeps an active siege visible for late defenders but not attackers', () => {
+    const now = Date.parse('2026-01-01T00:15:00.000Z');
+    expect(territoryWarNoticeModel({ ...war, status: 'active', mySide: 'defender' }, now)).toEqual({
+      visible: true,
+      active: true,
+      secondsUntilStart: 0,
+      secondsRemaining: 3_000,
+      automaticTeleport: false,
+    });
+    expect(
+      territoryWarNoticeModel({ ...war, status: 'active', mySide: 'attacker' }, now).visible,
+    ).toBe(false);
   });
 });

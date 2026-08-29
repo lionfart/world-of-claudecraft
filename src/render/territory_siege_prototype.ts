@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { territorySiegeOrigin } from '../sim/data';
 import { territorySiegeGroundLiftLocal } from '../sim/territory_siege_ground';
 import {
-  TERRITORY_SIEGE_BACK_WALL_Z,
   TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
   TERRITORY_SIEGE_CORE_Z,
   TERRITORY_SIEGE_FLOOR_Y,
@@ -10,7 +9,7 @@ import {
   TERRITORY_SIEGE_TOWER_RANGE,
   TERRITORY_SIEGE_TOWER_X,
   TERRITORY_SIEGE_TOWER_Z,
-  TERRITORY_SIEGE_WALL_HALF_X,
+  territorySiegeWallPlacements,
 } from '../sim/territory_siege_layout';
 import type { TerritorySiegeView } from '../world_api';
 import { surfaceMat } from './gfx';
@@ -457,17 +456,8 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
 
   buildTerritorySiegeCastleSettlement(root);
 
-  const wallScale: [number, number, number] = [6, 4.55, 2.25];
-  for (const x of [-TERRITORY_SIEGE_WALL_HALF_X, TERRITORY_SIEGE_WALL_HALF_X]) {
-    for (const z of [-66, -54, -42, -30, -18, -6, 6, 14]) {
-      model(root, 'wall', [x, 0, z], wallScale, Math.PI / 2);
-    }
-  }
-  for (const x of [-38, -26, -14, 0, 14, 26, 38]) {
-    model(root, 'wall', [x, 0, TERRITORY_SIEGE_BACK_WALL_Z], wallScale);
-  }
-  for (const x of [-38, -26, -16, 16, 26, 38])
-    model(root, 'wall', [x, 0, TERRITORY_SIEGE_GATE_Z], wallScale);
+  for (const wall of territorySiegeWallPlacements())
+    model(root, 'wall', [wall.x, 0, wall.z], [wall.scaleX, 4.55, 2.25], wall.yaw);
 
   const towerModels = [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].map((x) =>
     model(root, 'tower', [x, 0, TERRITORY_SIEGE_TOWER_Z], [5.1, 4.4, 5.1]),
