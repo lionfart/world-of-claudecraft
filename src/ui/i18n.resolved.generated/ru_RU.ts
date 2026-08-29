@@ -4080,9 +4080,11 @@ export const ru_RU: EnTranslations = {
       "siegeGate": "Ворота {percent}%",
       "siegeCore": "Ядро крепости {percent}%",
       "deployRam": "Разместить таран",
+      "enterRam": "Enter ram",
+      "leaveRam": "Leave ram",
       "ramGate": "Атаковать ворота тараном",
-      "deployRamp": "Установить осадную рампу",
-      "strikeCore": "Ударить по ядру крепости"
+      "startCoreChannel": "Channel core",
+      "stopCoreChannel": "Stop channel"
     },
     "arenaGate": {
       "minLevelNote": "Требуется уровень {level}"

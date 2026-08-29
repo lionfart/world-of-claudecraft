@@ -236,11 +236,11 @@ describe('territory service hot paths', () => {
     const actionId = '00000000-0000-4000-8000-000000000003';
     const action = await service.execute(11, actionId, 1, {
       kind: 'siege_action',
-      action: 'deploy_ramp',
+      action: 'start_core_channel',
     });
     const duplicate = await service.execute(11, actionId, 1, {
       kind: 'siege_action',
-      action: 'deploy_ramp',
+      action: 'start_core_channel',
     });
 
     expect(joined).toMatchObject({ ok: true, seat: { seatNo: 1 } });

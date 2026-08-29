@@ -5613,9 +5613,11 @@ export const hudChromeStrings = {
     siegeGate: 'Gate {percent}%',
     siegeCore: 'Keep core {percent}%',
     deployRam: 'Deploy ram',
+    enterRam: 'Enter ram',
+    leaveRam: 'Leave ram',
     ramGate: 'Ram gate',
-    deployRamp: 'Deploy ramp',
-    strikeCore: 'Strike core',
+    startCoreChannel: 'Channel core',
+    stopCoreChannel: 'Stop channel',
   },
   // Ranked Arena's minimum-level queue gate (src/sim/social/arena.ts
   // arenaQueueJoin, 1v1/2v2 only): the arena window's disabled-queue note

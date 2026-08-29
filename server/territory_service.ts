@@ -1,10 +1,12 @@
 import { applyTerritoryDelta, type TerritoryDelta } from '../src/sim/territory_delta';
 import {
   createTerritorySiege,
+  type TerritorySiegeControl,
   type TerritorySiegeRules,
   type TerritorySiegeState,
   territorySiegeApplyAction,
   territorySiegeConsumeRespawn,
+  territorySiegeControlFor,
   territorySiegeDisconnect,
   territorySiegeJoin,
   territorySiegeLeave,
@@ -69,7 +71,11 @@ export class TerritoryService {
   private refreshFlight: Promise<TerritoryMapState> | null = null;
   private readonly sieges = new Map<string, TerritorySiegeState>();
   private readonly siegeSlots = new Map<string, number>();
-  private readonly pendingTowerShots: Array<{ characterId: number; damage: number }> = [];
+  private readonly pendingTowerShots: Array<{
+    warId: string;
+    characterId: number;
+    damage: number;
+  }> = [];
   private siegePollFlight: Promise<void> | null = null;
   private lastSiegePollAt = 0;
   private lastSiegePublishSecond = -1;
@@ -244,6 +250,14 @@ export class TerritoryService {
     return null;
   }
 
+  siegeControlForCharacter(characterId: number): TerritorySiegeControl | null {
+    for (const state of this.sieges.values()) {
+      if (!state.seats.has(characterId)) continue;
+      return territorySiegeControlFor(state, characterId);
+    }
+    return null;
+  }
+
   recordCharacterDeath(characterId: number, nowMs = Date.now()): number | null {
     for (const state of this.sieges.values()) {
       if (!state.seats.has(characterId)) continue;
@@ -263,7 +277,7 @@ export class TerritoryService {
     return this.sieges.size;
   }
 
-  drainTowerShots(): Array<{ characterId: number; damage: number }> {
+  drainTowerShots(): Array<{ warId: string; characterId: number; damage: number }> {
     return this.pendingTowerShots.splice(0, this.pendingTowerShots.length);
   }
 
@@ -425,7 +439,7 @@ export class TerritoryService {
       const previousPhase = state.phase;
       territorySiegeTick(state, nowMs, this.siegeRules);
       const towerShot = territorySiegeTowerShot(state, nowMs);
-      if (towerShot) this.pendingTowerShots.push(towerShot);
+      if (towerShot) this.pendingTowerShots.push({ warId, ...towerShot });
       if (state.phase !== previousPhase) changed = true;
       if (state.phase !== 'ended' || !territorySiegeMarkResolved(state)) continue;
       changed = true;

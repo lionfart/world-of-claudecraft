@@ -12,7 +12,12 @@ const siege: TerritorySiegeView = {
   coreProgress: 0.25,
   gateOpen: false,
   ramDeployed: true,
-  rampDeployed: true,
+  ramOccupants: 2,
+  ramJoined: true,
+  ramCooldown: 1,
+  coreChanneling: true,
+  coreChannelProgress: 0.5,
+  towerZones: [],
   respawnIn: 0,
   timeLeft: 100,
   winner: null,
@@ -21,9 +26,9 @@ const siege: TerritorySiegeView = {
 describe('territory siege prototype visual state', () => {
   it('mirrors objective and siege-tool state without mutating gameplay', () => {
     const state = territorySiegeVisualState(siege, 0.2);
-    expect(state.gateScaleY).toBeLessThan(1);
+    expect(state.gateScaleY).toBe(1);
     expect(state.coreScaleY).toBeLessThan(1);
     expect(state.ramVisible).toBe(true);
-    expect(state.rampVisible).toBe(true);
+    expect(state.coreChannelVisible).toBe(true);
   });
 });

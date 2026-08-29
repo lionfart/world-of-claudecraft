@@ -72,10 +72,10 @@ describe('territory siege', () => {
     expect(territorySiegeConsumeRespawn(state, 10, 16_000)).toBe(true);
   });
 
-  it('requires a ram and the gate before damage can reach the core', () => {
+  it('requires an occupied ram and the gate before a core channel can begin', () => {
     const state = match();
     territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
-    expect(territorySiegeApplyAction(state, 10, 'strike_core', 2_000, rules)).toEqual({
+    expect(territorySiegeApplyAction(state, 10, 'start_core_channel', 2_000, rules)).toEqual({
       ok: false,
       reason: 'gate_locked_core',
     });
@@ -87,25 +87,50 @@ describe('territory siege', () => {
       ok: true,
       ended: false,
     });
-    for (let now = 3_000; state.gateHp > 0; now += 1_000) {
+    expect(territorySiegeApplyAction(state, 10, 'enter_ram', 3_000, rules).ok).toBe(true);
+    for (let now = 4_000; state.gateHp > 0; now += 3_000) {
       expect(territorySiegeApplyAction(state, 10, 'ram_gate', now, rules).ok).toBe(true);
     }
     expect(state.gateHp).toBe(0);
-    expect(territorySiegeApplyAction(state, 10, 'strike_core', 20_000, rules).ok).toBe(true);
+    expect(territorySiegeApplyAction(state, 10, 'start_core_channel', 30_000, rules).ok).toBe(true);
   });
 
   it('supports an unbuilt gate and resolves core destruction exactly once', () => {
     const state = match(0);
     territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
-    let now = 2_000;
-    while (state.phase !== 'ended') {
-      territorySiegeApplyAction(state, 10, 'strike_core', now, rules);
-      now += 1_000;
-    }
+    territorySiegeApplyAction(state, 10, 'start_core_channel', 2_000, rules);
+    territorySiegeTick(state, 30_000, rules);
     expect(state.winner).toBe('attacker');
     expect(state.resultReason).toBe('core_destroyed');
     expect(territorySiegeMarkResolved(state)).toBe(true);
     expect(territorySiegeMarkResolved(state)).toBe(false);
+  });
+
+  it('caps the ram at four occupants and scales shared damage and cadence', () => {
+    const largeRules = { ...rules, teamSize: 5 };
+    const state = match();
+    for (let characterId = 10; characterId <= 14; characterId += 1) {
+      territorySiegeJoin(state, characterId, 'attacker', 1_000, largeRules);
+    }
+    territorySiegeApplyAction(state, 10, 'deploy_ram', 2_000, largeRules);
+    for (let characterId = 10; characterId <= 13; characterId += 1) {
+      expect(
+        territorySiegeApplyAction(state, characterId, 'enter_ram', 3_000 + characterId, largeRules)
+          .ok,
+      ).toBe(true);
+    }
+    expect(territorySiegeApplyAction(state, 14, 'enter_ram', 3_100, largeRules)).toEqual({
+      ok: false,
+      reason: 'ram_full',
+    });
+    const before = state.gateHp;
+    expect(territorySiegeApplyAction(state, 10, 'ram_gate', 4_000, largeRules).ok).toBe(true);
+    expect(before - state.gateHp).toBe(44);
+    expect(territorySiegeApplyAction(state, 11, 'ram_gate', 5_399, largeRules)).toEqual({
+      ok: false,
+      reason: 'ram_cooldown',
+    });
+    expect(territorySiegeApplyAction(state, 11, 'ram_gate', 5_400, largeRules).ok).toBe(true);
   });
 
   it('awards no-show and timeout victories to the defender', () => {

@@ -576,7 +576,7 @@ import {
   CURRENT_CHARACTER_CONTENT_REVISION,
   migrateCharacterTalentsV2,
 } from './talent_save_migration';
-import { installTerritorySim, territorySimHasTeam, territorySimHostile } from './territory_local';
+import * as territoryMod from './territory_local';
 import { updateAbilityDrill } from './tutorial/ability_drill';
 import { updateGauntletRuns } from './tutorial/gauntlet_run';
 import { resolveStartTutorial, updateTutorialGreeting } from './tutorial/greeting';
@@ -6849,6 +6849,7 @@ export class Sim {
   }
 
   private updatePlayerMovement(p: Entity, meta: PlayerMeta): void {
+    if (territoryMod.territorySimLocksMovement(this, p.id)) return;
     // Verticality: strip last tick's rift raised-tier lift so the movement kernel
     // (and the charge/follow/fear paths) integrate jumps + gravity against the true
     // flat rift floor; updateRiftTriggers re-applies it after the step. Zero outside
@@ -10145,7 +10146,7 @@ export class Sim {
   reportTelemetry(): void {}
 
   releaseSpirit(pid?: number): void {
-    if (territorySimHasTeam(this, pid ?? this.player.id)) return;
+    if (territoryMod.territorySimHasTeam(this, pid ?? this.player.id)) return;
     releasePlayerSpirit(
       this.ctx,
       pid,
@@ -10155,17 +10156,17 @@ export class Sim {
   }
 
   resurrectAtCorpse(pid?: number): void {
-    if (territorySimHasTeam(this, pid ?? this.player.id)) return;
+    if (territoryMod.territorySimHasTeam(this, pid ?? this.player.id)) return;
     resurrectAtCorpse(this.ctx, pid);
   }
 
   resurrectAtSpiritHealer(pid?: number): boolean {
-    if (territorySimHasTeam(this, pid ?? this.player.id)) return false;
+    if (territoryMod.territorySimHasTeam(this, pid ?? this.player.id)) return false;
     return resurrectAtSpiritHealer(this.ctx, pid);
   }
 
   respondToResurrection(accept: boolean, pid?: number): void {
-    if (accept && territorySimHasTeam(this, pid ?? this.player.id)) return;
+    if (accept && territoryMod.territorySimHasTeam(this, pid ?? this.player.id)) return;
     resurrectionOfferMod.respondToResurrection(this.ctx, accept, pid);
   }
 
@@ -10182,7 +10183,7 @@ export class Sim {
   }
 
   unstuck(pid?: number): boolean {
-    if (territorySimHasTeam(this, pid ?? this.player.id)) return false;
+    if (territoryMod.territorySimHasTeam(this, pid ?? this.player.id)) return false;
     return unstuckMod.requestUnstuck(this.ctx, pid);
   }
 
@@ -10258,7 +10259,7 @@ export class Sim {
       if (bg && bg.state === 'active' && this.bgMatches.get(target.id) === bg) {
         return bgMod.bgTeamOf(bg, attackerPlayer.id) !== bgMod.bgTeamOf(bg, target.id);
       }
-      const territoryHostile = territorySimHostile(this, attackerPlayer.id, target.id);
+      const territoryHostile = territoryMod.territorySimHostile(this, attackerPlayer.id, target.id);
       if (territoryHostile !== null) return territoryHostile;
       // The jail brawl: prisoners are hostile to each other, always (pets
       // resolve to their owner via pvpController above, so a prisoner's pet
@@ -11836,8 +11837,9 @@ export class Sim {
       mover,
       this.riftCollisionToken,
     );
-    if (!run) return res;
-    const clamped = this.clampDelveModuleBounds(run, res.x, res.z, r);
+    const territoryResolved = territoryMod.territorySimResolveGate(this, e.id, fromZ, res, r);
+    if (!run) return territoryResolved;
+    const clamped = this.clampDelveModuleBounds(run, territoryResolved.x, territoryResolved.z, r);
     return this.clampDelveDoors(run, clamped.x, clamped.z, r);
   }
 
@@ -12584,12 +12586,9 @@ export class Sim {
 }
 
 export interface Sim extends IWorldTerritory {
-  setTerritorySiegeTeam(
-    pid: number,
-    team: { warId: string; side: 'attacker' | 'defender' } | null,
-  ): void;
+  setTerritorySiegeTeam(pid: number, team: territoryMod.TerritorySimTeam | null): void;
 }
-installTerritorySim(Sim.prototype);
+territoryMod.installTerritorySim(Sim.prototype);
 
 // formatMoney now lives in ./format_money (a leaf module, to break the value-cycle
 // with market.ts and loot/loot_roll.ts). Re-exported here so existing importers

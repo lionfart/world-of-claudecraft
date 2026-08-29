@@ -11304,8 +11304,6 @@ export const zh_CN: Partial<Record<TranslationKey, string>> = {
   'hudChrome.territoryMap.siegeCore': '主堡核心 {percent}%',
   'hudChrome.territoryMap.deployRam': '部署攻城锤',
   'hudChrome.territoryMap.ramGate': '用攻城锤攻击城门',
-  'hudChrome.territoryMap.deployRamp': '部署攻城坡道',
-  'hudChrome.territoryMap.strikeCore': '攻击主堡核心',
   'hudChrome.enchanting.wornTagIndexed': '已装备（{slot}{index}）',
   'hudChrome.targetAuras.title': '目标光环',
   'hudChrome.targetAuras.keybindLabel': '目标增益和减益效果',

@@ -10,7 +10,7 @@ export const TERRITORY_SIEGE_ASSET_URLS = {
   gate: '/models/dungeon/wooden_gate.glb',
   cart: '/models/props/cart.glb',
   log: '/models/resources/wood_log_a.glb',
-  ramp: '/models/dungeon/stairs_wood.glb',
+  core: '/models/props/star_heart_crystal.glb',
 } as const;
 
 export type TerritorySiegeAssetKey = keyof typeof TERRITORY_SIEGE_ASSET_URLS;

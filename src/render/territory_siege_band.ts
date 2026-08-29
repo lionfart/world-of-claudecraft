@@ -26,6 +26,6 @@ export class TerritorySiegeBand {
       this.scene.add(view.group);
       this.views.set(slot, view);
     }
-    for (const view of this.views.values()) view.update(this.siege(), time);
+    for (const view of this.views.values()) view.update(this.siege(), time, { x, z });
   }
 }

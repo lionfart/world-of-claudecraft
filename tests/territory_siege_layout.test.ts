@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { territorySiegeOrigin } from '../src/sim/data';
 import {
+  clampTerritorySiegeGate,
   TERRITORY_SIEGE_FIELD_HALF_X,
   territorySiegeActionPoint,
   territorySiegeBandColliders,
@@ -25,11 +26,19 @@ describe('territory siege instance layout', () => {
     }
   });
 
-  it('allows ram construction from the attacker approach and gate apron', () => {
+  it('restricts ram construction to the marked gate apron', () => {
     const point = territorySiegeActionPoint(0, 'deploy_ram');
     const origin = territorySiegeOrigin(0);
-    for (const z of [origin.z + 46, origin.z + 18]) {
-      expect((z - point.z) ** 2).toBeLessThanOrEqual(point.radius ** 2);
-    }
+    expect((origin.z + 25 - point.z) ** 2).toBeLessThanOrEqual(point.radius ** 2);
+    expect((origin.z + 46 - point.z) ** 2).toBeGreaterThan(point.radius ** 2);
+  });
+
+  it('blocks the gate crossing until the gate is destroyed', () => {
+    const origin = territorySiegeOrigin(0);
+    const blocked = clampTerritorySiegeGate(0, false, origin.z + 23, origin.x, origin.z + 15, 0.6);
+    expect(blocked.z).toBeGreaterThan(origin.z + 18);
+    expect(clampTerritorySiegeGate(0, true, origin.z + 23, origin.x, origin.z + 15, 0.6).z).toBe(
+      origin.z + 15,
+    );
   });
 });

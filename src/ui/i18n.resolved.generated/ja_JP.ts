@@ -4080,9 +4080,11 @@ export const ja_JP: EnTranslations = {
       "siegeGate": "城門 {percent}%",
       "siegeCore": "砦の中枢 {percent}%",
       "deployRam": "破城槌を配置",
+      "enterRam": "Enter ram",
+      "leaveRam": "Leave ram",
       "ramGate": "破城槌で城門を攻撃",
-      "deployRamp": "攻城用スロープを配置",
-      "strikeCore": "砦の中枢を攻撃"
+      "startCoreChannel": "Channel core",
+      "stopCoreChannel": "Stop channel"
     },
     "arenaGate": {
       "minLevelNote": "レベル {level} が必要です"

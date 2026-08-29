@@ -4080,9 +4080,11 @@ export const tr_TR: EnTranslations = {
       "siegeGate": "Kapı {percent}%",
       "siegeCore": "Kale çekirdeği {percent}%",
       "deployRam": "Koçbaşını kur",
+      "enterRam": "Koçbaşına gir",
+      "leaveRam": "Koçbaşından çık",
       "ramGate": "Kapıya koçbaşıyla vur",
-      "deployRamp": "Kuşatma rampasını kur",
-      "strikeCore": "Kale çekirdeğine saldır"
+      "startCoreChannel": "Çekirdeğe odaklan",
+      "stopCoreChannel": "Odaklanmayı kes"
     },
     "arenaGate": {
       "minLevelNote": "Seviye {level} gerektirir"

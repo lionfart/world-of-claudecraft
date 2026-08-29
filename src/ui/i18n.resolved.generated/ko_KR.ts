@@ -4080,9 +4080,11 @@ export const ko_KR: EnTranslations = {
       "siegeGate": "성문 {percent}%",
       "siegeCore": "본성 핵심부 {percent}%",
       "deployRam": "공성추 배치",
+      "enterRam": "Enter ram",
+      "leaveRam": "Leave ram",
       "ramGate": "공성추로 성문 공격",
-      "deployRamp": "공성 경사로 배치",
-      "strikeCore": "본성 핵심부 공격"
+      "startCoreChannel": "Channel core",
+      "stopCoreChannel": "Stop channel"
     },
     "arenaGate": {
       "minLevelNote": "레벨 {level} 필요"

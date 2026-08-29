@@ -1,4 +1,6 @@
+import { territorySiegeOriginAt } from '../sim/data';
 import { createTerritoryManifest, type TerritoryResourceKind } from '../sim/territory_manifest';
+import { territorySiegeActionPoint } from '../sim/territory_siege_layout';
 import type { IWorld, TerritoryMapState, TerritoryStructureSlot } from '../world_api';
 import { formatDateTime, t } from './i18n';
 import type { PainterHostWriters } from './painter_host';
@@ -67,15 +69,22 @@ export class TerritoryMapController {
       );
     }
     element('#territory-war-action').addEventListener('click', () => this.performWarNoticeAction());
-    const siegeActions = [
-      ['#territory-deploy-ram', 'deploy_ram'],
-      ['#territory-ram-gate', 'ram_gate'],
-      ['#territory-deploy-ramp', 'deploy_ramp'],
-      ['#territory-strike-core', 'strike_core'],
-    ] as const;
-    for (const [selector, action] of siegeActions) {
-      element(selector).addEventListener('click', () => this.world.territorySiegeAction(action));
-    }
+    element('#territory-deploy-ram').addEventListener('click', () =>
+      this.world.territorySiegeAction('deploy_ram'),
+    );
+    element('#territory-enter-ram').addEventListener('click', () =>
+      this.world.territorySiegeAction(
+        this.world.territoryMap?.siege?.ramJoined ? 'leave_ram' : 'enter_ram',
+      ),
+    );
+    element('#territory-ram-gate').addEventListener('click', () =>
+      this.world.territorySiegeAction('ram_gate'),
+    );
+    element('#territory-channel-core').addEventListener('click', () =>
+      this.world.territorySiegeAction(
+        this.world.territoryMap?.siege?.coreChanneling ? 'stop_core_channel' : 'start_core_channel',
+      ),
+    );
   }
 
   open(): void {
@@ -202,6 +211,10 @@ export class TerritoryMapController {
       element('#territory-siege-hud'),
       siege && siege.state !== 'ended' ? 'block' : 'none',
     );
+    document.body.classList.toggle(
+      'territory-siege-control-locked',
+      !!siege && (siege.ramJoined || siege.coreChanneling),
+    );
     if (!siege || siege.state === 'ended') return;
     this.writers.setText(
       element('#territory-siege-title'),
@@ -225,18 +238,62 @@ export class TerritoryMapController {
     this.writers.setStyleProp(gate, 'width', `${gatePercent}%`);
     this.writers.setStyleProp(core, 'width', `${corePercent}%`);
     const canAct = siege.mySide === 'attacker' && siege.state === 'active' && siege.respawnIn === 0;
-    this.configureSiegeButton('#territory-deploy-ram', 'deployRam', !canAct || siege.ramDeployed);
+    this.writers.setDisplay(
+      element('.territory-siege-actions'),
+      siege.mySide === 'attacker' ? 'grid' : 'none',
+    );
+    const controlLocked = siege.ramJoined || siege.coreChanneling;
+    const siegeSlot = territorySiegeOriginAt(this.world.player.pos.z).slot;
+    const inActionRange = (action: 'deploy_ram' | 'enter_ram' | 'start_core_channel') => {
+      const point = territorySiegeActionPoint(siegeSlot, action);
+      return (
+        (this.world.player.pos.x - point.x) ** 2 + (this.world.player.pos.z - point.z) ** 2 <=
+        point.radius ** 2
+      );
+    };
+    this.configureSiegeButton(
+      '#territory-deploy-ram',
+      'deployRam',
+      !canAct ||
+        controlLocked ||
+        siege.ramDeployed ||
+        siege.gateOpen ||
+        !inActionRange('deploy_ram'),
+    );
+    this.configureSiegeButton(
+      '#territory-enter-ram',
+      siege.ramJoined ? 'leaveRam' : 'enterRam',
+      !canAct ||
+        siege.coreChanneling ||
+        (!siege.ramJoined &&
+          (!siege.ramDeployed ||
+            siege.gateOpen ||
+            siege.ramOccupants >= 4 ||
+            !inActionRange('enter_ram'))),
+    );
     this.configureSiegeButton(
       '#territory-ram-gate',
       'ramGate',
-      !canAct || !siege.ramDeployed || siege.gateOpen,
+      !canAct || !siege.ramJoined || siege.gateOpen || siege.ramCooldown > 0,
+    );
+    this.writers.setText(
+      element('#territory-ram-gate'),
+      `${t('hudChrome.territoryMap.ramGate')} ${siege.ramOccupants}/4${
+        siege.ramCooldown > 0 ? ` · ${siege.ramCooldown}s` : ''
+      }`,
     );
     this.configureSiegeButton(
-      '#territory-deploy-ramp',
-      'deployRamp',
-      !canAct || siege.rampDeployed,
+      '#territory-channel-core',
+      siege.coreChanneling ? 'stopCoreChannel' : 'startCoreChannel',
+      !canAct || siege.ramJoined || (!siege.coreChanneling && !siege.gateOpen),
     );
-    this.configureSiegeButton('#territory-strike-core', 'strikeCore', !canAct || !siege.gateOpen);
+    this.writers.setDisplay(
+      element('#territory-channel-core'),
+      siege.mySide === 'attacker' &&
+        (siege.coreChanneling || (siege.gateOpen && inActionRange('start_core_channel')))
+        ? 'block'
+        : 'none',
+    );
   }
 
   private updateWarNotice(siegeVisible: boolean): void {
@@ -469,7 +526,7 @@ export class TerritoryMapController {
 
   private configureSiegeButton(
     selector: string,
-    key: 'deployRam' | 'ramGate' | 'deployRamp' | 'strikeCore',
+    key: 'deployRam' | 'enterRam' | 'leaveRam' | 'ramGate' | 'startCoreChannel' | 'stopCoreChannel',
     disabled: boolean,
   ): void {
     const button = element<HTMLButtonElement>(selector);

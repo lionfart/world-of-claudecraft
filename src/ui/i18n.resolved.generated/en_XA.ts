@@ -4080,9 +4080,11 @@ export const en_XA: EnTranslations = {
       "siegeGate": "[Ĝáţé {percent}%]",
       "siegeCore": "[Ķééþ çóŕé {percent}%]",
       "deployRam": "[Ðéþļóý ŕáɱ]",
+      "enterRam": "[Éñţéŕ ŕáɱ]",
+      "leaveRam": "[Ļéáʋé ŕáɱ]",
       "ramGate": "[Ŕáɱ ĝáţé]",
-      "deployRamp": "[Ðéþļóý ŕáɱþ]",
-      "strikeCore": "[Šţŕíķé çóŕé]"
+      "startCoreChannel": "[Çĥáññéļ çóŕé]",
+      "stopCoreChannel": "[Šţóþ çĥáññéļ]"
     },
     "arenaGate": {
       "minLevelNote": "[Ŕéɋúíŕéš ļéʋéļ {level}]"

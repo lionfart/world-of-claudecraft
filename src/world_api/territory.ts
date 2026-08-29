@@ -20,7 +20,21 @@ export type TerritoryStructureKind =
   | 'siege_workshop';
 export type TerritoryWarStatus = 'declared' | 'forming' | 'active' | 'resolved' | 'cancelled';
 export type TerritoryWarSide = 'attacker' | 'defender';
-export type TerritorySiegeAction = 'deploy_ram' | 'ram_gate' | 'deploy_ramp' | 'strike_core';
+export type TerritorySiegeAction =
+  | 'deploy_ram'
+  | 'enter_ram'
+  | 'leave_ram'
+  | 'ram_gate'
+  | 'start_core_channel'
+  | 'stop_core_channel';
+
+export interface TerritoryTowerZoneView {
+  id: number;
+  x: number;
+  z: number;
+  radius: number;
+  detonatesIn: number;
+}
 
 export interface TerritorySeasonView {
   id: string;
@@ -82,7 +96,12 @@ export interface TerritorySiegeView {
   coreProgress: number;
   gateOpen: boolean;
   ramDeployed: boolean;
-  rampDeployed: boolean;
+  ramOccupants: number;
+  ramJoined: boolean;
+  ramCooldown: number;
+  coreChanneling: boolean;
+  coreChannelProgress: number;
+  towerZones: TerritoryTowerZoneView[];
   respawnIn: number;
   timeLeft: number;
   winner: TerritoryWarSide | null;

@@ -10986,6 +10986,11 @@
     opacity: 0.4;
     cursor: default;
   }
+  body.territory-siege-control-locked #actionbar-stack,
+  body.territory-siege-control-locked #mobile-action-page {
+    filter: saturate(0.3) brightness(0.65);
+    pointer-events: none;
+  }
   @media (max-width: 620px) {
     #territory-panel {
       left: 8px;

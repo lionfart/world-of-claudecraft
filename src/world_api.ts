@@ -285,6 +285,7 @@ export type {
   TerritoryStructureKind,
   TerritoryStructureSlot,
   TerritoryStructureView,
+  TerritoryTowerZoneView,
   TerritoryWarSide,
   TerritoryWarStatus,
   TerritoryWarView,

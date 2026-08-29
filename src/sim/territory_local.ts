@@ -4,7 +4,17 @@ import type {
   TerritoryStructureSlot,
 } from '../world_api/territory';
 import { createTerritoryManifest } from './territory_manifest';
+import type { TerritorySiegeControl } from './territory_siege';
+import { clampTerritorySiegeGate } from './territory_siege_layout';
 import { isTerritoryClaimAdjacent } from './territory_topology';
+
+export interface TerritorySimTeam {
+  warId: string;
+  side: 'attacker' | 'defender';
+  slot: number;
+  gateOpen: boolean;
+  control: TerritorySiegeControl | null;
+}
 
 const STARTING_RESOURCES = 250;
 const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>> = {
@@ -148,7 +158,7 @@ export class LocalTerritoryState {
 export class TerritorySimRuntime {
   private local: LocalTerritoryState | null = null;
   private visible = false;
-  private readonly teams = new Map<number, { warId: string; side: 'attacker' | 'defender' }>();
+  private readonly teams = new Map<number, TerritorySimTeam>();
 
   get map(): TerritoryMapState | null {
     return this.visible ? this.authority().state : null;
@@ -176,12 +186,15 @@ export class TerritorySimRuntime {
   upgrade(cellId: number, slot: TerritoryStructureSlot): void {
     this.authority().upgrade(cellId, slot);
   }
-  setTeam(pid: number, team: { warId: string; side: 'attacker' | 'defender' } | null): void {
+  setTeam(pid: number, team: TerritorySimTeam | null): void {
     if (team) this.teams.set(pid, team);
     else this.teams.delete(pid);
   }
   hasTeam(pid: number): boolean {
     return this.teams.has(pid);
+  }
+  team(pid: number): TerritorySimTeam | null {
+    return this.teams.get(pid) ?? null;
   }
   hostile(attackerPid: number, targetPid: number): boolean | null {
     const attacker = this.teams.get(attackerPid);
@@ -209,6 +222,27 @@ function simTerritory(host: object): TerritorySimRuntime {
 
 export function territorySimHasTeam(host: object, pid: number): boolean {
   return simTerritory(host).hasTeam(pid);
+}
+
+export function territorySimTeamFor(host: object, pid: number): TerritorySimTeam | null {
+  return simTerritory(host).team(pid);
+}
+
+export function territorySimLocksMovement(host: object, pid: number): boolean {
+  return !!territorySimTeamFor(host, pid)?.control;
+}
+
+export function territorySimResolveGate(
+  host: object,
+  pid: number,
+  fromZ: number,
+  position: { x: number; z: number },
+  radius: number,
+): { x: number; z: number } {
+  const team = territorySimTeamFor(host, pid);
+  return team
+    ? clampTerritorySiegeGate(team.slot, team.gateOpen, fromZ, position.x, position.z, radius)
+    : position;
 }
 
 export function territorySimHostile(
@@ -269,7 +303,7 @@ export function installTerritorySim<T extends object>(prototype: T): void {
     territoryLeaveWar: { value() {} },
     territorySiegeAction: { value() {} },
     setTerritorySiegeTeam: {
-      value(this: T, pid: number, team: { warId: string; side: 'attacker' | 'defender' } | null) {
+      value(this: T, pid: number, team: TerritorySimTeam | null) {
         territory(this).setTeam(pid, team);
       },
     },

@@ -4080,9 +4080,11 @@ export const zh_CN: EnTranslations = {
       "siegeGate": "城门 {percent}%",
       "siegeCore": "主堡核心 {percent}%",
       "deployRam": "部署攻城锤",
+      "enterRam": "Enter ram",
+      "leaveRam": "Leave ram",
       "ramGate": "用攻城锤攻击城门",
-      "deployRamp": "部署攻城坡道",
-      "strikeCore": "攻击主堡核心"
+      "startCoreChannel": "Channel core",
+      "stopCoreChannel": "Stop channel"
     },
     "arenaGate": {
       "minLevelNote": "需要等级 {level}"

@@ -42,7 +42,9 @@ export interface TerritorySiegeState {
   coreHp: number;
   coreMaxHp: number;
   ramDeployed: boolean;
-  rampDeployed: boolean;
+  ramOccupants: Map<number, number>;
+  nextRamSwingAtMs: number;
+  coreChannels: Map<number, { startedAtMs: number; nextTickAtMs: number }>;
   winner: TerritoryWarSide | null;
   resultReason: 'core_destroyed' | 'timeout' | 'attacker_no_show' | null;
   resolved: boolean;
@@ -67,6 +69,12 @@ export type TerritorySiegeActionResult =
         | 'cooldown'
         | 'workshop_required'
         | 'ram_required'
+        | 'ram_full'
+        | 'ram_not_occupied'
+        | 'ram_cooldown'
+        | 'already_occupied'
+        | 'channel_active'
+        | 'channel_inactive'
         | 'gate_destroyed'
         | 'gate_locked_core'
         | 'already_deployed';
@@ -74,6 +82,32 @@ export type TerritorySiegeActionResult =
 
 function structureHp(base: number, level: number): number {
   return base + Math.max(0, Math.min(5, Math.floor(level))) * 25;
+}
+
+const RAM_CAPACITY = 4;
+const CORE_CHANNEL_WARMUP_MS = 1_500;
+const CORE_CHANNEL_TICK_MS = 1_000;
+const CORE_CHANNEL_DAMAGE = 8;
+
+function removeSiegeControl(state: TerritorySiegeState, characterId: number): void {
+  state.ramOccupants.delete(characterId);
+  state.coreChannels.delete(characterId);
+}
+
+function nextRamSeat(state: TerritorySiegeState): number {
+  const occupied = new Set(state.ramOccupants.values());
+  for (let seatNo = 1; seatNo <= RAM_CAPACITY; seatNo += 1) {
+    if (!occupied.has(seatNo)) return seatNo;
+  }
+  return 0;
+}
+
+function ramDamage(occupants: number): number {
+  return 12 + Math.max(1, Math.min(RAM_CAPACITY, occupants)) * 8;
+}
+
+function ramCooldownMs(occupants: number): number {
+  return 3_200 - Math.max(1, Math.min(RAM_CAPACITY, occupants)) * 450;
 }
 
 function countSide(state: TerritorySiegeState, side: TerritoryWarSide): number {
@@ -98,6 +132,19 @@ function finish(
   state.phase = 'ended';
   state.winner = winner;
   state.resultReason = reason;
+  state.ramOccupants.clear();
+  state.coreChannels.clear();
+}
+
+export type TerritorySiegeControl = { kind: 'ram'; seatNo: number } | { kind: 'core_channel' };
+
+export function territorySiegeControlFor(
+  state: TerritorySiegeState,
+  characterId: number,
+): TerritorySiegeControl | null {
+  const ramSeat = state.ramOccupants.get(characterId);
+  if (ramSeat !== undefined) return { kind: 'ram', seatNo: ramSeat };
+  return state.coreChannels.has(characterId) ? { kind: 'core_channel' } : null;
 }
 
 export function createTerritorySiege(definition: TerritorySiegeDefinition): TerritorySiegeState {
@@ -113,7 +160,9 @@ export function createTerritorySiege(definition: TerritorySiegeDefinition): Terr
     coreHp: coreMaxHp,
     coreMaxHp,
     ramDeployed: false,
-    rampDeployed: false,
+    ramOccupants: new Map(),
+    nextRamSwingAtMs: definition.startsAtMs,
+    coreChannels: new Map(),
     winner: null,
     resultReason: null,
     resolved: false,
@@ -196,10 +245,12 @@ export function territorySiegeDisconnect(
   if (!seat) return false;
   seat.connected = false;
   seat.reservedUntilMs = nowMs + rules.disconnectGraceMs;
+  removeSiegeControl(state, characterId);
   return true;
 }
 
 export function territorySiegeLeave(state: TerritorySiegeState, characterId: number): boolean {
+  removeSiegeControl(state, characterId);
   return state.seats.delete(characterId);
 }
 
@@ -212,6 +263,7 @@ export function territorySiegeRecordDeath(
   const seat = state.seats.get(characterId);
   if (!seat || state.phase !== 'active') return null;
   if (seat.deadUntilMs !== null) return seat.deadUntilMs;
+  removeSiegeControl(state, characterId);
   const elapsed = Math.max(0, nowMs - state.definition.startsAtMs);
   const wave = Math.floor(elapsed / rules.respawnWaveMs) + 1;
   seat.deadUntilMs = state.definition.startsAtMs + wave * rules.respawnWaveMs;
@@ -237,6 +289,7 @@ export function territorySiegeTick(
   if (state.phase === 'ended') return;
   for (const [characterId, seat] of state.seats) {
     if (!seat.connected && seat.reservedUntilMs !== null && nowMs >= seat.reservedUntilMs) {
+      removeSiegeControl(state, characterId);
       state.seats.delete(characterId);
     }
   }
@@ -246,7 +299,31 @@ export function territorySiegeTick(
     finish(state, 'defender', 'attacker_no_show');
     return;
   }
-  if (nowMs >= state.definition.endsAtMs) finish(state, 'defender', 'timeout');
+  if (nowMs >= state.definition.endsAtMs) {
+    finish(state, 'defender', 'timeout');
+    return;
+  }
+  if (state.gateHp <= 0 && state.ramOccupants.size > 0) state.ramOccupants.clear();
+  for (const [characterId, channel] of state.coreChannels) {
+    const seat = state.seats.get(characterId);
+    if (
+      !seat?.connected ||
+      seat.deadUntilMs !== null ||
+      seat.side !== 'attacker' ||
+      state.gateHp > 0
+    ) {
+      state.coreChannels.delete(characterId);
+      continue;
+    }
+    if (nowMs < channel.nextTickAtMs) continue;
+    const ticks = Math.floor((nowMs - channel.nextTickAtMs) / CORE_CHANNEL_TICK_MS) + 1;
+    channel.nextTickAtMs += ticks * CORE_CHANNEL_TICK_MS;
+    state.coreHp = Math.max(0, state.coreHp - ticks * CORE_CHANNEL_DAMAGE);
+    if (state.coreHp === 0) {
+      finish(state, 'attacker', 'core_destroyed');
+      return;
+    }
+  }
 }
 
 export function territorySiegeApplyAction(
@@ -263,39 +340,68 @@ export function territorySiegeApplyAction(
   if (!seat.connected) return { ok: false, reason: 'disconnected' };
   if (seat.deadUntilMs !== null) return { ok: false, reason: 'dead' };
   if (seat.side !== 'attacker') return { ok: false, reason: 'defender_action' };
-  if (seat.lastActionAtMs !== null && nowMs - seat.lastActionAtMs < rules.actionCooldownMs) {
+  const bypassActionCooldown = action === 'leave_ram' || action === 'stop_core_channel';
+  if (
+    !bypassActionCooldown &&
+    seat.lastActionAtMs !== null &&
+    nowMs - seat.lastActionAtMs < rules.actionCooldownMs
+  ) {
     return { ok: false, reason: 'cooldown' };
   }
 
   switch (action) {
     case 'deploy_ram':
+      if (state.gateHp <= 0) return { ok: false, reason: 'gate_destroyed' };
       if (!state.definition.attackerHasSiegeWorkshop) {
         return { ok: false, reason: 'workshop_required' };
       }
       if (state.ramDeployed) return { ok: false, reason: 'already_deployed' };
       state.ramDeployed = true;
       break;
-    case 'deploy_ramp':
-      if (!state.definition.attackerHasSiegeWorkshop) {
-        return { ok: false, reason: 'workshop_required' };
+    case 'enter_ram': {
+      if (!state.ramDeployed) return { ok: false, reason: 'ram_required' };
+      if (state.gateHp <= 0) return { ok: false, reason: 'gate_destroyed' };
+      if (state.ramOccupants.has(characterId)) return { ok: false, reason: 'already_occupied' };
+      if (state.coreChannels.has(characterId)) return { ok: false, reason: 'channel_active' };
+      const ramSeat = nextRamSeat(state);
+      if (ramSeat === 0) return { ok: false, reason: 'ram_full' };
+      state.ramOccupants.set(characterId, ramSeat);
+      break;
+    }
+    case 'leave_ram':
+      if (!state.ramOccupants.delete(characterId)) {
+        return { ok: false, reason: 'ram_not_occupied' };
       }
-      if (state.rampDeployed) return { ok: false, reason: 'already_deployed' };
-      state.rampDeployed = true;
       break;
     case 'ram_gate':
       if (state.gateMaxHp === 0 || state.gateHp <= 0) {
         return { ok: false, reason: 'gate_destroyed' };
       }
       if (!state.ramDeployed) return { ok: false, reason: 'ram_required' };
-      state.gateHp = Math.max(0, state.gateHp - 20);
+      if (!state.ramOccupants.has(characterId)) {
+        return { ok: false, reason: 'ram_not_occupied' };
+      }
+      if (nowMs < state.nextRamSwingAtMs) return { ok: false, reason: 'ram_cooldown' };
+      state.gateHp = Math.max(0, state.gateHp - ramDamage(state.ramOccupants.size));
+      state.nextRamSwingAtMs = nowMs + ramCooldownMs(state.ramOccupants.size);
+      if (state.gateHp === 0) state.ramOccupants.clear();
       break;
-    case 'strike_core':
+    case 'start_core_channel':
       if (state.gateHp > 0) return { ok: false, reason: 'gate_locked_core' };
-      state.coreHp = Math.max(0, state.coreHp - 10);
-      if (state.coreHp === 0) finish(state, 'attacker', 'core_destroyed');
+      if (state.ramOccupants.has(characterId)) return { ok: false, reason: 'already_occupied' };
+      if (state.coreChannels.has(characterId)) return { ok: false, reason: 'channel_active' };
+      state.coreChannels.set(characterId, {
+        startedAtMs: nowMs,
+        nextTickAtMs: nowMs + CORE_CHANNEL_WARMUP_MS,
+      });
+      break;
+    case 'stop_core_channel':
+      if (!state.coreChannels.delete(characterId)) {
+        return { ok: false, reason: 'channel_inactive' };
+      }
       break;
   }
-  seat.lastActionAtMs = nowMs;
+  if (!bypassActionCooldown) seat.lastActionAtMs = nowMs;
   return { ok: true, ended: state.winner !== null };
 }
 
@@ -322,7 +428,19 @@ export function territorySiegeViewFor(
     coreProgress: 1 - state.coreHp / state.coreMaxHp,
     gateOpen: state.gateHp <= 0,
     ramDeployed: state.ramDeployed,
-    rampDeployed: state.rampDeployed,
+    ramOccupants: state.ramOccupants.size,
+    ramJoined: state.ramOccupants.has(characterId),
+    ramCooldown: Math.max(0, Math.ceil((state.nextRamSwingAtMs - nowMs) / 1_000)),
+    coreChanneling: state.coreChannels.has(characterId),
+    coreChannelProgress: Math.min(
+      1,
+      Math.max(
+        0,
+        (nowMs - (state.coreChannels.get(characterId)?.startedAtMs ?? nowMs)) /
+          CORE_CHANNEL_WARMUP_MS,
+      ),
+    ),
+    towerZones: [],
     respawnIn:
       seat.deadUntilMs === null ? 0 : Math.max(0, Math.ceil((seat.deadUntilMs - nowMs) / 1000)),
     timeLeft: Math.max(0, Math.ceil((state.definition.endsAtMs - nowMs) / 1000)),

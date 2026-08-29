@@ -11819,8 +11819,6 @@ export const ko_KR: Partial<Record<TranslationKey, string>> = {
   'hudChrome.territoryMap.siegeCore': '본성 핵심부 {percent}%',
   'hudChrome.territoryMap.deployRam': '공성추 배치',
   'hudChrome.territoryMap.ramGate': '공성추로 성문 공격',
-  'hudChrome.territoryMap.deployRamp': '공성 경사로 배치',
-  'hudChrome.territoryMap.strikeCore': '본성 핵심부 공격',
   'hudChrome.enchanting.wornTagIndexed': '착용 중 ({slot} {index})',
   'hudChrome.targetAuras.title': '대상 오라',
   'hudChrome.targetAuras.keybindLabel': '대상 강화 및 약화 효과',

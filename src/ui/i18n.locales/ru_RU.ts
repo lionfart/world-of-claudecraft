@@ -12034,8 +12034,6 @@ export const ru_RU: Partial<Record<TranslationKey, string>> = {
   'hudChrome.territoryMap.siegeCore': 'Ядро крепости {percent}%',
   'hudChrome.territoryMap.deployRam': 'Разместить таран',
   'hudChrome.territoryMap.ramGate': 'Атаковать ворота тараном',
-  'hudChrome.territoryMap.deployRamp': 'Установить осадную рампу',
-  'hudChrome.territoryMap.strikeCore': 'Ударить по ядру крепости',
   'hudChrome.enchanting.wornTagIndexed': 'Надето ({slot} {index})',
   'hudChrome.targetAuras.title': 'Ауры цели',
   'hudChrome.targetAuras.keybindLabel': 'Усиления и ослабления цели',

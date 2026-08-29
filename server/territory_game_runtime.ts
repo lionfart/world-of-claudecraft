@@ -1,7 +1,11 @@
 import { isTerritorySiegePos } from '../src/sim/data';
 import type { Sim } from '../src/sim/sim';
 import type { TerritoryDelta } from '../src/sim/territory_delta';
-import { territorySiegeActionPoint, territorySiegeSpawn } from '../src/sim/territory_siege_layout';
+import {
+  territorySiegeActionPoint,
+  territorySiegeRamSeat,
+  territorySiegeSpawn,
+} from '../src/sim/territory_siege_layout';
 import type {
   TerritoryMapState,
   TerritorySiegeAction,
@@ -16,6 +20,7 @@ import {
   type TerritoryPublishedChange,
   TerritoryService,
 } from './territory_service';
+import { TerritorySiegeTowerZones } from './territory_siege_tower_zones';
 
 export { TerritoryRepository } from './territory_db';
 
@@ -40,9 +45,18 @@ const STRUCTURE_KINDS = new Set<TerritoryStructureKind>([
 ]);
 const SIEGE_ACTIONS = new Set<TerritorySiegeAction>([
   'deploy_ram',
+  'enter_ram',
+  'leave_ram',
   'ram_gate',
-  'deploy_ramp',
-  'strike_core',
+  'start_core_channel',
+  'stop_core_channel',
+]);
+const SIEGE_LOCKED_COMBAT_COMMANDS = new Set([
+  'castSlot',
+  'castAt',
+  'cast',
+  'releaseEmpowered',
+  'attack',
 ]);
 const TERRITORY_COMMANDS = new Set([
   'territory_watch',
@@ -71,6 +85,7 @@ interface SessionTerritoryState {
   watching: boolean;
   warId: string | null;
   returnPos: { x: number; z: number; facing: number } | null;
+  controlAnchor: { x: number; z: number } | null;
 }
 
 export interface TerritoryGameDeps<S extends TerritoryGameSession> {
@@ -85,6 +100,7 @@ export interface TerritoryGameDeps<S extends TerritoryGameSession> {
 export class TerritoryGameRuntime<S extends TerritoryGameSession> {
   readonly service: TerritoryService;
   private readonly states = new WeakMap<S, SessionTerritoryState>();
+  private readonly towerZones = new TerritorySiegeTowerZones();
 
   constructor(
     repository: TerritoryRepository,
@@ -125,14 +141,38 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
 
   tick(nowMs: number): void {
     this.service.tickSieges(nowMs);
+    let zonesChanged = false;
     for (const shot of this.service.drainTowerShots()) {
       const session = this.deps.sessionByCharacterId(shot.characterId);
+      const target = session ? this.deps.sim.entities.get(session.pid) : null;
+      if (!target || target.dead) continue;
+      this.towerZones.queue(shot.warId, target.pos, shot.damage, nowMs);
+      zonesChanged = true;
+    }
+    const targets = [...this.deps.sessions()].flatMap((session) => {
+      const placement = this.service.siegePlacementForCharacter(session.characterId);
+      const entity = this.deps.sim.entities.get(session.pid);
+      if (placement?.side !== 'attacker' || !entity) return [];
+      return [
+        {
+          characterId: session.characterId,
+          warId: placement.warId,
+          x: entity.pos.x,
+          z: entity.pos.z,
+          alive: !entity.dead,
+        },
+      ];
+    });
+    const detonation = this.towerZones.detonate(nowMs, targets);
+    if (detonation.removed) zonesChanged = true;
+    for (const hit of detonation.hits) {
+      const session = this.deps.sessionByCharacterId(hit.characterId);
       const target = session ? this.deps.sim.entities.get(session.pid) : null;
       if (!target || target.dead) continue;
       this.deps.sim.dealDamage(
         null,
         target,
-        shot.damage,
+        hit.damage,
         false,
         'physical',
         'Defense Tower',
@@ -140,6 +180,13 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
         true,
       );
     }
+    for (const session of this.deps.sessions()) {
+      if (session.left || session.linkdead) continue;
+      const placement = this.service.siegePlacementForCharacter(session.characterId);
+      const siege = this.service.siegeForCharacter(session.characterId, nowMs);
+      if (placement && siege) this.updateFighter(session, placement, siege, nowMs);
+    }
+    if (zonesChanged) this.broadcastSieges();
   }
 
   async snapshotForAccount(accountId: number): Promise<TerritoryMapState | null> {
@@ -166,7 +213,12 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
   }
 
   dispatch(session: S, message: WireMessage, command: string): boolean {
-    if (!TERRITORY_COMMANDS.has(command)) return false;
+    const control = this.service.siegeControlForCharacter(session.characterId);
+    if (!TERRITORY_COMMANDS.has(command)) {
+      return control && SIEGE_LOCKED_COMBAT_COMMANDS.has(command)
+        ? this.refuse(session, 'siege_action_locked')
+        : false;
+    }
     if (command === 'territory_watch') {
       this.state(session).watching = message.active === true;
       return true;
@@ -214,16 +266,20 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       command === 'territory_siege_action' &&
       SIEGE_ACTIONS.has(message.action as TerritorySiegeAction)
     ) {
+      const action = message.action as TerritorySiegeAction;
+      if (control?.kind === 'ram' && action !== 'ram_gate' && action !== 'leave_ram') {
+        return this.refuse(session, 'ram_controls_only');
+      }
+      if (control?.kind === 'core_channel' && action !== 'stop_core_channel') {
+        return this.refuse(session, 'channel_locked');
+      }
       const placement = this.service.siegePlacementForCharacter(session.characterId);
       const fighter = this.deps.sim.entities.get(session.pid);
       if (!placement || !fighter) return this.refuse(session, 'not_participant');
-      const point = territorySiegeActionPoint(
-        placement.slot,
-        message.action as TerritorySiegeAction,
-      );
+      const point = territorySiegeActionPoint(placement.slot, action);
       if ((fighter.pos.x - point.x) ** 2 + (fighter.pos.z - point.z) ** 2 > point.radius ** 2)
         return this.refuse(session, 'out_of_range');
-      mutation = { kind: 'siege_action', action: message.action as TerritorySiegeAction };
+      mutation = { kind: 'siege_action', action };
     }
     if (mutation) this.queueMutation(session, message, mutation);
     return true;
@@ -232,7 +288,7 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
   private state(session: S): SessionTerritoryState {
     let state = this.states.get(session);
     if (!state) {
-      state = { watching: false, warId: null, returnPos: null };
+      state = { watching: false, warId: null, returnPos: null, controlAnchor: null };
       this.states.set(session, state);
     }
     return state;
@@ -300,12 +356,18 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       const state = this.state(session);
       const placement = this.service.siegePlacementForCharacter(session.characterId);
       if (placement) this.service.reconnectCharacter(session.characterId, nowMs);
-      const siege = this.service.siegeForCharacter(session.characterId, nowMs);
+      const baseSiege = this.service.siegeForCharacter(session.characterId, nowMs);
+      const siege = baseSiege
+        ? {
+            ...baseSiege,
+            towerZones: this.towerZones.view(baseSiege.warId, nowMs),
+          }
+        : null;
       if (!siege && state.warId === null) continue;
       if (siege && placement && state.warId !== siege.warId)
         this.enterSiege(session, state, placement);
       else if (!siege && state.returnPos) this.returnFromSiege(session, state);
-      if (siege && placement) this.updateFighter(session, placement, nowMs);
+      if (siege && placement) this.updateFighter(session, placement, siege, nowMs);
       else this.deps.sim.setTerritorySiegeTeam(session.pid, null);
       state.warId = siege?.warId ?? null;
       this.deps.send(session, { t: 'territory_siege', siege });
@@ -328,6 +390,9 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
     this.deps.sim.setTerritorySiegeTeam(session.pid, {
       warId: placement.warId,
       side: placement.side,
+      slot: placement.slot,
+      gateOpen: false,
+      control: null,
     });
   }
 
@@ -338,18 +403,38 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
     const entity = this.deps.sim.entities.get(session.pid);
     if (entity) entity.facing = position.facing;
     state.returnPos = null;
+    state.controlAnchor = null;
   }
 
   private updateFighter(
     session: S,
     placement: NonNullable<ReturnType<TerritoryService['siegePlacementForCharacter']>>,
+    siege: NonNullable<ReturnType<TerritoryService['siegeForCharacter']>>,
     nowMs: number,
   ): void {
+    const control = this.service.siegeControlForCharacter(session.characterId);
     this.deps.sim.setTerritorySiegeTeam(session.pid, {
       warId: placement.warId,
       side: placement.side,
+      slot: placement.slot,
+      gateOpen: siege.gateOpen,
+      control,
     });
     const fighter = this.deps.sim.entities.get(session.pid);
+    if (fighter && control?.kind === 'ram') {
+      this.state(session).controlAnchor = null;
+      const seat = territorySiegeRamSeat(placement.slot, control.seatNo);
+      fighter.pos.x = seat.x;
+      fighter.pos.z = seat.z;
+      fighter.facing = seat.facing;
+    } else if (fighter && control?.kind === 'core_channel') {
+      const runtimeState = this.state(session);
+      runtimeState.controlAnchor ??= { x: fighter.pos.x, z: fighter.pos.z };
+      fighter.pos.x = runtimeState.controlAnchor.x;
+      fighter.pos.z = runtimeState.controlAnchor.z;
+    } else {
+      this.state(session).controlAnchor = null;
+    }
     if (!fighter?.dead) return;
     const respawnAt = this.service.recordCharacterDeath(session.characterId, nowMs);
     if (

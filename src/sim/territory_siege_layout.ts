@@ -5,6 +5,8 @@ import { DUNGEON_FLOOR_Y, territorySiegeOrigin } from './data';
 export const TERRITORY_SIEGE_FLOOR_Y = DUNGEON_FLOOR_Y;
 export const TERRITORY_SIEGE_FIELD_HALF_X = 46;
 export const TERRITORY_SIEGE_FIELD_HALF_Z = 66;
+export const TERRITORY_SIEGE_GATE_Z = 18;
+export const TERRITORY_SIEGE_GATE_HALF_WIDTH = 9;
 
 /** Stable, separated spawn rows for the first twenty seats on each side. */
 export function territorySiegeSpawn(
@@ -29,24 +31,59 @@ export function territorySiegeActionPoint(
 ): { x: number; z: number; radius: number } {
   const origin = territorySiegeOrigin(slot);
   const local =
-    action === 'deploy_ramp'
-      ? { x: 31, z: 8, radius: 10 }
-      : action === 'strike_core'
-        ? { x: 0, z: -28, radius: 10 }
+    action === 'start_core_channel'
+      ? { x: 0, z: -26, radius: 7 }
+      : action === 'stop_core_channel'
+        ? { x: 0, z: -26, radius: Number.POSITIVE_INFINITY }
         : action === 'deploy_ram'
-          ? // The ram assembly zone covers the attacker approach and the gate
-            // apron. This lets a player build the ram after advancing to the
-            // visible gate instead of being rejected by an invisible point back
-            // near the spawn row.
-            { x: 0, z: 28, radius: 20 }
-          : { x: 0, z: 22, radius: 10 };
+          ? { x: 0, z: 27, radius: 8 }
+          : action === 'leave_ram'
+            ? { x: 0, z: 23, radius: Number.POSITIVE_INFINITY }
+            : { x: 0, z: 23, radius: 5 };
   return { x: origin.x + local.x, z: origin.z + local.z, radius: local.radius };
 }
 
+export function territorySiegeRamSeat(
+  slot: number,
+  seatNo: number,
+): { x: number; z: number; facing: number } {
+  const origin = territorySiegeOrigin(slot);
+  const positions = [
+    { x: -1.5, z: 24.5 },
+    { x: 1.5, z: 24.5 },
+    { x: -1.5, z: 21.5 },
+    { x: 1.5, z: 21.5 },
+  ];
+  const local = positions[Math.max(0, Math.min(3, Math.floor(seatNo) - 1))];
+  return { x: origin.x + local.x, z: origin.z + local.z, facing: Math.PI };
+}
+
+export function clampTerritorySiegeGate(
+  slot: number,
+  gateOpen: boolean,
+  fromZ: number,
+  x: number,
+  z: number,
+  radius: number,
+): { x: number; z: number } {
+  if (gateOpen) return { x, z };
+  const origin = territorySiegeOrigin(slot);
+  const localX = x - origin.x;
+  const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
+  if (Math.abs(localX) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius) return { x, z };
+  const front = gateZ + 1.4 + radius;
+  const back = gateZ - 1.4 - radius;
+  if (fromZ >= front && z < front) return { x, z: front };
+  if (fromZ <= back && z > back) return { x, z: back };
+  if (fromZ > back && fromZ < front) {
+    return { x, z: fromZ >= gateZ ? front : back };
+  }
+  return { x, z };
+}
+
 /**
- * Static collision shared by sim and renderer. The gate opening is physically
- * open because gate destruction is runtime state; the server-side objective
- * lock still prevents core damage until its gate HP reaches zero.
+ * Static collision shared by sim and renderer. The gate leaf is dynamic and is
+ * enforced by the authoritative movement clamp until gate HP reaches zero.
  */
 export function territorySiegeLocalColliders(): Collider[] {
   const y = TERRITORY_SIEGE_FLOOR_Y;
@@ -59,21 +96,7 @@ export function territorySiegeLocalColliders(): Collider[] {
     { type: 'obb', x: 22, z: 18, hw: 12, hd: 2, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
     { type: 'circle', x: -34, z: 18, r: 4, moveTopY: y + 7, cameraTopY: y + 9 },
     { type: 'circle', x: 34, z: 18, r: 4, moveTopY: y + 7, cameraTopY: y + 9 },
-    { type: 'obb', x: 0, z: -28, hw: 8, hd: 7, rot: 0, cameraTopY: y + 12 },
-    // Side ramp: authored as a permanent standable prototype surface. Its
-    // visibility and objective availability still follow rampDeployed.
-    {
-      type: 'obb',
-      x: 31,
-      z: 4,
-      hw: 3,
-      hd: 12,
-      rot: 0,
-      moveTopY: wallTop,
-      standable: true,
-      cameraTopY: wallTop,
-      topSlope: { kind: 'ridge', axis: 'x', pitch: 5 / 12, eaveY: y },
-    },
+    { type: 'obb', x: 0, z: -26, hw: 3.5, hd: 3.5, rot: 0, cameraTopY: y + 10 },
   ];
 }
 

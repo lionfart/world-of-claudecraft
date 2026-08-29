@@ -11847,8 +11847,6 @@ export const ja_JP: Partial<Record<TranslationKey, string>> = {
   'hudChrome.territoryMap.siegeCore': '砦の中枢 {percent}%',
   'hudChrome.territoryMap.deployRam': '破城槌を配置',
   'hudChrome.territoryMap.ramGate': '破城槌で城門を攻撃',
-  'hudChrome.territoryMap.deployRamp': '攻城用スロープを配置',
-  'hudChrome.territoryMap.strikeCore': '砦の中枢を攻撃',
   'hudChrome.enchanting.wornTagIndexed': '装備中 ({slot}{index})',
   'hudChrome.targetAuras.title': 'ターゲットのオーラ',
   'hudChrome.targetAuras.keybindLabel': 'ターゲットのバフとデバフ',
