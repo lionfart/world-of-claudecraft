@@ -200,7 +200,9 @@ describe('territory service hot paths', () => {
         endsAtMs: nowMs + 60_000,
         gateLevel: 0,
         coreLevel: 1,
-        attackerHasSiegeWorkshop: true,
+        // Test seasons disable structure requirements, so siege tools remain
+        // buildable even before a guild has placed its workshop.
+        attackerHasSiegeWorkshop: false,
         defenseTowerLevel: 0,
         participants: [],
       },

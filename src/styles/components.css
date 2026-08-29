@@ -10855,15 +10855,14 @@
   #territory-war-notice {
     position: fixed;
     display: none;
-    top: 64px;
-    left: 50%;
-    width: min(520px, calc(100vw - 24px));
+    right: 112px;
+    bottom: 18px;
+    width: min(238px, calc(100vw - 128px));
     z-index: 91;
     box-sizing: border-box;
-    transform: translateX(-50%);
-    padding: 11px 14px 12px;
+    padding: 7px 8px 8px;
     color: var(--color-text);
-    text-align: center;
+    text-align: left;
     border: 1px solid #b84b31;
     background:
       linear-gradient(90deg, transparent, #8d321729, transparent),
@@ -10875,43 +10874,43 @@
   }
   #territory-war-kicker {
     color: #db7651;
-    font-size: 9px;
+    font-size: 7px;
     font-weight: bold;
     letter-spacing: 0.15em;
     text-transform: uppercase;
   }
   #territory-war-title {
-    margin-top: 2px;
+    margin-top: 1px;
     color: #f0cd87;
     font-family: var(--title-font);
-    font-size: 16px;
+    font-size: 12px;
     font-weight: bold;
   }
   #territory-war-queue,
   #territory-war-start {
-    margin-top: 3px;
+    margin-top: 1px;
     color: var(--color-text-muted);
-    font-size: 11px;
+    font-size: 9px;
   }
   #territory-war-countdown {
-    margin-top: 5px;
+    margin-top: 3px;
     color: #fff1c5;
-    font-size: 20px;
+    font-size: 13px;
     font-variant-numeric: tabular-nums;
     font-weight: bold;
     text-shadow: 0 1px 5px #000;
   }
   #territory-war-teleport {
-    min-height: 14px;
-    margin-top: 2px;
+    min-height: 10px;
+    margin-top: 1px;
     color: #efb95d;
-    font-size: 10px;
+    font-size: 8px;
   }
   #territory-war-action {
-    min-width: 150px;
-    min-height: 32px;
-    margin-top: 7px;
-    padding: 5px 12px;
+    width: 100%;
+    min-height: 24px;
+    margin-top: 4px;
+    padding: 3px 8px;
     color: #f9e4bb;
     border: 1px solid #9a6932;
     border-radius: 3px;
@@ -10927,13 +10926,12 @@
   #territory-siege-hud {
     position: fixed;
     display: none;
-    top: 64px;
-    left: 50%;
-    width: min(560px, calc(100vw - 24px));
+    right: 112px;
+    bottom: 18px;
+    width: min(270px, calc(100vw - 128px));
     z-index: 90;
-    transform: translateX(-50%);
-    padding: 10px 12px;
-    text-align: center;
+    padding: 7px 8px;
+    text-align: left;
     color: var(--color-text);
     border: 1px solid var(--color-territory-war);
     background: linear-gradient(180deg, rgba(35, 18, 12, 0.94), rgba(13, 9, 7, 0.96));
@@ -10943,15 +10941,16 @@
     color: var(--gold);
     font-family: var(--title-font);
     font-weight: bold;
+    font-size: 12px;
   }
   #territory-siege-timer {
-    margin: 3px 0 7px;
-    font-size: 12px;
+    margin: 1px 0 4px;
+    font-size: 9px;
     color: var(--color-text-muted);
   }
   .territory-siege-progress {
-    height: 18px;
-    margin-top: 4px;
+    height: 12px;
+    margin-top: 2px;
     overflow: hidden;
     border: 1px solid #66502d;
     background: #100c08;
@@ -10960,22 +10959,24 @@
     display: block;
     height: 100%;
     width: 0;
-    padding: 1px 5px;
+    padding: 0 4px;
     box-sizing: border-box;
     white-space: nowrap;
     color: #fff;
-    font-size: 11px;
+    font-size: 8px;
     text-align: left;
     background: linear-gradient(90deg, #7d321f, #c66a33);
   }
   .territory-siege-actions {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 5px;
-    margin-top: 8px;
+    gap: 3px;
+    margin-top: 4px;
   }
   .territory-siege-actions button {
-    min-height: 30px;
+    min-height: 23px;
+    padding: 2px 4px;
+    font-size: 9px;
     color: var(--color-text);
     border: 1px solid #79572e;
     background: #2b2116;
@@ -11002,7 +11003,9 @@
     }
     #territory-war-notice,
     #territory-siege-hud {
-      top: 42px;
+      right: 56px;
+      bottom: 70px;
+      width: min(238px, calc(100vw - 68px));
     }
     .territory-siege-actions {
       grid-template-columns: repeat(2, 1fr);

@@ -34,7 +34,11 @@ export function territorySiegeActionPoint(
       : action === 'strike_core'
         ? { x: 0, z: -28, radius: 10 }
         : action === 'deploy_ram'
-          ? { x: 0, z: 34, radius: 12 }
+          ? // The ram assembly zone covers the attacker approach and the gate
+            // apron. This lets a player build the ram after advancing to the
+            // visible gate instead of being rejected by an invisible point back
+            // near the spawn row.
+            { x: 0, z: 28, radius: 20 }
           : { x: 0, z: 22, radius: 10 };
   return { x: origin.x + local.x, z: origin.z + local.z, radius: local.radius };
 }

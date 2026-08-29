@@ -82,6 +82,7 @@ export class TerritoryService {
   private readonly siegeCommandIds = new Map<string, { characterId: number; atMs: number }>();
   private readonly siegeRules: TerritorySiegeRules;
   private readonly configuredSlotCount: number;
+  private readonly requirementsEnabled: boolean;
   private readonly ready: Promise<void>;
 
   constructor(
@@ -100,6 +101,7 @@ export class TerritoryService {
       actionCooldownMs: 500,
     };
     this.configuredSlotCount = config.realmWarSlots;
+    this.requirementsEnabled = config.requirementsEnabled;
     this.ready = this.initialize();
   }
 
@@ -318,7 +320,12 @@ export class TerritoryService {
               endsAtMs: record.endsAtMs,
               gateLevel: record.gateLevel,
               coreLevel: record.coreLevel,
-              attackerHasSiegeWorkshop: record.attackerHasSiegeWorkshop,
+              // The public test preset deliberately removes territory build
+              // requirements. Keep the workshop rule data-driven for normal
+              // seasons, but never strand test attackers without either siege
+              // tool when their guild has not built the optional workshop yet.
+              attackerHasSiegeWorkshop:
+                !this.requirementsEnabled || record.attackerHasSiegeWorkshop,
               defenseTowerLevel: record.defenseTowerLevel,
             });
           for (const participant of record.participants) {
