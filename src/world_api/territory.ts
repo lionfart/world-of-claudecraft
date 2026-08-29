@@ -36,6 +36,11 @@ export interface TerritoryTowerZoneView {
   detonatesIn: number;
 }
 
+export interface TerritoryCoreChannelView {
+  x: number;
+  z: number;
+}
+
 export interface TerritorySeasonView {
   id: string;
   number: number;
@@ -101,6 +106,8 @@ export interface TerritorySiegeView {
   ramCooldown: number;
   coreChanneling: boolean;
   coreChannelProgress: number;
+  /** Server-authoritative channel origins visible to every fighter in this siege. */
+  coreChannels: TerritoryCoreChannelView[];
   defenseTowerLevel: number;
   towerZones: TerritoryTowerZoneView[];
   respawnIn: number;

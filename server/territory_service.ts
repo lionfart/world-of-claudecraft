@@ -35,6 +35,7 @@ import {
   type TerritoryRepository,
   territoryGuildColor,
 } from './territory_db';
+import { territoryWarJoinAllowed } from './territory_rules';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -236,6 +237,10 @@ export class TerritoryService {
       if (view) return view;
     }
     return null;
+  }
+
+  coreChannelCharacters(warId: string): readonly number[] {
+    return [...(this.sieges.get(warId)?.coreChannels.keys() ?? [])];
   }
 
   siegePlacementForCharacter(
@@ -577,6 +582,19 @@ export class TerritoryService {
         result = await this.repository.declareWar(ctx, command.cellId);
         break;
       case 'join_war':
+        {
+          const war = this.publicSnapshot?.wars.find((candidate) => candidate.id === command.warId);
+          const side =
+            war?.attackerGuildId === String(actor.guildId)
+              ? 'attacker'
+              : war?.defenderGuildId === String(actor.guildId)
+                ? 'defender'
+                : null;
+          const registered = this.registrations.get(command.warId)?.has(characterId) ?? false;
+          if (war && side && !territoryWarJoinAllowed(war.status, side, registered)) {
+            return { ok: false, error: 'registration_closed' };
+          }
+        }
         result = await this.repository.joinWar(ctx, command.warId);
         if (result.ok) {
           const characters = this.registrations.get(command.warId) ?? new Set<number>();

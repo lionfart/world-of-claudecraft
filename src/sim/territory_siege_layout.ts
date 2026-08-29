@@ -43,7 +43,7 @@ export function territorySiegeSpawn(
   const row = Math.floor(index / 5);
   return {
     x: origin.x + (column - 2) * 3.2,
-    z: origin.z + (side === 'attacker' ? 96 - row * 4 : -57 + row * 4),
+    z: origin.z + (side === 'attacker' ? 128 - row * 4 : -57 + row * 4),
     facing: side === 'attacker' ? Math.PI : 0,
   };
 }
@@ -117,6 +117,31 @@ export function clampTerritorySiegeGate(
   if (fromZ > back && fromZ < front) {
     return { x, z: fromZ >= gateZ ? front : back };
   }
+  return { x, z };
+}
+
+/**
+ * Side-aware backstop for the authoritative host. It repairs any position that
+ * arrived across the closed leaf through reconciliation, forced movement or a
+ * stale client prediction, instead of trusting only the movement segment that
+ * happened to cross the doorway.
+ */
+export function sealTerritorySiegeGateForSide(
+  slot: number,
+  side: TerritoryWarSide,
+  gateOpen: boolean,
+  x: number,
+  z: number,
+  radius: number,
+): { x: number; z: number } {
+  if (gateOpen) return { x, z };
+  const origin = territorySiegeOrigin(slot);
+  if (Math.abs(x - origin.x) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius) return { x, z };
+  const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
+  const front = gateZ + 1.4 + radius;
+  const back = gateZ - 1.4 - radius;
+  if (side === 'attacker' && z < front) return { x, z: front };
+  if (side === 'defender' && z > back) return { x, z: back };
   return { x, z };
 }
 

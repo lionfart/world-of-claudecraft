@@ -31,6 +31,7 @@ import {
   territoryCellCapacity,
   territoryFirstKeepAllowed,
   territoryRequiresSpend,
+  territoryWarJoinAllowed,
 } from './territory_rules';
 
 const RESOURCE_TICK_MS = 5 * 60_000;
@@ -79,6 +80,7 @@ type MutationError =
   | 'war_conflict'
   | 'war_slots_full'
   | 'war_not_found'
+  | 'registration_closed'
   | 'team_full'
   | 'not_participant';
 
@@ -516,6 +518,7 @@ export class TerritoryRepository {
          JOIN territory_wars w ON w.id = p.war_id
         WHERE w.season_id = $1 AND w.status IN ('declared', 'forming', 'active')
           AND p.left_at IS NULL AND p.seat_no IS NOT NULL
+          AND (p.side = 'defender' OR p.joined_at <= w.starts_at)
         ORDER BY p.war_id, p.character_id`,
       [season.id],
     );
@@ -1209,8 +1212,9 @@ export class TerritoryRepository {
         attacker_guild_id: number;
         defender_guild_id: number;
         status: TerritoryWarView['status'];
+        starts_at: Date | string;
       }>(
-        `SELECT attacker_guild_id, defender_guild_id, status FROM territory_wars
+        `SELECT attacker_guild_id, defender_guild_id, status, starts_at FROM territory_wars
           WHERE id = $1 AND season_id = $2 FOR UPDATE`,
         [warId, season.id],
       );
@@ -1223,15 +1227,21 @@ export class TerritoryRepository {
             ? 'defender'
             : null;
       if (!side) return 'forbidden';
-      const existing = await client.query<{ seat_no: number }>(
-        `SELECT seat_no FROM territory_war_participants
+      const existing = await client.query<{ seat_no: number; joined_at: Date | string }>(
+        `SELECT seat_no, joined_at FROM territory_war_participants
           WHERE war_id = $1 AND character_id = $2
             AND left_at IS NULL AND seat_no IS NOT NULL`,
         [warId, ctx.characterId],
       );
-      if (existing.rows[0]) {
+      const started = Date.now() >= new Date(row.starts_at).getTime();
+      const policyStatus = started ? 'active' : row.status;
+      const registeredBeforeStart = existing.rows[0]
+        ? new Date(existing.rows[0].joined_at).getTime() <= new Date(row.starts_at).getTime()
+        : false;
+      if (existing.rows[0] && territoryWarJoinAllowed(policyStatus, side, registeredBeforeStart)) {
         return { seat: { warId, side, seatNo: existing.rows[0].seat_no } };
       }
+      if (!territoryWarJoinAllowed(policyStatus, side, false)) return 'registration_closed';
       const seats = await client.query<{ seat_no: number }>(
         `SELECT seat_no FROM territory_war_participants
           WHERE war_id = $1 AND side = $2 AND left_at IS NULL AND seat_no IS NOT NULL`,
@@ -1590,10 +1600,12 @@ export class TerritoryRepository {
       seat_no: number | null;
       left_at: Date | string | null;
     }>(
-      `SELECT war_id, character_id, side, seat_no, left_at
-         FROM territory_war_participants
-        WHERE war_id = ANY($1::uuid[])
-        ORDER BY war_id, side, seat_no, character_id`,
+      `SELECT p.war_id, p.character_id, p.side, p.seat_no, p.left_at
+         FROM territory_war_participants p
+         JOIN territory_wars w ON w.id = p.war_id
+        WHERE p.war_id = ANY($1::uuid[])
+          AND (p.side = 'defender' OR p.joined_at <= w.starts_at)
+        ORDER BY p.war_id, p.side, p.seat_no, p.character_id`,
       [warIds],
     );
     const byWar = new Map<string, TerritorySiegeRuntimeRecord['participants']>();

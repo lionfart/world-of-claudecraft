@@ -207,6 +207,7 @@ describe('territory service hot paths', () => {
         participants: [],
       },
     ]);
+    repository.loadActiveWarRegistrations.mockResolvedValue([{ warId: war.id, characterId: 11 }]);
     repository.joinWar.mockResolvedValue({
       ok: true,
       delta: null,
@@ -247,5 +248,62 @@ describe('territory service hot paths', () => {
     expect(action).toMatchObject({ ok: true, duplicate: false });
     expect(duplicate).toMatchObject({ ok: true, duplicate: true });
     expect(repository.loadDueSieges).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects late attackers but accepts defenders while a siege is active', async () => {
+    const nowMs = Date.now();
+    const war = {
+      id: '00000000-0000-4000-8000-000000000011',
+      targetCellId: 1,
+      attackerGuildId: '7',
+      attackerGuildName: 'Seven',
+      defenderGuildId: '8',
+      defenderGuildName: 'Eight',
+      status: 'active' as const,
+      declaredAt: new Date(nowMs - 10_000).toISOString(),
+      startsAt: new Date(nowMs - 1_000).toISOString(),
+      endsAt: new Date(nowMs + 60_000).toISOString(),
+      winnerGuildId: null,
+      attackerCount: 0,
+      defenderCount: 0,
+      mySide: null,
+      registered: false,
+    };
+    const repository = repositoryFake(mapState([war]));
+    repository.joinWar.mockResolvedValue({
+      ok: true,
+      delta: null,
+      duplicate: false,
+      guildId: 8,
+      seat: { warId: war.id, side: 'defender', seatNo: 1 },
+    });
+    const resolveActor = vi.fn((characterId: number) => ({
+      characterId,
+      guildId: characterId === 11 ? 7 : 8,
+      guildName: characterId === 11 ? 'Seven' : 'Eight',
+      rank: 'member' as const,
+    }));
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      resolveActor,
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+    );
+    await service.snapshotForCharacter(11);
+
+    const attacker = await service.execute(11, '00000000-0000-4000-8000-000000000012', 1, {
+      kind: 'join_war',
+      warId: war.id,
+    });
+    const defender = await service.execute(12, '00000000-0000-4000-8000-000000000013', 1, {
+      kind: 'join_war',
+      warId: war.id,
+    });
+
+    expect(attacker).toEqual({ ok: false, error: 'registration_closed' });
+    expect(defender).toMatchObject({ ok: true, seat: { side: 'defender' } });
+    expect(repository.joinWar).toHaveBeenCalledTimes(1);
   });
 });

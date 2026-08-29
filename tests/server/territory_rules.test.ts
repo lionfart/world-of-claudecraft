@@ -3,6 +3,7 @@ import {
   territoryCellCapacity,
   territoryFirstKeepAllowed,
   territoryRequiresSpend,
+  territoryWarJoinAllowed,
 } from '../../server/territory_rules';
 
 describe('territory test preset rules', () => {
@@ -16,5 +17,16 @@ describe('territory test preset rules', () => {
     expect(territoryCellCapacity(1, 1_261, true)).toBe(24);
     expect(territoryRequiresSpend(false)).toBe(false);
     expect(territoryRequiresSpend(true)).toBe(true);
+  });
+
+  it('locks the attacking roster at combat start while keeping defense open', () => {
+    expect(territoryWarJoinAllowed('declared', 'attacker', false)).toBe(true);
+    expect(territoryWarJoinAllowed('forming', 'attacker', false)).toBe(true);
+    expect(territoryWarJoinAllowed('active', 'attacker', false)).toBe(false);
+    expect(territoryWarJoinAllowed('active', 'attacker', true)).toBe(true);
+    expect(territoryWarJoinAllowed('active', 'defender', false)).toBe(true);
+    expect(territoryWarJoinAllowed('active', 'defender', true)).toBe(true);
+    expect(territoryWarJoinAllowed('resolved', 'defender', true)).toBe(false);
+    expect(territoryWarJoinAllowed('cancelled', 'attacker', true)).toBe(false);
   });
 });

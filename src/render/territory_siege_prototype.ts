@@ -522,8 +522,8 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
   coreHalo.rotation.x = Math.PI / 2;
   coreRoot.add(coreHalo);
 
-  const coreChannelFx = buildCoreChannelFx();
-  root.add(coreChannelFx.root);
+  const coreChannelFx = Array.from({ length: 20 }, () => buildCoreChannelFx());
+  for (const effect of coreChannelFx) root.add(effect.root);
 
   const ramParts = buildRam();
   const ram = ramParts.root;
@@ -563,14 +563,23 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
     ramParts.head.rotation.x = state.ramSwing;
     coreHalo.rotation.z = timeSeconds * 0.55;
     coreHalo.scale.setScalar(0.92 + state.coreChannelPulse * 0.16);
-    channelFrom.set(player.x - origin.x, 1.6, player.z - origin.z);
-    coreChannelFx.update(
-      state.coreChannelVisible,
-      timeSeconds,
-      state.coreChannelPulse,
-      channelFrom,
-      channelTo,
-    );
+    const sharedChannels = siege?.coreChannels ?? [];
+    const channelSources = sharedChannels.length
+      ? sharedChannels
+      : state.coreChannelVisible
+        ? [player]
+        : [];
+    for (let index = 0; index < coreChannelFx.length; index += 1) {
+      const source = channelSources[index];
+      if (source) channelFrom.set(source.x - origin.x, 1.6, source.z - origin.z);
+      coreChannelFx[index].update(
+        !!source,
+        timeSeconds + index * 0.11,
+        state.coreChannelPulse,
+        channelFrom,
+        channelTo,
+      );
+    }
     for (let index = 0; index < towerWarnings.length; index += 1) {
       const warning = towerWarnings[index];
       const zone = siege?.towerZones[index];

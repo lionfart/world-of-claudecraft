@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { territorySiegeOrigin } from '../src/sim/data';
 import {
   clampTerritorySiegeGate,
+  sealTerritorySiegeGateForSide,
   TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
@@ -33,7 +34,10 @@ describe('territory siege instance layout', () => {
         );
       }
     }
-    expect(TERRITORY_SIEGE_FIELD_HALF_X * TERRITORY_SIEGE_FIELD_HALF_Z * 4).toBeGreaterThan(50_000);
+    expect(TERRITORY_SIEGE_FIELD_HALF_X * TERRITORY_SIEGE_FIELD_HALF_Z * 4).toBeGreaterThan(80_000);
+    expect(territorySiegeSpawn(0, 'attacker', 1).z - territorySiegeOrigin(0).z).toBeGreaterThan(
+      120,
+    );
   });
 
   it('restricts ram construction to the marked gate apron', () => {
@@ -56,6 +60,41 @@ describe('territory siege instance layout', () => {
     expect(clampTerritorySiegeGate(0, true, origin.z + 23, origin.x, origin.z + 15, 0.6).z).toBe(
       origin.z + 15,
     );
+  });
+
+  it('authoritatively seals both sides of a closed gate after reconciliation', () => {
+    const origin = territorySiegeOrigin(0);
+    const attacker = sealTerritorySiegeGateForSide(
+      0,
+      'attacker',
+      false,
+      origin.x,
+      origin.z + 10,
+      0.5,
+    );
+    const defender = sealTerritorySiegeGateForSide(
+      0,
+      'defender',
+      false,
+      origin.x,
+      origin.z + 28,
+      0.5,
+    );
+    expect(attacker.z).toBeGreaterThan(origin.z + TERRITORY_SIEGE_GATE_Z);
+    expect(defender.z).toBeLessThan(origin.z + TERRITORY_SIEGE_GATE_Z);
+    expect(sealTerritorySiegeGateForSide(0, 'attacker', true, origin.x, origin.z + 10, 0.5).z).toBe(
+      origin.z + 10,
+    );
+    expect(
+      sealTerritorySiegeGateForSide(
+        0,
+        'attacker',
+        false,
+        origin.x + TERRITORY_SIEGE_GATE_HALF_WIDTH + 2,
+        origin.z + 10,
+        0.5,
+      ).z,
+    ).toBe(origin.z + 10);
   });
 
   it('seals the complete twenty-unit opening between the front wall segments', () => {

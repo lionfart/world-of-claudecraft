@@ -5,7 +5,7 @@ import type {
 } from '../world_api/territory';
 import { createTerritoryManifest } from './territory_manifest';
 import type { TerritorySiegeControl } from './territory_siege';
-import { clampTerritorySiegeGate } from './territory_siege_layout';
+import { clampTerritorySiegeGate, sealTerritorySiegeGateForSide } from './territory_siege_layout';
 import { isTerritoryClaimAdjacent } from './territory_topology';
 
 export interface TerritorySimTeam {
@@ -241,9 +241,23 @@ export function territorySimResolveGate(
   radius: number,
 ): { x: number; z: number } {
   const team = territorySimTeamFor(host, pid);
-  return team
-    ? clampTerritorySiegeGate(team.slot, team.gateOpen, fromZ, position.x, position.z, radius)
-    : position;
+  if (!team) return position;
+  const swept = clampTerritorySiegeGate(
+    team.slot,
+    team.gateOpen,
+    fromZ,
+    position.x,
+    position.z,
+    radius,
+  );
+  return sealTerritorySiegeGateForSide(
+    team.slot,
+    team.side,
+    team.gateOpen,
+    swept.x,
+    swept.z,
+    radius,
+  );
 }
 
 export function territorySimHostile(

@@ -23,6 +23,7 @@ const siege: TerritorySiegeView = {
   ramCooldown: 1,
   coreChanneling: true,
   coreChannelProgress: 0.5,
+  coreChannels: [{ x: 10, z: 20 }],
   defenseTowerLevel: 1,
   towerZones: [],
   respawnIn: 0,

@@ -297,7 +297,14 @@ export function territorySiegeTick(
   for (const [characterId, seat] of state.seats) {
     if (!seat.connected && seat.reservedUntilMs !== null && nowMs >= seat.reservedUntilMs) {
       removeSiegeControl(state, characterId);
-      state.seats.delete(characterId);
+      if (seat.side === 'attacker') {
+        // The attacking roster locks at battle start. Losing the socket must
+        // never consume that registration; the player may return at any time
+        // before resolution, even after the ordinary grace window elapsed.
+        seat.reservedUntilMs = null;
+      } else {
+        state.seats.delete(characterId);
+      }
     }
   }
   if (state.phase === 'forming' && nowMs >= state.definition.startsAtMs) state.phase = 'active';
@@ -447,6 +454,7 @@ export function territorySiegeViewFor(
           CORE_CHANNEL_WARMUP_MS,
       ),
     ),
+    coreChannels: [],
     defenseTowerLevel: Math.max(0, Math.floor(state.definition.defenseTowerLevel ?? 0)),
     towerZones: [],
     respawnIn:

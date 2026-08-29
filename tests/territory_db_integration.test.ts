@@ -121,7 +121,7 @@ describeDb('territory persistence (real PostgreSQL)', () => {
       `INSERT INTO territory_wars
          (id, season_id, target_cell_id, attacker_guild_id, defender_guild_id,
           status, starts_at, ends_at)
-       VALUES ($1, $2, 999999, $3, $4, 'active', now() - interval '1 minute',
+       VALUES ($1, $2, 999999, $3, $4, 'forming', now() + interval '1 minute',
                now() + interval '1 hour')`,
       [warId, season.rows[0].id, attacker.rows[0].id, defender.rows[0].id],
     );

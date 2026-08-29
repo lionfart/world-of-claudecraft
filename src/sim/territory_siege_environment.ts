@@ -14,6 +14,18 @@ export interface TerritorySiegeBuildingPlacement extends TerritorySiegeSceneryPl
  * readable while breaking up the large field into natural combat lanes.
  */
 export const TERRITORY_SIEGE_TREES: readonly TerritorySiegeSceneryPlacement[] = [
+  { x: -112, z: -151, scale: 8.1, yaw: 0.9 },
+  { x: 109, z: -146, scale: 7.4, yaw: 2.2 },
+  { x: -111, z: -112, scale: 6.9, yaw: 1.5 },
+  { x: 113, z: -83, scale: 8.3, yaw: 0.35 },
+  { x: -110, z: -35, scale: 7.6, yaw: 2.7 },
+  { x: 111, z: 8, scale: 7.1, yaw: 1.1 },
+  { x: -113, z: 51, scale: 8.5, yaw: 0.4 },
+  { x: 110, z: 79, scale: 7.8, yaw: 2.45 },
+  { x: -109, z: 119, scale: 7.2, yaw: 1.9 },
+  { x: 112, z: 145, scale: 8.2, yaw: 0.7 },
+  { x: -76, z: 153, scale: 7.7, yaw: 2.25 },
+  { x: 72, z: 156, scale: 6.8, yaw: 1.25 },
   { x: -88, z: -119, scale: 8.6, yaw: 2.5 },
   { x: 87, z: -114, scale: 7.2, yaw: 0.4 },
   { x: -72, z: -101, scale: 8.2, yaw: 0.2 },
@@ -49,6 +61,12 @@ export const TERRITORY_SIEGE_TREES: readonly TerritorySiegeSceneryPlacement[] = 
 ];
 
 export const TERRITORY_SIEGE_ROCKS: readonly TerritorySiegeSceneryPlacement[] = [
+  { x: -108, z: 142, scale: 3.6, yaw: 0.8 },
+  { x: 105, z: 151, scale: 3.1, yaw: 2.2 },
+  { x: -105, z: 88, scale: 2.9, yaw: 1.3 },
+  { x: 110, z: 38, scale: 3.5, yaw: 0.4 },
+  { x: -109, z: -48, scale: 3.2, yaw: 2.6 },
+  { x: 106, z: -126, scale: 3.8, yaw: 1.7 },
   { x: -86, z: 121, scale: 3.4, yaw: 1.8 },
   { x: 84, z: 112, scale: 3.7, yaw: 0.2 },
   { x: -53, z: 91, scale: 3.8, yaw: 0.4 },
@@ -70,6 +88,14 @@ export const TERRITORY_SIEGE_ROCKS: readonly TerritorySiegeSceneryPlacement[] = 
 ];
 
 export const TERRITORY_SIEGE_BUSHES: readonly TerritorySiegeSceneryPlacement[] = [
+  { x: -106, z: 151, scale: 2.7, yaw: 1.1 },
+  { x: 108, z: 143, scale: 2.4, yaw: 2.6 },
+  { x: -109, z: 96, scale: 2.5, yaw: 0.3 },
+  { x: 107, z: 57, scale: 2.8, yaw: 1.8 },
+  { x: -107, z: -11, scale: 2.3, yaw: 2.2 },
+  { x: 109, z: -74, scale: 2.6, yaw: 0.7 },
+  { x: -105, z: -132, scale: 2.7, yaw: 1.5 },
+  { x: 104, z: -151, scale: 2.4, yaw: 2.9 },
   { x: -83, z: 124, scale: 2.6, yaw: 0.7 },
   { x: 81, z: 121, scale: 2.3, yaw: 2.1 },
   { x: -49, z: 104, scale: 2.8, yaw: 0.2 },

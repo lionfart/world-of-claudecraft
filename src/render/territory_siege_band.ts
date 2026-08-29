@@ -1,5 +1,9 @@
 import type * as THREE from 'three';
 import { TERRITORY_SIEGE_SLOT_COUNT, territorySiegeOrigin } from '../sim/data';
+import {
+  TERRITORY_SIEGE_FIELD_HALF_X,
+  TERRITORY_SIEGE_FIELD_HALF_Z,
+} from '../sim/territory_siege_ground';
 import type { TerritorySiegeView } from '../world_api';
 import { setRenderCategory } from './renderer_diagnostics';
 import {
@@ -20,7 +24,11 @@ export class TerritorySiegeBand {
     for (let slot = 0; slot < TERRITORY_SIEGE_SLOT_COUNT; slot += 1) {
       if (this.views.has(slot)) continue;
       const origin = territorySiegeOrigin(slot);
-      if (Math.abs(x - origin.x) >= 180 || Math.abs(z - origin.z) >= 180) continue;
+      if (
+        Math.abs(x - origin.x) >= TERRITORY_SIEGE_FIELD_HALF_X + 45 ||
+        Math.abs(z - origin.z) >= TERRITORY_SIEGE_FIELD_HALF_Z + 45
+      )
+        continue;
       const view = buildTerritorySiegePrototype(slot);
       setRenderCategory(view.group, 'dungeon');
       this.scene.add(view.group);

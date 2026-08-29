@@ -1,5 +1,5 @@
-export const TERRITORY_SIEGE_FIELD_HALF_X = 96;
-export const TERRITORY_SIEGE_FIELD_HALF_Z = 136;
+export const TERRITORY_SIEGE_FIELD_HALF_X = 120;
+export const TERRITORY_SIEGE_FIELD_HALF_Z = 168;
 export const TERRITORY_SIEGE_STONE_LANE_HEIGHT = 0.072;
 
 function smoothstep(edge0: number, edge1: number, value: number): number {

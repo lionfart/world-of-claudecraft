@@ -1,7 +1,9 @@
 import { isTerritorySiegePos } from '../src/sim/data';
+import { PLAYER_BODY_RADIUS } from '../src/sim/pathfind';
 import type { Sim } from '../src/sim/sim';
 import type { TerritoryDelta } from '../src/sim/territory_delta';
 import {
+  sealTerritorySiegeGateForSide,
   territorySiegeActionPoint,
   territorySiegeInTowerRange,
   territorySiegeRamSeat,
@@ -216,7 +218,12 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
     const session = [...this.deps.sessions()].find(
       (entry) => entry.accountId === accountId && !entry.left,
     );
-    return session ? this.service.snapshotForCharacter(session.characterId) : null;
+    if (!session) return null;
+    const snapshot = await this.service.snapshotForCharacter(session.characterId);
+    return {
+      ...snapshot,
+      siege: snapshot.siege ? this.decorateSiege(snapshot.siege, Date.now()) : null,
+    };
   }
 
   async changesForAccount(
@@ -380,6 +387,18 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
     }
   }
 
+  private decorateSiege(siege: TerritorySiegeView, nowMs: number): TerritorySiegeView {
+    return {
+      ...siege,
+      coreChannels: this.service.coreChannelCharacters(siege.warId).flatMap((characterId) => {
+        const session = this.deps.sessionByCharacterId(characterId);
+        const channeler = session ? this.deps.sim.entities.get(session.pid) : null;
+        return channeler ? [{ x: channeler.pos.x, z: channeler.pos.z }] : [];
+      }),
+      towerZones: this.towerZones.view(siege.warId, nowMs),
+    };
+  }
+
   private broadcastSieges(): void {
     const nowMs = Date.now();
     for (const session of this.deps.sessions()) {
@@ -388,12 +407,7 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       const placement = this.service.siegePlacementForCharacter(session.characterId);
       if (placement) this.service.reconnectCharacter(session.characterId, nowMs);
       const baseSiege = this.service.siegeForCharacter(session.characterId, nowMs);
-      let siege = baseSiege
-        ? {
-            ...baseSiege,
-            towerZones: this.towerZones.view(baseSiege.warId, nowMs),
-          }
-        : null;
+      let siege = baseSiege ? this.decorateSiege(baseSiege, nowMs) : null;
       if (siege?.state === 'ended' && siege.winner !== null) {
         state.resultReturnAtMs ??= nowMs + TERRITORY_SIEGE_RESULT_PRESENTATION_MS;
         siege = {
@@ -494,6 +508,18 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       control,
     });
     const fighter = this.deps.sim.entities.get(session.pid);
+    if (fighter && !siege.gateOpen) {
+      const sealed = sealTerritorySiegeGateForSide(
+        placement.slot,
+        placement.side,
+        false,
+        fighter.pos.x,
+        fighter.pos.z,
+        PLAYER_BODY_RADIUS,
+      );
+      fighter.pos.x = sealed.x;
+      fighter.pos.z = sealed.z;
+    }
     if (fighter && control?.kind === 'ram') {
       this.state(session).controlAnchor = null;
       const seat = territorySiegeRamSeat(placement.slot, control.seatNo);

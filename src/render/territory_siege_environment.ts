@@ -17,6 +17,7 @@ import {
   cloneTerritorySiegeTexture,
   type TerritorySiegeAssetKey,
 } from './territory_siege_assets';
+import { grassTuftTexture } from './textures';
 
 function place(
   parent: THREE.Object3D,
@@ -39,6 +40,7 @@ function place(
 let grassTerrainMaterial: THREE.Material | null = null;
 let dirtRoadMaterial: THREE.Material | null = null;
 let leafLitterMaterial: THREE.Material | null = null;
+let siegeGrassMaterial: THREE.MeshStandardMaterial | null = null;
 
 function texturedMaterial(kind: 'grass' | 'dirt'): THREE.Material {
   if (kind === 'grass' && grassTerrainMaterial) return grassTerrainMaterial;
@@ -48,18 +50,18 @@ function texturedMaterial(kind: 'grass' | 'dirt'): THREE.Material {
     color: grass ? 0xffffff : 0xa89172,
     map: cloneTerritorySiegeTexture(
       grass ? 'grassColor' : 'dirtColor',
-      grass ? 32 : 2.2,
-      grass ? 45 : 15,
+      grass ? 40 : 2.2,
+      grass ? 56 : 15,
     ),
     normalMap: cloneTerritorySiegeTexture(
       grass ? 'grassNormal' : 'dirtNormal',
-      grass ? 32 : 2.2,
-      grass ? 45 : 15,
+      grass ? 40 : 2.2,
+      grass ? 56 : 15,
     ),
     roughnessMap: cloneTerritorySiegeTexture(
       grass ? 'grassRoughness' : 'dirtRoughness',
-      grass ? 32 : 2.2,
-      grass ? 45 : 15,
+      grass ? 40 : 2.2,
+      grass ? 56 : 15,
     ),
     roughness: 1,
     vertexColors: grass,
@@ -75,8 +77,8 @@ function buildTerrain(): THREE.Mesh {
   const geometry = new THREE.PlaneGeometry(
     TERRITORY_SIEGE_FIELD_HALF_X * 2,
     TERRITORY_SIEGE_FIELD_HALF_Z * 2,
-    72,
-    104,
+    90,
+    128,
   );
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -177,7 +179,7 @@ function buildApproachRoad(): THREE.Mesh {
   const segments = 30;
   for (let index = 0; index <= segments; index += 1) {
     const t = index / segments;
-    const z = 114 - t * 94;
+    const z = 146 - t * 126;
     const center = Math.sin(t * Math.PI * 2.2) * 0.7 * Math.sin(t * Math.PI);
     const halfWidth = 7.2 + Math.sin(t * 13.1 + 0.4) * 0.65;
     for (const side of [-1, 1]) {
@@ -207,13 +209,118 @@ function hash01(x: number, z: number): number {
   return value - Math.floor(value);
 }
 
+function siegeGrassCardGeometry(): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  for (const yaw of [0, Math.PI / 3, (Math.PI * 2) / 3]) {
+    const base = positions.length / 3;
+    const sin = Math.sin(yaw);
+    const cos = Math.cos(yaw);
+    for (const [x, y, u, v] of [
+      [-0.72, 0, 0, 0],
+      [0.72, 0, 1, 0],
+      [0.63, 0.96, 1, 1],
+      [-0.63, 0.96, 0, 1],
+    ] as const) {
+      positions.push(x * cos, y, -x * sin);
+      uvs.push(u, v);
+    }
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function grassMaterial(): THREE.MeshStandardMaterial {
+  if (siegeGrassMaterial) return siegeGrassMaterial;
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: grassTuftTexture(30),
+    alphaTest: 0.3,
+    roughness: 0.94,
+    side: THREE.DoubleSide,
+  });
+  material.alphaToCoverage = true;
+  siegeGrassMaterial = material;
+  return material;
+}
+
+/** Lush crossed billboard clumps, patch-gated so the field reads naturally. */
+function buildBillboardGrass(): THREE.InstancedMesh {
+  const placements: { x: number; z: number; scale: number; yaw: number; color: number }[] = [];
+  const step = 2.7;
+  for (
+    let z = -TERRITORY_SIEGE_FIELD_HALF_Z + 4;
+    z <= TERRITORY_SIEGE_FIELD_HALF_Z - 4;
+    z += step
+  ) {
+    for (
+      let x = -TERRITORY_SIEGE_FIELD_HALF_X + 4;
+      x <= TERRITORY_SIEGE_FIELD_HALF_X - 4;
+      x += step
+    ) {
+      const patch = hash01(Math.floor(x / 13) * 4.7, Math.floor(z / 13) * 7.1);
+      if (patch < 0.37 || hash01(x + 5.3, z - 8.9) < 0.43) continue;
+      const px = x + (hash01(x + 19.2, z) - 0.5) * 2.2;
+      const pz = z + (hash01(x, z - 12.7) - 0.5) * 2.2;
+      const insideCastle = pz > -78 && pz < 23 && Math.abs(px) < 50;
+      const onCastleLane = insideCastle && (Math.abs(px) < 6 || Math.abs(pz + 24) < 6);
+      const onApproach = pz >= 16 && Math.abs(px) < 9.5;
+      if (onCastleLane || onApproach) continue;
+      placements.push({
+        x: px,
+        z: pz,
+        scale: 0.72 + hash01(px - 3.1, pz + 11.4) * 0.68,
+        yaw: hash01(pz + 2.7, px - 6.3) * Math.PI,
+        color: patch > 0.76 ? 0x91aa62 : patch > 0.55 ? 0x6f934f : 0x587842,
+      });
+    }
+  }
+  const mesh = new THREE.InstancedMesh(
+    siegeGrassCardGeometry(),
+    grassMaterial(),
+    placements.length,
+  );
+  const transform = new THREE.Object3D();
+  const color = new THREE.Color();
+  placements.forEach((grass, index) => {
+    transform.position.set(
+      grass.x,
+      territorySiegeTerrainLiftLocal(grass.x, grass.z) + 0.015,
+      grass.z,
+    );
+    transform.rotation.set(0, grass.yaw, 0);
+    transform.scale.set(grass.scale, grass.scale, grass.scale);
+    transform.updateMatrix();
+    mesh.setMatrixAt(index, transform.matrix);
+    mesh.setColorAt(index, color.setHex(grass.color));
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.computeBoundingBox();
+  mesh.computeBoundingSphere();
+  mesh.name = `territory-siege-billboard-grass:${placements.length}`;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 /** Low, clustered pebbles break up the soil without reading as repeated spikes. */
 function buildGroundStoneScatter(): THREE.InstancedMesh {
   const placements: { x: number; z: number; scale: number; yaw: number; color: number }[] = [];
-  for (let patch = 0; patch < 34; patch += 1) {
+  for (let patch = 0; patch < 42; patch += 1) {
     const side = patch % 2 === 0 ? -1 : 1;
-    const centerX = side * (28 + hash01(patch * 3.7, 2.1) * 55);
-    const centerZ = -119 + hash01(patch * 7.3, 5.4) * 244;
+    const centerX = side * (28 + hash01(patch * 3.7, 2.1) * (TERRITORY_SIEGE_FIELD_HALF_X - 35));
+    const centerZ =
+      -TERRITORY_SIEGE_FIELD_HALF_Z +
+      8 +
+      hash01(patch * 7.3, 5.4) * (TERRITORY_SIEGE_FIELD_HALF_Z * 2 - 16);
     const count = 4 + (patch % 5);
     for (let index = 0; index < count; index += 1) {
       const angle = hash01(patch + index * 4.2, centerZ) * Math.PI * 2;
@@ -261,6 +368,7 @@ export function buildTerritorySiegeNaturalField(root: THREE.Object3D): void {
     buildTerrain(),
     buildLeafLitterClearings(),
     buildApproachRoad(),
+    buildBillboardGrass(),
     buildGroundStoneScatter(),
   );
 

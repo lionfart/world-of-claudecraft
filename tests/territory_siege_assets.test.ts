@@ -69,14 +69,30 @@ describe('territory siege asset kit', () => {
     expect(source).toContain('territorySiegeGroundLiftLocal(x, z)');
   });
 
-  it('uses clustered natural ground dressing instead of the old isolated spike carpet', () => {
+  it('uses instanced billboard grass and clustered dressing instead of the old spike carpet', () => {
     const source = readFileSync(
       fileURLToPath(new URL('../src/render/territory_siege_environment.ts', import.meta.url)),
       'utf8',
     );
     expect(source).not.toContain('buildGrassCarpet');
     expect(source).not.toContain('territory-siege-grass:');
+    expect(source).toContain('buildBillboardGrass');
+    expect(source).toContain('grassTuftTexture(30)');
+    expect(source).toContain('new THREE.InstancedMesh');
     expect(source).toContain('buildGroundStoneScatter');
     expect(source).toContain('[4.2, 0.72, 4.2]');
+  });
+
+  it('replicates every active core channel instead of rendering only the local beam', () => {
+    const prototype = readFileSync(
+      fileURLToPath(new URL('../src/render/territory_siege_prototype.ts', import.meta.url)),
+      'utf8',
+    );
+    const runtime = readFileSync(
+      fileURLToPath(new URL('../server/territory_game_runtime.ts', import.meta.url)),
+      'utf8',
+    );
+    expect(prototype).toContain('siege?.coreChannels');
+    expect(runtime).toContain('coreChannelCharacters(siege.warId)');
   });
 });

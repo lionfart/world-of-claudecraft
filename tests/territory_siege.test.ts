@@ -34,7 +34,7 @@ function match(gateLevel = 1) {
 }
 
 describe('territory siege', () => {
-  it('fills first-come seats and preserves a disconnected seat for 120 seconds', () => {
+  it('keeps a registered attacker seat reconnectable for the entire battle', () => {
     const state = match();
     expect(territorySiegeJoin(state, 10, 'attacker', 0, rules)).toMatchObject({ ok: true });
     expect(territorySiegeJoin(state, 11, 'attacker', 0, rules)).toMatchObject({ ok: true });
@@ -54,7 +54,24 @@ describe('territory siege', () => {
     });
     territorySiegeDisconnect(state, 10, 122_000, rules);
     territorySiegeTick(state, 242_000, rules);
-    expect(territorySiegeJoin(state, 12, 'attacker', 242_000, rules)).toMatchObject({
+    expect(territorySiegeJoin(state, 12, 'attacker', 242_000, rules)).toEqual({
+      ok: false,
+      reason: 'team_full',
+    });
+    expect(territorySiegeJoin(state, 10, 'attacker', 242_000, rules)).toMatchObject({
+      ok: true,
+      seat: { seatNo: 1 },
+      reconnected: true,
+    });
+  });
+
+  it('releases a disconnected defender seat after the ordinary grace period', () => {
+    const state = match();
+    territorySiegeJoin(state, 20, 'defender', 0, rules);
+    territorySiegeJoin(state, 21, 'defender', 0, rules);
+    territorySiegeDisconnect(state, 20, 2_000, rules);
+    territorySiegeTick(state, 122_000, rules);
+    expect(territorySiegeJoin(state, 22, 'defender', 122_000, rules)).toMatchObject({
       ok: true,
       seat: { seatNo: 1 },
     });
