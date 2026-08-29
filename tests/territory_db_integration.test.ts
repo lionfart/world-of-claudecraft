@@ -207,6 +207,37 @@ describeDb('territory persistence (real PostgreSQL)', () => {
     );
     expect(durable.rows[0]).toMatchObject({ guild_id: attacker.rows[0].id, level: 2 });
     expect(Number(durable.rows[0].audits)).toBe(1);
+
+    const defenderCharacter = await pool.query<{ id: number }>(
+      `INSERT INTO characters DEFAULT VALUES RETURNING id`,
+    );
+    const reentryCell = repository.manifest.cells.find(
+      (cell) => !cell.starter && cell.id !== target.id && cell.id !== attackerCell,
+    );
+    if (!reentryCell || !first) throw new Error('territory manifest has no re-entry cell');
+    const reentry = await repository.placeKeep(
+      {
+        characterId: defenderCharacter.rows[0].id,
+        guildId: defender.rows[0].id,
+        guildName: 'Capture D',
+        rank: 'leader',
+        commandId: randomUUID(),
+        expectedRevision: first.revision,
+      },
+      reentryCell.id,
+    );
+    expect(reentry).toMatchObject({
+      ok: true,
+      delta: {
+        cellsUpsert: [
+          expect.objectContaining({
+            cellId: reentryCell.id,
+            ownerGuildId: String(defender.rows[0].id),
+            keepRoot: true,
+          }),
+        ],
+      },
+    });
   });
 
   it('closes a legacy manifest season and preserves its rows during the v2 pointer swap', async () => {

@@ -4,11 +4,17 @@ import {
   clampTerritorySiegeGate,
   TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
   TERRITORY_SIEGE_FIELD_HALF_X,
+  TERRITORY_SIEGE_FIELD_HALF_Z,
   TERRITORY_SIEGE_GATE_HALF_WIDTH,
+  TERRITORY_SIEGE_GATE_Z,
+  TERRITORY_SIEGE_TOWER_RANGE,
+  TERRITORY_SIEGE_TOWER_X,
   territorySiegeActionPoint,
   territorySiegeBandColliders,
+  territorySiegeInTowerRange,
   territorySiegeLocalColliders,
   territorySiegeSpawn,
+  territorySiegeTowerPositions,
 } from '../src/sim/territory_siege_layout';
 
 describe('territory siege instance layout', () => {
@@ -18,7 +24,7 @@ describe('territory siege instance layout', () => {
     expect(territorySiegeOrigin(1).z - territorySiegeOrigin(0).z).toBe(700);
   });
 
-  it('places both twenty-player teams inside the compact interest field', () => {
+  it('places both twenty-player teams inside the enlarged interest field', () => {
     for (let seat = 1; seat <= 20; seat += 1) {
       for (const side of ['attacker', 'defender'] as const) {
         const spawn = territorySiegeSpawn(0, side, seat);
@@ -27,6 +33,7 @@ describe('territory siege instance layout', () => {
         );
       }
     }
+    expect(TERRITORY_SIEGE_FIELD_HALF_X * TERRITORY_SIEGE_FIELD_HALF_Z * 4).toBeGreaterThan(35_000);
   });
 
   it('restricts ram construction to the marked gate apron', () => {
@@ -52,11 +59,26 @@ describe('territory siege instance layout', () => {
   });
 
   it('seals the complete twenty-unit opening between the front wall segments', () => {
-    const frontWalls = territorySiegeLocalColliders().filter(
-      (collider) => collider.type === 'obb' && collider.z === 18 && Math.abs(collider.x) === 22,
+    const frontWallInnerEdges = territorySiegeLocalColliders().flatMap((collider) =>
+      collider.type === 'obb' && collider.z === 18 && Math.abs(collider.x) === 27
+        ? [Math.abs(collider.x) - collider.hw]
+        : [],
     );
-    expect(frontWalls).toHaveLength(2);
-    expect(frontWalls.map((wall) => Math.abs(wall.x) - wall.hw)).toEqual([10, 10]);
+    expect(frontWallInnerEdges).toEqual([10, 10]);
     expect(TERRITORY_SIEGE_GATE_HALF_WIDTH).toBe(10);
+  });
+
+  it('gives each defense tower a radius that reaches the gate', () => {
+    const origin = territorySiegeOrigin(0);
+    const towers = territorySiegeTowerPositions(0);
+    expect(towers).toHaveLength(2);
+    expect(TERRITORY_SIEGE_TOWER_RANGE).toBe(TERRITORY_SIEGE_TOWER_X);
+    for (const tower of towers) {
+      expect(Math.hypot(tower.x - origin.x, tower.z - (origin.z + TERRITORY_SIEGE_GATE_Z))).toBe(
+        TERRITORY_SIEGE_TOWER_RANGE,
+      );
+    }
+    expect(territorySiegeInTowerRange(0, origin.x, origin.z + TERRITORY_SIEGE_GATE_Z)).toBe(true);
+    expect(territorySiegeInTowerRange(0, origin.x, origin.z + 96)).toBe(false);
   });
 });

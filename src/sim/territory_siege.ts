@@ -174,12 +174,19 @@ export function createTerritorySiege(definition: TerritorySiegeDefinition): Terr
 export function territorySiegeTowerShot(
   state: TerritorySiegeState,
   nowMs: number,
+  eligible: (characterId: number) => boolean = () => true,
 ): { characterId: number; damage: number } | null {
   const level = Math.max(0, Math.floor(state.definition.defenseTowerLevel ?? 0));
   if (state.phase !== 'active' || level === 0 || nowMs < state.nextTowerShotAtMs) return null;
   state.nextTowerShotAtMs = nowMs + Math.max(1_500, 4_000 - level * 300);
   const targets = [...state.seats.values()]
-    .filter((seat) => seat.side === 'attacker' && seat.connected && seat.deadUntilMs === null)
+    .filter(
+      (seat) =>
+        seat.side === 'attacker' &&
+        seat.connected &&
+        seat.deadUntilMs === null &&
+        eligible(seat.characterId),
+    )
     .sort((a, b) => a.seatNo - b.seatNo || a.characterId - b.characterId);
   if (targets.length === 0) return null;
   const target = targets[state.towerCursor % targets.length];
@@ -440,6 +447,7 @@ export function territorySiegeViewFor(
           CORE_CHANNEL_WARMUP_MS,
       ),
     ),
+    defenseTowerLevel: Math.max(0, Math.floor(state.definition.defenseTowerLevel ?? 0)),
     towerZones: [],
     respawnIn:
       seat.deadUntilMs === null ? 0 : Math.max(0, Math.ceil((seat.deadUntilMs - nowMs) / 1000)),

@@ -1,13 +1,23 @@
 import type { TerritorySiegeAction, TerritoryWarSide } from '../world_api';
 import type { Collider } from './colliders';
 import { DUNGEON_FLOOR_Y, territorySiegeOrigin } from './data';
+import {
+  TERRITORY_SIEGE_HOMES,
+  TERRITORY_SIEGE_ROCKS,
+  TERRITORY_SIEGE_TREES,
+} from './territory_siege_environment';
 
 export const TERRITORY_SIEGE_FLOOR_Y = DUNGEON_FLOOR_Y;
-export const TERRITORY_SIEGE_FIELD_HALF_X = 46;
-export const TERRITORY_SIEGE_FIELD_HALF_Z = 66;
+export const TERRITORY_SIEGE_FIELD_HALF_X = 82;
+export const TERRITORY_SIEGE_FIELD_HALF_Z = 116;
 export const TERRITORY_SIEGE_GATE_Z = 18;
 export const TERRITORY_SIEGE_GATE_HALF_WIDTH = 10;
-export const TERRITORY_SIEGE_CORE_Z = -26;
+export const TERRITORY_SIEGE_WALL_HALF_X = 44;
+export const TERRITORY_SIEGE_BACK_WALL_Z = -72;
+export const TERRITORY_SIEGE_TOWER_X = TERRITORY_SIEGE_WALL_HALF_X;
+export const TERRITORY_SIEGE_TOWER_Z = TERRITORY_SIEGE_GATE_Z;
+export const TERRITORY_SIEGE_TOWER_RANGE = TERRITORY_SIEGE_TOWER_X;
+export const TERRITORY_SIEGE_CORE_Z = -42;
 export const TERRITORY_SIEGE_CORE_ATTACK_RADIUS = 12;
 export const TERRITORY_SIEGE_CORE_COLLIDER_RADIUS = 2.8;
 
@@ -23,9 +33,25 @@ export function territorySiegeSpawn(
   const row = Math.floor(index / 5);
   return {
     x: origin.x + (column - 2) * 3.2,
-    z: origin.z + (side === 'attacker' ? 48 - row * 3 : -48 + row * 3),
+    z: origin.z + (side === 'attacker' ? 96 - row * 4 : -57 + row * 4),
     facing: side === 'attacker' ? Math.PI : 0,
   };
+}
+
+export function territorySiegeTowerPositions(
+  slot: number,
+): readonly [{ x: number; z: number }, { x: number; z: number }] {
+  const origin = territorySiegeOrigin(slot);
+  return [
+    { x: origin.x - TERRITORY_SIEGE_TOWER_X, z: origin.z + TERRITORY_SIEGE_TOWER_Z },
+    { x: origin.x + TERRITORY_SIEGE_TOWER_X, z: origin.z + TERRITORY_SIEGE_TOWER_Z },
+  ];
+}
+
+export function territorySiegeInTowerRange(slot: number, x: number, z: number): boolean {
+  return territorySiegeTowerPositions(slot).some(
+    (tower) => (x - tower.x) ** 2 + (z - tower.z) ** 2 <= TERRITORY_SIEGE_TOWER_RANGE ** 2,
+  );
 }
 
 export function territorySiegeActionPoint(
@@ -91,14 +117,74 @@ export function clampTerritorySiegeGate(
 export function territorySiegeLocalColliders(): Collider[] {
   const y = TERRITORY_SIEGE_FLOOR_Y;
   const wallTop = y + 5;
+  const scenery: Collider[] = [
+    ...TERRITORY_SIEGE_TREES.map(
+      (tree): Collider => ({ type: 'circle', x: tree.x, z: tree.z, r: 1.5 }),
+    ),
+    ...TERRITORY_SIEGE_ROCKS.map(
+      (rock): Collider => ({ type: 'circle', x: rock.x, z: rock.z, r: 1.3 }),
+    ),
+    ...TERRITORY_SIEGE_HOMES.map(
+      (home): Collider => ({
+        type: 'obb',
+        x: home.x,
+        z: home.z,
+        hw: 3.7,
+        hd: 3.7,
+        rot: home.yaw,
+        cameraTopY: y + 8,
+      }),
+    ),
+  ];
   return [
-    { type: 'obb', x: -34, z: -5, hw: 2, hd: 43, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
-    { type: 'obb', x: 34, z: -5, hw: 2, hd: 43, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
-    { type: 'obb', x: 0, z: -48, hw: 36, hd: 2, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
-    { type: 'obb', x: -22, z: 18, hw: 12, hd: 2, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
-    { type: 'obb', x: 22, z: 18, hw: 12, hd: 2, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
-    { type: 'circle', x: -34, z: 18, r: 4, moveTopY: y + 7, cameraTopY: y + 9 },
-    { type: 'circle', x: 34, z: 18, r: 4, moveTopY: y + 7, cameraTopY: y + 9 },
+    {
+      type: 'obb',
+      x: -TERRITORY_SIEGE_WALL_HALF_X,
+      z: (TERRITORY_SIEGE_BACK_WALL_Z + TERRITORY_SIEGE_GATE_Z) / 2,
+      hw: 2,
+      hd: (TERRITORY_SIEGE_GATE_Z - TERRITORY_SIEGE_BACK_WALL_Z) / 2,
+      rot: 0,
+      moveTopY: wallTop,
+      cameraTopY: wallTop,
+    },
+    {
+      type: 'obb',
+      x: TERRITORY_SIEGE_WALL_HALF_X,
+      z: (TERRITORY_SIEGE_BACK_WALL_Z + TERRITORY_SIEGE_GATE_Z) / 2,
+      hw: 2,
+      hd: (TERRITORY_SIEGE_GATE_Z - TERRITORY_SIEGE_BACK_WALL_Z) / 2,
+      rot: 0,
+      moveTopY: wallTop,
+      cameraTopY: wallTop,
+    },
+    {
+      type: 'obb',
+      x: 0,
+      z: TERRITORY_SIEGE_BACK_WALL_Z,
+      hw: TERRITORY_SIEGE_WALL_HALF_X + 2,
+      hd: 2,
+      rot: 0,
+      moveTopY: wallTop,
+      cameraTopY: wallTop,
+    },
+    { type: 'obb', x: -27, z: 18, hw: 17, hd: 2, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
+    { type: 'obb', x: 27, z: 18, hw: 17, hd: 2, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
+    {
+      type: 'circle',
+      x: -TERRITORY_SIEGE_TOWER_X,
+      z: TERRITORY_SIEGE_TOWER_Z,
+      r: 4,
+      moveTopY: y + 7,
+      cameraTopY: y + 9,
+    },
+    {
+      type: 'circle',
+      x: TERRITORY_SIEGE_TOWER_X,
+      z: TERRITORY_SIEGE_TOWER_Z,
+      r: 4,
+      moveTopY: y + 7,
+      cameraTopY: y + 9,
+    },
     {
       type: 'circle',
       x: 0,
@@ -106,6 +192,43 @@ export function territorySiegeLocalColliders(): Collider[] {
       r: TERRITORY_SIEGE_CORE_COLLIDER_RADIUS,
       cameraTopY: y + 6.5,
     },
+    {
+      type: 'obb',
+      x: -TERRITORY_SIEGE_FIELD_HALF_X,
+      z: 0,
+      hw: 1.5,
+      hd: TERRITORY_SIEGE_FIELD_HALF_Z,
+      rot: 0,
+      moveTopY: y + 20,
+    },
+    {
+      type: 'obb',
+      x: TERRITORY_SIEGE_FIELD_HALF_X,
+      z: 0,
+      hw: 1.5,
+      hd: TERRITORY_SIEGE_FIELD_HALF_Z,
+      rot: 0,
+      moveTopY: y + 20,
+    },
+    {
+      type: 'obb',
+      x: 0,
+      z: -TERRITORY_SIEGE_FIELD_HALF_Z,
+      hw: TERRITORY_SIEGE_FIELD_HALF_X,
+      hd: 1.5,
+      rot: 0,
+      moveTopY: y + 20,
+    },
+    {
+      type: 'obb',
+      x: 0,
+      z: TERRITORY_SIEGE_FIELD_HALF_Z,
+      hw: TERRITORY_SIEGE_FIELD_HALF_X,
+      hd: 1.5,
+      rot: 0,
+      moveTopY: y + 20,
+    },
+    ...scenery,
   ];
 }
 

@@ -12,6 +12,17 @@ export const TERRITORY_SIEGE_ASSET_URLS = {
   log: '/models/resources/wood_log_a.glb',
   coreAltar: '/models/props/enchanting_altar.glb',
   coreCrystal: '/models/resources/gem_large.glb',
+  treePineLarge: '/models/dungeon/tree_pine_orange_large.glb',
+  treePineMedium: '/models/dungeon/tree_pine_yellow_medium.glb',
+  rock: '/models/foliage/rock_1.glb',
+  bush: '/models/foliage/bush.glb',
+  homeA: '/models/biome/hex_home_a.glb',
+  homeB: '/models/biome/hex_home_b.glb',
+  well: '/models/biome/hex_well.glb',
+  roadA: '/models/dungeon/path_a.glb',
+  roadB: '/models/dungeon/path_b.glb',
+  flag: '/models/biome/hex_flag_red.glb',
+  hay: '/models/biome/hex_haybale.glb',
 } as const;
 
 export type TerritorySiegeAssetKey = keyof typeof TERRITORY_SIEGE_ASSET_URLS;

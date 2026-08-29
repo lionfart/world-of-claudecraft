@@ -72,7 +72,8 @@ export class LocalTerritoryState {
   placeKeep(cellId: number): boolean {
     const cell = this.manifest.byId.get(cellId);
     const guild = this.state.guild;
-    if (!cell || !guild || this.state.cells.length > 0) return false;
+    if (!cell || !guild || this.state.cells.some((owned) => owned.ownerGuildId === guild.id))
+      return false;
     this.state.cells.push({
       cellId,
       ownerGuildId: guild.id,

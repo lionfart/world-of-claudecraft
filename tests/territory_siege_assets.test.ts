@@ -26,4 +26,16 @@ describe('territory siege asset kit', () => {
       '/models/props/star_heart_crystal.glb',
     );
   });
+
+  it('builds the battlefield from optimized natural and settlement assets', () => {
+    expect(TERRITORY_SIEGE_ASSET_URLS).toMatchObject({
+      treePineLarge: '/models/dungeon/tree_pine_orange_large.glb',
+      rock: '/models/foliage/rock_1.glb',
+      bush: '/models/foliage/bush.glb',
+      homeA: '/models/biome/hex_home_a.glb',
+      homeB: '/models/biome/hex_home_b.glb',
+      roadA: '/models/dungeon/path_a.glb',
+      well: '/models/biome/hex_well.glb',
+    });
+  });
 });

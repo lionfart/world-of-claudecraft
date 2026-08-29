@@ -1,14 +1,25 @@
 import * as THREE from 'three';
 import { territorySiegeOrigin } from '../sim/data';
 import {
+  TERRITORY_SIEGE_BACK_WALL_Z,
   TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
   TERRITORY_SIEGE_CORE_Z,
+  TERRITORY_SIEGE_FIELD_HALF_X,
+  TERRITORY_SIEGE_FIELD_HALF_Z,
   TERRITORY_SIEGE_FLOOR_Y,
   TERRITORY_SIEGE_GATE_Z,
+  TERRITORY_SIEGE_TOWER_RANGE,
+  TERRITORY_SIEGE_TOWER_X,
+  TERRITORY_SIEGE_TOWER_Z,
+  TERRITORY_SIEGE_WALL_HALF_X,
 } from '../sim/territory_siege_layout';
 import type { TerritorySiegeView } from '../world_api';
 import { surfaceMat } from './gfx';
 import { cloneTerritorySiegeAsset, type TerritorySiegeAssetKey } from './territory_siege_assets';
+import {
+  buildTerritorySiegeCastleSettlement,
+  buildTerritorySiegeNaturalField,
+} from './territory_siege_environment';
 import {
   TERRITORY_SIEGE_CORE_CRYSTAL_SCALE,
   TERRITORY_SIEGE_GATE_MODEL_SCALE,
@@ -66,6 +77,37 @@ function objectiveBeacon(color: number, radius: number): THREE.Group {
   );
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.055;
+  group.add(ring);
+  return group;
+}
+
+function towerRangeBeacon(radius: number): THREE.Group {
+  const group = new THREE.Group();
+  const fill = new THREE.Mesh(
+    new THREE.CircleGeometry(radius * 0.985, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0xd7512d,
+      transparent: true,
+      opacity: 0.025,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  fill.rotation.x = -Math.PI / 2;
+  fill.position.y = 0.028;
+  group.add(fill);
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(radius - 0.24, radius, 72),
+    new THREE.MeshBasicMaterial({
+      color: 0xf29a55,
+      transparent: true,
+      opacity: 0.24,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.045;
   group.add(ring);
   return group;
 }
@@ -148,7 +190,7 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
   root.position.set(origin.x, TERRITORY_SIEGE_FLOOR_Y, origin.z);
 
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(92, 132),
+    new THREE.PlaneGeometry(TERRITORY_SIEGE_FIELD_HALF_X * 2, TERRITORY_SIEGE_FIELD_HALF_Z * 2),
     surfaceMat({ color: 0x596a3f, roughness: 1 }),
   );
   ground.rotation.x = -Math.PI / 2;
@@ -156,27 +198,40 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
   ground.receiveShadow = true;
   root.add(ground);
 
+  buildTerritorySiegeNaturalField(root);
+
   const approach = new THREE.Mesh(
-    new THREE.PlaneGeometry(14, 112),
+    new THREE.PlaneGeometry(16, 98),
     surfaceMat({ color: 0x766044, roughness: 1 }),
   );
   approach.rotation.x = -Math.PI / 2;
-  approach.position.set(0, 0.01, 8);
+  approach.position.set(0, 0.012, 67);
   approach.receiveShadow = true;
   root.add(approach);
 
+  buildTerritorySiegeCastleSettlement(root);
+
   const wallScale: [number, number, number] = [6, 4.55, 2.25];
-  for (const x of [-34, 34]) {
-    for (const z of [-42, -30, -18, -6, 6, 14]) {
+  for (const x of [-TERRITORY_SIEGE_WALL_HALF_X, TERRITORY_SIEGE_WALL_HALF_X]) {
+    for (const z of [-66, -54, -42, -30, -18, -6, 6, 14]) {
       model(root, 'wall', [x, 0, z], wallScale, Math.PI / 2);
     }
   }
-  for (const x of [-30, -18, -6, 6, 18, 30]) {
-    model(root, 'wall', [x, 0, -48], wallScale);
+  for (const x of [-38, -26, -14, 0, 14, 26, 38]) {
+    model(root, 'wall', [x, 0, TERRITORY_SIEGE_BACK_WALL_Z], wallScale);
   }
-  for (const x of [-28, -16, 16, 28]) model(root, 'wall', [x, 0, 18], wallScale);
+  for (const x of [-38, -26, -16, 16, 26, 38])
+    model(root, 'wall', [x, 0, TERRITORY_SIEGE_GATE_Z], wallScale);
 
-  for (const x of [-34, 34]) model(root, 'tower', [x, 0, 18], [5.1, 4.4, 5.1]);
+  for (const x of [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X])
+    model(root, 'tower', [x, 0, TERRITORY_SIEGE_TOWER_Z], [5.1, 4.4, 5.1]);
+
+  const towerRanges = [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].map((x) => {
+    const range = towerRangeBeacon(TERRITORY_SIEGE_TOWER_RANGE);
+    range.position.set(x, 0, TERRITORY_SIEGE_TOWER_Z);
+    root.add(range);
+    return range;
+  });
 
   const gate = model(
     root,
@@ -189,8 +244,8 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
   gateBeacon.position.set(0, 0, 22);
   root.add(gateBeacon);
 
-  model(root, 'castle', [0, 0, -40], [5.3, 4.4, 5.3], Math.PI);
-  model(root, 'workshop', [-22, 0, 34], [5.4, 5.4, 5.4], Math.PI / 5);
+  model(root, 'castle', [0, 0, -63], [5.3, 4.4, 5.3], Math.PI);
+  model(root, 'workshop', [-35, 0, -52], [4.4, 4.4, 4.4], Math.PI / 5);
 
   const coreRoot = objectiveBeacon(0x43c7ff, TERRITORY_SIEGE_CORE_ATTACK_RADIUS);
   coreRoot.position.set(0, 0, TERRITORY_SIEGE_CORE_Z);
@@ -264,6 +319,8 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
     gateBeacon.visible = state.gateVisible;
     core.scale.setScalar(TERRITORY_SIEGE_CORE_CRYSTAL_SCALE * state.coreScaleY);
     coreRoot.visible = siege !== null;
+    for (const range of towerRanges)
+      range.visible = !!siege && siege.defenseTowerLevel > 0 && siege.state === 'active';
     ram.visible = state.ramVisible;
     ramBuildBeacon.visible = !!siege && !siege.ramDeployed && !siege.gateOpen;
     ramParts.head.rotation.x = state.ramSwing;

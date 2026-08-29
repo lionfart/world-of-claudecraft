@@ -366,7 +366,10 @@ export class TerritoryService {
   }
 
   /** Called from the host loop. It does no DB work at 20 Hz; due-war reads are one-second bounded. */
-  tickSieges(nowMs = Date.now()): void {
+  tickSieges(
+    nowMs = Date.now(),
+    towerEligible: (warId: string, characterId: number) => boolean = () => true,
+  ): void {
     if (!this.publicSnapshot) return;
     if (nowMs - this.lastSeasonCheckAt >= 60_000 && !this.seasonCheckFlight) {
       this.lastSeasonCheckAt = nowMs;
@@ -438,7 +441,9 @@ export class TerritoryService {
     for (const [warId, state] of this.sieges) {
       const previousPhase = state.phase;
       territorySiegeTick(state, nowMs, this.siegeRules);
-      const towerShot = territorySiegeTowerShot(state, nowMs);
+      const towerShot = territorySiegeTowerShot(state, nowMs, (characterId) =>
+        towerEligible(warId, characterId),
+      );
       if (towerShot) this.pendingTowerShots.push({ warId, ...towerShot });
       if (state.phase !== previousPhase) changed = true;
       if (state.phase !== 'ended' || !territorySiegeMarkResolved(state)) continue;

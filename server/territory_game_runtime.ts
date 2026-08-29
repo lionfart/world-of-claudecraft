@@ -3,6 +3,7 @@ import type { Sim } from '../src/sim/sim';
 import type { TerritoryDelta } from '../src/sim/territory_delta';
 import {
   territorySiegeActionPoint,
+  territorySiegeInTowerRange,
   territorySiegeRamSeat,
   territorySiegeSpawn,
 } from '../src/sim/territory_siege_layout';
@@ -140,7 +141,20 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
   }
 
   tick(nowMs: number): void {
-    this.service.tickSieges(nowMs);
+    this.service.tickSieges(nowMs, (warId, characterId) => {
+      const session = this.deps.sessionByCharacterId(characterId);
+      const placement = session
+        ? this.service.siegePlacementForCharacter(session.characterId)
+        : null;
+      const target = session ? this.deps.sim.entities.get(session.pid) : null;
+      return (
+        !!placement &&
+        placement.warId === warId &&
+        !!target &&
+        !target.dead &&
+        territorySiegeInTowerRange(placement.slot, target.pos.x, target.pos.z)
+      );
+    });
     let zonesChanged = false;
     for (const shot of this.service.drainTowerShots()) {
       const session = this.deps.sessionByCharacterId(shot.characterId);

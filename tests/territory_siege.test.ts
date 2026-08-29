@@ -172,4 +172,14 @@ describe('territory siege', () => {
     expect(territorySiegeTowerShot(state, 1_001)).toBeNull();
     expect(territorySiegeTowerShot(state, 4_500)).toEqual({ characterId: 11, damage: 14 });
   });
+
+  it('skips attackers outside the authoritative tower radius', () => {
+    const state = createTerritorySiege({ ...match().definition, defenseTowerLevel: 2 });
+    territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
+    territorySiegeJoin(state, 11, 'attacker', 1_000, rules);
+    expect(territorySiegeTowerShot(state, 1_000, (characterId) => characterId === 11)).toEqual({
+      characterId: 11,
+      damage: 14,
+    });
+  });
 });

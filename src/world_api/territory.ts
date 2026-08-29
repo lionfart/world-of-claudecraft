@@ -101,6 +101,7 @@ export interface TerritorySiegeView {
   ramCooldown: number;
   coreChanneling: boolean;
   coreChannelProgress: number;
+  defenseTowerLevel: number;
   towerZones: TerritoryTowerZoneView[];
   respawnIn: number;
   timeLeft: number;
