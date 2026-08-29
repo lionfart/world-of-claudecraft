@@ -10539,7 +10539,7 @@ export class Hud {
       ),
     );
 
-    this.setDisplay($('#territory-panel'), this.mapLevel === 'territory' ? 'block' : 'none');
+    if (this.mapLevel !== 'territory') this.setDisplay($('#territory-panel'), 'none');
     if (this.mapLevel === 'territory') {
       this.mapMarkerInteraction.clear();
       this.mapView = null;

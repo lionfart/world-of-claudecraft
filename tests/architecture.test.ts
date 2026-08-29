@@ -2217,6 +2217,7 @@ const UI_DOM_MODULES = [
   'src/ui/map_bg.ts',
   'src/ui/map_marker_icon_loader.ts',
   'src/ui/map_marker_palette_lifecycle.ts',
+  'src/ui/territory_map_art.ts',
   'src/ui/territory_map_controller.ts',
   'src/ui/market_window.ts',
   'src/ui/woc_market_window.ts',

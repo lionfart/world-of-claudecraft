@@ -38,7 +38,7 @@ function element<T extends HTMLElement>(selector: string): T {
 
 /** Cold DOM/canvas adapter for the strategic map and its live siege HUD. */
 export class TerritoryMapController {
-  private readonly painter = new TerritoryMapPainter();
+  private readonly painter: TerritoryMapPainter;
   private zoom = TERRITORY_MAP_OPEN_ZOOM;
   private center: TerritoryMapCenter = { x: 0, y: 0 };
   private view: TerritoryMapView | null = null;
@@ -55,7 +55,12 @@ export class TerritoryMapController {
     private readonly repaint: () => void,
     private readonly exitToContinent: () => void,
   ) {
+    this.painter = new TerritoryMapPainter(() => {
+      this.paintKey = null;
+      this.repaint();
+    });
     element('#territory-primary-action').addEventListener('click', () => this.performPrimary());
+    element('#territory-panel-close').addEventListener('click', () => this.dismissPanel());
     for (const descriptor of TERRITORY_SLOT_DESCRIPTORS) {
       element(`[data-territory-slot="${descriptor.slot}"]`).addEventListener('click', () =>
         this.performSlot(descriptor.slot),
@@ -76,10 +81,14 @@ export class TerritoryMapController {
   open(): void {
     this.zoom = TERRITORY_MAP_OPEN_ZOOM;
     this.center = { x: 0, y: 0 };
+    this.selectedCell = null;
+    this.writers.setDisplay(element('#territory-panel'), 'none');
     this.world.territoryOpen();
   }
 
   close(): void {
+    this.selectedCell = null;
+    this.writers.setDisplay(element('#territory-panel'), 'none');
     this.world.territoryClose();
   }
   invalidate(): void {
@@ -130,6 +139,13 @@ export class TerritoryMapController {
       canvasX,
       canvasY,
     );
+    this.repaint();
+  }
+
+  private dismissPanel(): void {
+    this.selectedCell = null;
+    this.paintKey = null;
+    this.writers.setDisplay(element('#territory-panel'), 'none');
     this.repaint();
   }
 
@@ -355,11 +371,15 @@ export class TerritoryMapController {
 
   private renderPanel(): void {
     const state = this.world.territoryMap;
+    const panel = element('#territory-panel');
+    const cellId = this.selectedCell;
+    const visible = !!state && cellId !== null;
+    this.writers.setDisplay(panel, visible ? 'block' : 'none');
     const title = element('#territory-cell-title');
     const detail = element('#territory-cell-detail');
     const economy = element('#territory-economy');
     const primary = element<HTMLButtonElement>('#territory-primary-action');
-    if (!state) {
+    if (!state || cellId === null) {
       this.writers.setText(title, t('hudChrome.territoryMap.loading'));
       this.writers.setText(detail, '');
       this.writers.setText(economy, '');
@@ -367,31 +387,18 @@ export class TerritoryMapController {
       this.renderStructureSlots(null);
       return;
     }
-    if (this.selectedCell === null) {
-      this.writers.setText(title, t('hudChrome.territoryMap.selectCell'));
-      this.writers.setText(
-        detail,
-        state.guild
-          ? t('hudChrome.territoryMap.capacity', {
-              owned: state.guild.ownedCellCount,
-              capacity: state.guild.cellCapacity,
-            })
-          : t('hudChrome.territoryMap.noGuild'),
-      );
-    } else {
-      const manifestCell = createTerritoryManifest(state.season.radius).byId.get(this.selectedCell);
-      const owned = state.cells.find((entry) => entry.cellId === this.selectedCell);
-      this.writers.setText(title, t('hudChrome.territoryMap.cell', { cell: this.selectedCell }));
-      const owner = owned
-        ? t('hudChrome.territoryMap.owner', { guild: owned.ownerGuildName })
-        : t('hudChrome.territoryMap.neutral');
-      const resource = manifestCell?.resource
-        ? t('hudChrome.territoryMap.resource', {
-            resource: this.resourceLabel(manifestCell.resource),
-          })
-        : t('hudChrome.territoryMap.noResource');
-      this.writers.setText(detail, `${owner} · ${resource}`);
-    }
+    const manifestCell = createTerritoryManifest(state.season.radius).byId.get(cellId);
+    const owned = state.cells.find((entry) => entry.cellId === cellId);
+    this.writers.setText(title, t('hudChrome.territoryMap.cell', { cell: cellId }));
+    const owner = owned
+      ? t('hudChrome.territoryMap.owner', { guild: owned.ownerGuildName })
+      : t('hudChrome.territoryMap.neutral');
+    const resource = manifestCell?.resource
+      ? t('hudChrome.territoryMap.resource', {
+          resource: this.resourceLabel(manifestCell.resource),
+        })
+      : t('hudChrome.territoryMap.noResource');
+    this.writers.setText(detail, `${owner} · ${resource}`);
     this.writers.setText(
       economy,
       state.guild
@@ -412,7 +419,7 @@ export class TerritoryMapController {
               : 'joinWar';
     this.writers.setText(primary, t(`hudChrome.territoryMap.${actionKey}`));
     this.renderStructureSlots(state);
-    element('#territory-panel').dataset.revision = String(state.revision);
+    panel.dataset.revision = String(state.revision);
   }
 
   private renderStructureSlots(state: TerritoryMapState | null): void {

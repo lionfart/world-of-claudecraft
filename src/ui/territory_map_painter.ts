@@ -5,6 +5,11 @@ import type { TerritoryResourceKind } from '../sim/territory_manifest';
 import type { TerritoryMapState } from '../world_api';
 import { t } from './i18n';
 import {
+  territoryMapArt,
+  type TerritoryMapArt,
+  type TerritoryMapArtKey,
+} from './territory_map_art';
+import {
   buildTerritoryMapModel,
   type TerritoryMapCenter,
   type TerritoryMapHex,
@@ -51,6 +56,8 @@ export interface TerritoryPaintOptions {
 }
 
 export class TerritoryMapPainter {
+  constructor(private readonly onArtReady: () => void = () => undefined) {}
+
   paint(ctx: CanvasRenderingContext2D, options: TerritoryPaintOptions): TerritoryMapModel | null {
     const colors = this.colors();
     this.backdrop(ctx, options.canvasSize, colors);
@@ -73,7 +80,7 @@ export class TerritoryMapPainter {
       hoveredCellId: options.hoveredCellId,
       selectedCellId: options.selectedCellId,
     });
-    this.drawCells(ctx, model, colors);
+    this.drawCells(ctx, model, colors, territoryMapArt(this.onArtReady));
     this.title(ctx, model, options.canvasSize, colors);
     return model;
   }
@@ -180,6 +187,7 @@ export class TerritoryMapPainter {
     ctx: CanvasRenderingContext2D,
     model: TerritoryMapModel,
     colors: TerritoryColors,
+    art: TerritoryMapArt,
   ): void {
     if ((model.visibleCells[0]?.radiusPx ?? 0) < 2.5) {
       const groups = new Map<string, { color: string; alpha: number; cells: TerritoryMapHex[] }>();
@@ -210,6 +218,7 @@ export class TerritoryMapPainter {
       }
       return;
     }
+    const useArt = (model.visibleCells[0]?.radiusPx ?? 0) >= 4.5 && Object.keys(art).length > 0;
     for (const cell of model.visibleCells) {
       ctx.beginPath();
       this.hexPath(ctx, cell, 0.16);
@@ -217,17 +226,40 @@ export class TerritoryMapPainter {
       ctx.globalAlpha = cell.ownerColor ? 0.82 : 0.58;
       ctx.fill();
       ctx.globalAlpha = 1;
-      if (cell.radiusPx >= 1.1) {
+      if (!useArt && cell.radiusPx >= 1.1) {
         ctx.strokeStyle = colors.grid;
         ctx.lineWidth = cell.ownerColor ? 0.7 : 0.45;
         ctx.stroke();
       }
-      if (!cell.resource && cell.radiusPx >= 6.5) this.terrainDetail(ctx, cell, colors);
+      if (!useArt && !cell.resource && cell.radiusPx >= 6.5) this.terrainDetail(ctx, cell, colors);
+    }
+    if (useArt) {
+      this.artTiles(ctx, model.visibleCells, art);
+      for (const cell of model.visibleCells) {
+        if (cell.ownerColor) {
+          ctx.beginPath();
+          this.hexPath(ctx, cell, 0.16);
+          ctx.fillStyle = cell.ownerColor;
+          ctx.globalAlpha = 0.3;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.beginPath();
+        this.hexPath(ctx, cell, 0.16);
+        ctx.strokeStyle = colors.grid;
+        ctx.lineWidth = cell.ownerColor ? 0.8 : 0.5;
+        ctx.stroke();
+      }
     }
     this.territoryBorders(ctx, model.visibleCells, colors);
     for (const cell of model.visibleCells) {
-      if (cell.resource && cell.radiusPx >= 4) this.resource(ctx, cell, cell.resource, colors);
-      if (cell.keepRoot) this.keep(ctx, cell, colors);
+      const hasArt = useArt && !!this.artForCell(cell, art);
+      if (!hasArt && cell.resource && cell.radiusPx >= 4)
+        this.resource(ctx, cell, cell.resource, colors);
+      if (cell.keepRoot) {
+        if (!hasArt) this.keep(ctx, cell, colors);
+        else this.keepLabel(ctx, cell, colors);
+      }
       if (cell.atWar) this.war(ctx, cell, colors);
       if (cell.hovered || cell.selected) {
         ctx.beginPath();
@@ -237,6 +269,29 @@ export class TerritoryMapPainter {
         ctx.stroke();
       }
     }
+  }
+
+  private artTiles(
+    ctx: CanvasRenderingContext2D,
+    cells: readonly TerritoryMapHex[],
+    art: TerritoryMapArt,
+  ): void {
+    const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    for (const cell of sorted) {
+      const image = this.artForCell(cell, art);
+      if (!image) continue;
+      const width = cell.radiusPx * 2;
+      const height = width * (image.naturalHeight / image.naturalWidth);
+      const bottom = cell.my + cell.radiusPx * 1.03;
+      ctx.drawImage(image, cell.mx - width / 2, bottom - height, width, height);
+    }
+  }
+
+  private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {
+    const key: TerritoryMapArtKey = cell.keepRoot ? 'keep' : (cell.resource ?? cell.terrain);
+    return art[key];
   }
 
   private territoryBorders(
@@ -444,6 +499,15 @@ export class TerritoryMapPainter {
     ctx.stroke();
     ctx.restore();
 
+    this.keepLabel(ctx, cell, colors, baseY + size * 0.52);
+  }
+
+  private keepLabel(
+    ctx: CanvasRenderingContext2D,
+    cell: TerritoryMapHex,
+    colors: TerritoryColors,
+    labelY = cell.my + cell.radiusPx * 0.82,
+  ): void {
     if (cell.ownerGuildName && cell.radiusPx >= 13) {
       ctx.font = `bold ${Math.max(9, Math.min(13, cell.radiusPx * 0.42))}px Georgia`;
       ctx.textAlign = 'center';
@@ -451,7 +515,6 @@ export class TerritoryMapPainter {
       ctx.lineWidth = 3;
       ctx.strokeStyle = colors.outline;
       ctx.fillStyle = colors.text;
-      const labelY = baseY + size * 0.52;
       ctx.strokeText(cell.ownerGuildName, cell.mx, labelY);
       ctx.fillText(cell.ownerGuildName, cell.mx, labelY);
     }
