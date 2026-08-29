@@ -18,9 +18,9 @@ describe('territory siege shared ground', () => {
         maximum = Math.max(maximum, height);
       }
     }
-    expect(minimum).toBeGreaterThanOrEqual(-0.28);
-    expect(maximum).toBeLessThanOrEqual(0.62);
-    expect(maximum - minimum).toBeGreaterThan(0.45);
+    expect(minimum).toBeGreaterThanOrEqual(-0.48);
+    expect(maximum).toBeLessThanOrEqual(1.18);
+    expect(maximum - minimum).toBeGreaterThan(0.9);
   });
 
   it('keeps the assault road, courtyard and arena edge level', () => {

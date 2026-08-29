@@ -33,7 +33,7 @@ describe('territory siege instance layout', () => {
         );
       }
     }
-    expect(TERRITORY_SIEGE_FIELD_HALF_X * TERRITORY_SIEGE_FIELD_HALF_Z * 4).toBeGreaterThan(35_000);
+    expect(TERRITORY_SIEGE_FIELD_HALF_X * TERRITORY_SIEGE_FIELD_HALF_Z * 4).toBeGreaterThan(50_000);
   });
 
   it('restricts ram construction to the marked gate apron', () => {
@@ -68,17 +68,18 @@ describe('territory siege instance layout', () => {
     expect(TERRITORY_SIEGE_GATE_HALF_WIDTH).toBe(10);
   });
 
-  it('gives each defense tower a radius that reaches the gate', () => {
+  it('gives each defense tower a radius that covers the gate approach but not spawn', () => {
     const origin = territorySiegeOrigin(0);
     const towers = territorySiegeTowerPositions(0);
     expect(towers).toHaveLength(2);
-    expect(TERRITORY_SIEGE_TOWER_RANGE).toBe(TERRITORY_SIEGE_TOWER_X);
+    expect(TERRITORY_SIEGE_TOWER_RANGE).toBeGreaterThan(TERRITORY_SIEGE_TOWER_X);
     for (const tower of towers) {
-      expect(Math.hypot(tower.x - origin.x, tower.z - (origin.z + TERRITORY_SIEGE_GATE_Z))).toBe(
-        TERRITORY_SIEGE_TOWER_RANGE,
-      );
+      expect(
+        Math.hypot(tower.x - origin.x, tower.z - (origin.z + TERRITORY_SIEGE_GATE_Z)),
+      ).toBeLessThan(TERRITORY_SIEGE_TOWER_RANGE);
     }
     expect(territorySiegeInTowerRange(0, origin.x, origin.z + TERRITORY_SIEGE_GATE_Z)).toBe(true);
+    expect(territorySiegeInTowerRange(0, origin.x, origin.z + 50)).toBe(true);
     expect(territorySiegeInTowerRange(0, origin.x, origin.z + 96)).toBe(false);
   });
 });

@@ -24,7 +24,9 @@ export const TERRITORY_SIEGE_WALL_HALF_X = 44;
 export const TERRITORY_SIEGE_BACK_WALL_Z = -72;
 export const TERRITORY_SIEGE_TOWER_X = TERRITORY_SIEGE_WALL_HALF_X;
 export const TERRITORY_SIEGE_TOWER_Z = TERRITORY_SIEGE_GATE_Z;
-export const TERRITORY_SIEGE_TOWER_RANGE = TERRITORY_SIEGE_TOWER_X;
+// Covers the gate and a useful slice of the approach instead of merely touching
+// the gate centre at one tangent point. The attacker spawn row remains safe.
+export const TERRITORY_SIEGE_TOWER_RANGE = 58;
 export const TERRITORY_SIEGE_CORE_Z = -42;
 export const TERRITORY_SIEGE_CORE_ATTACK_RADIUS = 12;
 export const TERRITORY_SIEGE_CORE_COLLIDER_RADIUS = 2.8;

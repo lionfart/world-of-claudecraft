@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -57,5 +57,15 @@ describe('territory siege asset kit', () => {
         true,
       );
     }
+  });
+
+  it('keeps only the ram apron at the gate and exposes terrain-following tower ranges', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('../src/render/territory_siege_prototype.ts', import.meta.url)),
+      'utf8',
+    );
+    expect(source).not.toContain('objectiveBeacon(0xd06035');
+    expect(source).toContain("ring.name = 'territory-siege-tower-range'");
+    expect(source).toContain('territorySiegeGroundLiftLocal(x, z)');
   });
 });

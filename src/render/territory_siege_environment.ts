@@ -36,6 +36,7 @@ function place(
 
 let grassTerrainMaterial: THREE.Material | null = null;
 let dirtRoadMaterial: THREE.Material | null = null;
+let leafLitterMaterial: THREE.Material | null = null;
 
 function texturedMaterial(kind: 'grass' | 'dirt'): THREE.Material {
   if (kind === 'grass' && grassTerrainMaterial) return grassTerrainMaterial;
@@ -45,18 +46,18 @@ function texturedMaterial(kind: 'grass' | 'dirt'): THREE.Material {
     color: grass ? 0xffffff : 0xa89172,
     map: cloneTerritorySiegeTexture(
       grass ? 'grassColor' : 'dirtColor',
-      grass ? 18 : 2.2,
-      grass ? 25 : 15,
+      grass ? 32 : 2.2,
+      grass ? 45 : 15,
     ),
     normalMap: cloneTerritorySiegeTexture(
       grass ? 'grassNormal' : 'dirtNormal',
-      grass ? 18 : 2.2,
-      grass ? 25 : 15,
+      grass ? 32 : 2.2,
+      grass ? 45 : 15,
     ),
     roughnessMap: cloneTerritorySiegeTexture(
       grass ? 'grassRoughness' : 'dirtRoughness',
-      grass ? 18 : 2.2,
-      grass ? 25 : 15,
+      grass ? 32 : 2.2,
+      grass ? 45 : 15,
     ),
     roughness: 1,
     vertexColors: grass,
@@ -72,21 +73,22 @@ function buildTerrain(): THREE.Mesh {
   const geometry = new THREE.PlaneGeometry(
     TERRITORY_SIEGE_FIELD_HALF_X * 2,
     TERRITORY_SIEGE_FIELD_HALF_Z * 2,
-    64,
-    88,
+    72,
+    104,
   );
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
   const colors = new Float32Array(positions.count * 3);
   const color = new THREE.Color();
+  const soilColor = new THREE.Color(0xc2a778);
   for (let index = 0; index < positions.count; index += 1) {
     const x = positions.getX(index);
     const z = positions.getZ(index);
     const height = territorySiegeGroundLiftLocal(x, z);
     positions.setY(index, height);
-    const variation =
-      Math.sin(x * 0.083 + z * 0.047) * 0.035 + Math.sin(z * 0.16 - x * 0.027) * 0.02;
-    color.setHSL(0.255 + variation * 0.08, 0.14, 0.72 + variation + height * 0.018);
+    const variation = Math.sin(x * 0.083 + z * 0.047) * 0.5 + Math.sin(z * 0.16 - x * 0.027) * 0.3;
+    const soil = Math.max(0, Math.min(1, 0.42 + variation));
+    color.setRGB(0.94, 0.98, 0.9).lerp(soilColor, soil * 0.2);
     colors[index * 3] = color.r;
     colors[index * 3 + 1] = color.g;
     colors[index * 3 + 2] = color.b;
@@ -98,6 +100,71 @@ function buildTerrain(): THREE.Mesh {
   const mesh = new THREE.Mesh(geometry, texturedMaterial('grass'));
   mesh.name = 'territory-siege-sculpted-ground';
   mesh.receiveShadow = true;
+  return mesh;
+}
+
+function leafMaterial(): THREE.Material {
+  if (leafLitterMaterial) return leafLitterMaterial;
+  const material = surfaceMat({
+    color: 0xffffff,
+    map: cloneTerritorySiegeTexture('dirtColor', 1, 1),
+    normalMap: cloneTerritorySiegeTexture('dirtNormal', 1, 1),
+    roughnessMap: cloneTerritorySiegeTexture('dirtRoughness', 1, 1),
+    roughness: 1,
+  });
+  material.transparent = true;
+  material.opacity = 0.72;
+  material.depthWrite = false;
+  material.polygonOffset = true;
+  material.polygonOffsetFactor = -1;
+  const standard = material as THREE.MeshStandardMaterial;
+  if (standard.isMeshStandardMaterial) standard.normalScale.setScalar(0.58);
+  leafLitterMaterial = material;
+  return material;
+}
+
+/** Leaf-litter clearings break the uniform grass sheet without adding gameplay rings. */
+function buildLeafLitterClearings(): THREE.Mesh {
+  const placements = [
+    { x: -46, z: 82, rx: 18, rz: 12, yaw: 0.35 },
+    { x: 49, z: 67, rx: 16, rz: 10, yaw: -0.25 },
+    { x: -63, z: 31, rx: 14, rz: 9, yaw: 0.8 },
+    { x: 65, z: -11, rx: 15, rz: 10, yaw: 0.2 },
+    { x: -67, z: -57, rx: 17, rz: 11, yaw: -0.5 },
+    { x: 65, z: -91, rx: 14, rz: 9, yaw: 0.65 },
+  ] as const;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const segments = 18;
+  for (let patchIndex = 0; patchIndex < placements.length; patchIndex += 1) {
+    const patch = placements[patchIndex];
+    const base = positions.length / 3;
+    positions.push(patch.x, territorySiegeGroundLiftLocal(patch.x, patch.z) + 0.045, patch.z);
+    uvs.push(patch.x * 0.12, patch.z * 0.12);
+    for (let index = 0; index < segments; index += 1) {
+      const angle = (index / segments) * Math.PI * 2;
+      const wobble = 0.82 + hash01(patch.x + index * 4.1, patch.z - index * 3.7) * 0.24;
+      const px = Math.cos(angle) * patch.rx * wobble;
+      const pz = Math.sin(angle) * patch.rz * wobble;
+      const x = patch.x + px * Math.cos(patch.yaw) - pz * Math.sin(patch.yaw);
+      const z = patch.z + px * Math.sin(patch.yaw) + pz * Math.cos(patch.yaw);
+      positions.push(x, territorySiegeGroundLiftLocal(x, z) + 0.045, z);
+      uvs.push(x * 0.12, z * 0.12);
+    }
+    for (let index = 0; index < segments; index += 1)
+      indices.push(base, base + 1 + index, base + 1 + ((index + 1) % segments));
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, leafMaterial());
+  mesh.name = 'territory-siege-leaf-litter-clearings';
+  mesh.receiveShadow = true;
+  mesh.renderOrder = 1;
   return mesh;
 }
 
@@ -146,18 +213,26 @@ function buildGrassCarpet(): THREE.Mesh {
   const tip = new THREE.Color();
   const root = new THREE.Color();
   let tuft = 0;
-  for (let gz = -112; gz <= 112; gz += 2.7) {
-    for (let gx = -78; gx <= 78; gx += 2.8) {
+  for (
+    let gz = -TERRITORY_SIEGE_FIELD_HALF_Z + 3;
+    gz <= TERRITORY_SIEGE_FIELD_HALF_Z - 3;
+    gz += 1.45
+  ) {
+    for (
+      let gx = -TERRITORY_SIEGE_FIELD_HALF_X + 3;
+      gx <= TERRITORY_SIEGE_FIELD_HALF_X - 3;
+      gx += 1.5
+    ) {
       const seed = hash01(gx, gz);
-      if (seed < 0.48) continue;
-      const x = gx + (hash01(gx + 13.4, gz) - 0.5) * 2.1;
-      const z = gz + (hash01(gx, gz - 9.7) - 0.5) * 2;
-      if (z > 14 && Math.abs(x) < 10.5) continue;
+      if (seed < 0.28) continue;
+      const x = gx + (hash01(gx + 13.4, gz) - 0.5) * 1.2;
+      const z = gz + (hash01(gx, gz - 9.7) - 0.5) * 1.15;
+      if (z > 14 && Math.abs(x) < 11.5) continue;
       const inCastle = z > -76 && z < 21 && Math.abs(x) < 47;
       if (inCastle && (Math.abs(x) < 5.5 || Math.abs(z + 24) < 5.5)) continue;
       const y = territorySiegeGroundLiftLocal(x, z) + 0.025;
-      const height = 0.38 + hash01(x + 4.1, z + 7.8) * 0.48;
-      const width = 0.12 + seed * 0.12;
+      const height = 0.3 + hash01(x + 4.1, z + 7.8) * 0.5;
+      const width = 0.09 + seed * 0.11;
       const yaw = seed * Math.PI;
       const flower = hash01(x - 17.3, z + 6.2) > 0.965;
       tip.set(flower ? 0xe4b34c : 0x668f42);
@@ -206,7 +281,7 @@ function buildGrassCarpet(): THREE.Mesh {
 
 /** Natural, textured ground plus foliage for the enlarged outer battlefield. */
 export function buildTerritorySiegeNaturalField(root: THREE.Object3D): void {
-  root.add(buildTerrain(), buildApproachRoad(), buildGrassCarpet());
+  root.add(buildTerrain(), buildLeafLitterClearings(), buildApproachRoad(), buildGrassCarpet());
 
   for (let index = 0; index < TERRITORY_SIEGE_TREES.length; index += 1) {
     const tree = TERRITORY_SIEGE_TREES[index];
