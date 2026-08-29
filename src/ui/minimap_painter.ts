@@ -28,11 +28,26 @@ import { BG_HALF_X, BG_HALF_Z, bgFieldPlanWalls } from '../sim/battleground_layo
 import {
   bgOriginAt,
   isBgPos,
+  isTerritorySiegePos,
+  territorySiegeOriginAt,
   WORLD_MAX_X,
   WORLD_MAX_Z,
   WORLD_MIN_X,
   yumiMazeOriginAt,
 } from '../sim/data';
+import {
+  TERRITORY_SIEGE_FIELD_HALF_X,
+  TERRITORY_SIEGE_FIELD_HALF_Z,
+} from '../sim/territory_siege_ground';
+import {
+  TERRITORY_SIEGE_BACK_WALL_Z,
+  TERRITORY_SIEGE_CORE_Z,
+  TERRITORY_SIEGE_GATE_HALF_WIDTH,
+  TERRITORY_SIEGE_GATE_Z,
+  TERRITORY_SIEGE_TOWER_X,
+  TERRITORY_SIEGE_TOWER_Z,
+  territorySiegeWallPlacements,
+} from '../sim/territory_siege_layout';
 import { yumiMazeLayout } from '../sim/yumi_maze_layout';
 import type { IWorld } from '../world_api';
 import { paintBgFieldAtlas } from './bg_field_relief_core';
@@ -935,6 +950,18 @@ const BG_FIELD_PAD_Z_YD = BG_HALF_Z + MAZE_BG_MARGIN_YD;
 // it had before. Walls are cover; the ground under them is decoration.
 const BG_FIELD_WALL_ALPHA = 0.95;
 
+// Territory siege background: one compact schematic raster per gate state.
+// It follows the same +X map-left, +Z map-up projection as markers and the
+// battleground map. The broad outer band represents the authoritative,
+// continuous mountain ridge rather than the removed row of boulder props.
+const SIEGE_FIELD_PX_PER_YARD = 1.5;
+const SIEGE_FIELD_MARGIN_YD = 8;
+const SIEGE_MOUNTAIN_DEPTH_YD = 30;
+const SIEGE_WALL_THICKNESS_YD = 3.2;
+const SIEGE_ROAD_HALF_WIDTH_YD = 7.2;
+const SIEGE_TOWER_RADIUS_YD = 5;
+const SIEGE_CORE_RADIUS_YD = 4;
+
 // Draw the corpse skull centered at (x, y): `fill` paints the bone, `socket` the
 // dark eye/nose hollows so the shape reads even over light terrain.
 function drawCorpseSkull(
@@ -1022,6 +1049,8 @@ export class MinimapPainter {
   // The Thornhollow Fields cache, relief plus wall plan (same lifecycle as mazeBg:
   // the authored field never changes, so one raster serves the session).
   private battlegroundBg: HTMLCanvasElement | null = null;
+  private territorySiegeBgClosed: HTMLCanvasElement | null = null;
+  private territorySiegeBgOpen: HTMLCanvasElement | null = null;
   constructor(
     private readonly writers: PainterHostWriters,
     private readonly classColor: (cls: string) => string,
@@ -1031,6 +1060,7 @@ export class MinimapPainter {
      *  so localizeZone would resolve it to whatever zone its coordinates happen
      *  to land nearest, which reads as the last town the player stood in. */
     private readonly battlegroundName: () => string,
+    private readonly territorySiegeName: () => string,
     private readonly markerArt: MapMarkerArt = EMPTY_MAP_MARKER_ART,
     private readonly markerProfile: () => MapMarkerProfile = STANDARD_MARKER_PROFILE,
   ) {}
@@ -1074,6 +1104,10 @@ export class MinimapPainter {
     // far-off overworld terrain cache the band sits outside of.
     if (isBgPos(world.player.pos.x)) {
       this.paintBattleground(ctx, world, zoneLabelEl, zoom, colors);
+      return;
+    }
+    if (isTerritorySiegePos(world.player.pos.x)) {
+      this.paintTerritorySiege(ctx, world, zoneLabelEl, zoom, colors);
       return;
     }
     const S = MINIMAP_SIZE;
@@ -1300,6 +1334,129 @@ export class MinimapPainter {
       bctx.restore();
     }
     this.battlegroundBg = canvas;
+    return canvas;
+  }
+
+  /** Player-following tactical view of the full siege field. */
+  private paintTerritorySiege(
+    ctx: CanvasRenderingContext2D,
+    world: IWorld,
+    zoneLabelEl: HTMLElement,
+    zoom: number,
+    colors: MinimapColors,
+  ): void {
+    const S = MINIMAP_SIZE;
+    const pxPerYard = MINIMAP_BASE_SCALE * zoom;
+    const profile = this.markerProfile();
+    const model = this.markers.build(world, S, pxPerYard, profile);
+    this.writers.setText(zoneLabelEl, this.territorySiegeName());
+    const p = world.player;
+    const origin = territorySiegeOriginAt(p.pos.z);
+    const gateOpen = world.territoryMap?.siege?.gateOpen ?? false;
+    const bg = this.ensureTerritorySiegeBg(colors, gateOpen);
+    const padX = TERRITORY_SIEGE_FIELD_HALF_X + SIEGE_FIELD_MARGIN_YD;
+    const padZ = TERRITORY_SIEGE_FIELD_HALF_Z + SIEGE_FIELD_MARGIN_YD;
+
+    ctx.clearRect(0, 0, S, S);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(S / 2, S / 2, S / 2 - MINIMAP_CLIP_INSET, 0, FULL_CIRCLE);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = true;
+    const s = SIEGE_FIELD_PX_PER_YARD;
+    const sw = S / (pxPerYard / s);
+    const sx = (padX - (p.pos.x - origin.x)) * s - sw / 2;
+    const sy = (padZ - (p.pos.z - origin.z)) * s - sw / 2;
+    ctx.drawImage(bg, sx, sy, sw, sw, 0, 0, S, S);
+    this.drawMarkers(ctx, model.markers, colors, profile);
+    ctx.restore();
+  }
+
+  /** Cache the mountain ring, assault road, keep walls and objectives. */
+  private ensureTerritorySiegeBg(colors: MinimapColors, gateOpen: boolean): HTMLCanvasElement {
+    const cached = gateOpen ? this.territorySiegeBgOpen : this.territorySiegeBgClosed;
+    if (cached) return cached;
+    const s = SIEGE_FIELD_PX_PER_YARD;
+    const padX = TERRITORY_SIEGE_FIELD_HALF_X + SIEGE_FIELD_MARGIN_YD;
+    const padZ = TERRITORY_SIEGE_FIELD_HALF_Z + SIEGE_FIELD_MARGIN_YD;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(padX * 2 * s);
+    canvas.height = Math.ceil(padZ * 2 * s);
+    const bctx = canvas.getContext('2d');
+    if (!bctx) return canvas;
+    const fx = (x: number): number => (padX - x) * s;
+    const fz = (z: number): number => (padZ - z) * s;
+
+    // Continuous mountain mass and its green inner basin.
+    bctx.fillStyle = colors.outline;
+    bctx.globalAlpha = 0.88;
+    bctx.fillRect(0, 0, canvas.width, canvas.height);
+    bctx.fillStyle = colors.gatherReady;
+    bctx.globalAlpha = 0.38;
+    bctx.fillRect(
+      SIEGE_MOUNTAIN_DEPTH_YD * s,
+      SIEGE_MOUNTAIN_DEPTH_YD * s,
+      (padX * 2 - SIEGE_MOUNTAIN_DEPTH_YD * 2) * s,
+      (padZ * 2 - SIEGE_MOUNTAIN_DEPTH_YD * 2) * s,
+    );
+
+    // Main assault road and the calmer courtyard floor.
+    bctx.fillStyle = colors.gatherCooldown;
+    bctx.globalAlpha = 0.72;
+    bctx.fillRect(
+      fx(SIEGE_ROAD_HALF_WIDTH_YD),
+      fz(TERRITORY_SIEGE_FIELD_HALF_Z - SIEGE_MOUNTAIN_DEPTH_YD),
+      SIEGE_ROAD_HALF_WIDTH_YD * 2 * s,
+      (TERRITORY_SIEGE_FIELD_HALF_Z - SIEGE_MOUNTAIN_DEPTH_YD - TERRITORY_SIEGE_GATE_Z) * s,
+    );
+    bctx.globalAlpha = 0.36;
+    bctx.fillRect(
+      fx(TERRITORY_SIEGE_TOWER_X),
+      fz(TERRITORY_SIEGE_GATE_Z),
+      TERRITORY_SIEGE_TOWER_X * 2 * s,
+      (TERRITORY_SIEGE_GATE_Z - TERRITORY_SIEGE_BACK_WALL_Z) * s,
+    );
+
+    // The raster uses the exact modular wall plan, so its gaps and orientation
+    // cannot drift from collision/render layout changes.
+    bctx.fillStyle = colors.outline;
+    bctx.globalAlpha = 0.96;
+    for (const wall of territorySiegeWallPlacements()) {
+      bctx.save();
+      bctx.translate(fx(wall.x), fz(wall.z));
+      bctx.rotate(-wall.yaw);
+      bctx.fillRect(
+        -wall.scaleX * s,
+        (-SIEGE_WALL_THICKNESS_YD / 2) * s,
+        wall.scaleX * 2 * s,
+        SIEGE_WALL_THICKNESS_YD * s,
+      );
+      bctx.restore();
+    }
+    if (!gateOpen) {
+      bctx.fillRect(
+        fx(TERRITORY_SIEGE_GATE_HALF_WIDTH),
+        fz(TERRITORY_SIEGE_GATE_Z + SIEGE_WALL_THICKNESS_YD / 2),
+        TERRITORY_SIEGE_GATE_HALF_WIDTH * 2 * s,
+        SIEGE_WALL_THICKNESS_YD * s,
+      );
+    }
+
+    bctx.fillStyle = colors.mobAggro;
+    bctx.globalAlpha = 0.9;
+    for (const x of [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X]) {
+      bctx.beginPath();
+      bctx.arc(fx(x), fz(TERRITORY_SIEGE_TOWER_Z), SIEGE_TOWER_RADIUS_YD * s, 0, FULL_CIRCLE);
+      bctx.fill();
+    }
+    bctx.fillStyle = colors.portal;
+    bctx.beginPath();
+    bctx.arc(fx(0), fz(TERRITORY_SIEGE_CORE_Z), SIEGE_CORE_RADIUS_YD * s, 0, FULL_CIRCLE);
+    bctx.fill();
+    bctx.globalAlpha = 1;
+
+    if (gateOpen) this.territorySiegeBgOpen = canvas;
+    else this.territorySiegeBgClosed = canvas;
     return canvas;
   }
 

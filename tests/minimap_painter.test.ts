@@ -11,7 +11,13 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BG_HALF_X, BG_HALF_Z, bgFieldPlanWalls } from '../src/sim/battleground_layout';
-import { battlegroundOrigin, GATHER_NODES, QUESTS, YUMI_BAND_X_MIN } from '../src/sim/data';
+import {
+  battlegroundOrigin,
+  GATHER_NODES,
+  QUESTS,
+  territorySiegeOrigin,
+  YUMI_BAND_X_MIN,
+} from '../src/sim/data';
 import { TH_GRAVEYARDS } from '../src/sim/thornhollow_field.generated';
 import { EASTBROOK_NOTICEBOARD_TEMPLATE_ID, isQuestTurnInNpc } from '../src/sim/types';
 import {
@@ -655,6 +661,7 @@ function newPainter(
     (zoneId: string) => zoneId,
     (name: string, rank: string | null) => (rank ? `${name} ${rank}` : name),
     () => 'Thornhollow Fields',
+    () => 'Territory Siege',
     markerArt,
     markerProfile,
   );
@@ -2206,5 +2213,40 @@ describe('minimap_painter: the battleground raster bakes the shared atlas plate'
     // and no landmark label is baked into the sheet (see the header: at this
     // scale a name is a few pixels tall and the blit is a moving sub-rect).
     expect(trace.ops.filter((o) => o.op === 'fillText' || o.op === 'strokeText')).toEqual([]);
+  });
+});
+
+describe('minimap_painter: territory siege tactical raster', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function siegeWorld(gateOpen: boolean): IWorld {
+    const world = glyphWorld([], 'available') as unknown as {
+      player: { pos: { x: number; z: number } };
+      territoryMap: { siege: { gateOpen: boolean } };
+    };
+    const origin = territorySiegeOrigin(0);
+    world.player.pos.x = origin.x;
+    world.player.pos.z = origin.z;
+    world.territoryMap = { siege: { gateOpen } };
+    return world as unknown as IWorld;
+  }
+
+  it('routes the public paint through a cached field plan and tracks gate state', () => {
+    const trace = newRasterTrace();
+    installRasterGlobals(trace);
+    const ctx = fakeMinimapContext(newTrace());
+    const painter = newPainter();
+
+    paint(painter, ctx, siegeWorld(false));
+    paint(painter, ctx, siegeWorld(false));
+    expect(trace.canvases).toHaveLength(1);
+    expect(trace.ops.filter((op) => op.op === 'fillRect').length).toBeGreaterThan(20);
+    expect(trace.ops.filter((op) => op.op === 'arc')).toHaveLength(3);
+
+    paint(painter, ctx, siegeWorld(true));
+    expect(trace.canvases).toHaveLength(2);
+    expect(trace.ops.filter((op) => op.op === 'arc')).toHaveLength(6);
   });
 });

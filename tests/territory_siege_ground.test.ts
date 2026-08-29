@@ -46,8 +46,11 @@ describe('territory siege shared ground', () => {
   });
 
   it('raises a natural ridge before the impassable arena boundary', () => {
-    expect(territorySiegeTerrainLiftLocal(TERRITORY_SIEGE_FIELD_HALF_X - 20, 0)).toBeGreaterThan(3);
-    expect(territorySiegeTerrainLiftLocal(0, TERRITORY_SIEGE_FIELD_HALF_Z)).toBeGreaterThan(3);
+    const side = territorySiegeTerrainLiftLocal(TERRITORY_SIEGE_FIELD_HALF_X - 20, 0);
+    const end = territorySiegeTerrainLiftLocal(0, TERRITORY_SIEGE_FIELD_HALF_Z);
+    expect(side).toBeGreaterThan(8);
+    expect(end).toBeGreaterThan(14);
+    expect(Math.abs(side - end)).toBeGreaterThan(1);
   });
 
   it('matches the flattened castle paving with a low authoritative walk surface', () => {

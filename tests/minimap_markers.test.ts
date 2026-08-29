@@ -10,7 +10,15 @@
 // canvas no-magic-values guard is in tests/minimap_painter.test.ts.
 
 import { describe, expect, it } from 'vitest';
-import { DELVE_X_MIN, GATHER_NODES, ITEMS, QUESTS, STATIONS, YUMI_MAZE_X } from '../src/sim/data';
+import {
+  DELVE_X_MIN,
+  GATHER_NODES,
+  ITEMS,
+  QUESTS,
+  STATIONS,
+  TERRITORY_SIEGE_X,
+  YUMI_MAZE_X,
+} from '../src/sim/data';
 import { isQuestTurnInNpc } from '../src/sim/types';
 import { STABLE_MAP_NAVIGATION_LANDMARKS } from '../src/ui/map_navigation_landmarks_core';
 import {
@@ -199,6 +207,12 @@ describe('minimapMode (delve vs overworld discriminator)', () => {
     // the far-east instance plane, so a literal x here would rot on the next move.
     w.player.pos.x = YUMI_MAZE_X;
     expect(minimapMode(w as unknown as IWorld)).toBe('yumiMaze');
+  });
+
+  it('returns the tactical territory siege surface inside the siege band', () => {
+    const w = makeWorld('client') as unknown as { player: { pos: { x: number } } };
+    w.player.pos.x = TERRITORY_SIEGE_X;
+    expect(minimapMode(w as unknown as IWorld)).toBe('territorySiege');
   });
 });
 

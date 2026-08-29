@@ -5,9 +5,11 @@ import type { TerritoryResourceKind } from '../sim/territory_manifest';
 import type { TerritoryMapState } from '../world_api';
 import { t } from './i18n';
 import {
-  territoryMapArt,
   type TerritoryMapArt,
   type TerritoryMapArtKey,
+  territoryFeatureArtRect,
+  territoryMapArt,
+  territoryTerrainArtRect,
 } from './territory_map_art';
 import {
   buildTerritoryMapModel,
@@ -279,14 +281,47 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+    // Every cell first receives its terrain base, clipped to the real flat-top
+    // topology. The source sprites are point-up, so the placement maps their
+    // lower two-thirds base onto this hex rather than covering neighbours.
     for (const cell of sorted) {
-      const image = this.artForCell(cell, art);
+      const image = art[cell.terrain];
       if (!image) continue;
-      const width = cell.radiusPx * 2;
-      const height = width * (image.naturalHeight / image.naturalWidth);
-      const bottom = cell.my + cell.radiusPx * 1.03;
-      ctx.drawImage(image, cell.mx - width / 2, bottom - height, width, height);
+      this.drawClippedArt(
+        ctx,
+        cell,
+        image,
+        territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx),
+      );
     }
+    // Resource and keep paintings are a second, smaller layer. Their full
+    // silhouette stays inside the cell instead of obscuring adjacent territory.
+    for (const cell of sorted) {
+      const key: TerritoryMapArtKey | null = cell.keepRoot ? 'keep' : cell.resource;
+      if (!key) continue;
+      const image = art[key];
+      if (!image) continue;
+      this.drawClippedArt(
+        ctx,
+        cell,
+        image,
+        territoryFeatureArtRect(cell.mx, cell.my, cell.radiusPx),
+      );
+    }
+  }
+
+  private drawClippedArt(
+    ctx: CanvasRenderingContext2D,
+    cell: TerritoryMapHex,
+    image: HTMLImageElement,
+    rect: { x: number; y: number; width: number; height: number },
+  ): void {
+    ctx.save();
+    ctx.beginPath();
+    this.hexPath(ctx, cell, 0.16);
+    ctx.clip();
+    ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
+    ctx.restore();
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {

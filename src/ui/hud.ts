@@ -4579,6 +4579,7 @@ export class Hud {
     (name, rank) =>
       rank ? t('hud.core.riftLabelRanked', { name, rank }) : t('hud.core.riftLabel', { name }),
     () => t('hudChrome.bg.title'),
+    () => t('hudChrome.territoryMap.title'),
     this.mapMarkerArt,
     this.mapMarkerProfile,
   );

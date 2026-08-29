@@ -35,8 +35,6 @@ describe('territory siege asset kit', () => {
     expect(TERRITORY_SIEGE_ASSET_URLS).toMatchObject({
       naturalPine: '/models/foliage/pine_2.glb',
       naturalOak: '/models/foliage/oak_3.glb',
-      boundaryRock: '/models/biome/desert_rock_formation_1.glb',
-      boundaryCliff: '/models/props/wildheart_limestone_cliff.glb',
       fern: '/models/foliage/fern.glb',
       rock: '/models/foliage/rock_1.glb',
       bush: '/models/foliage/bush.glb',
@@ -83,6 +81,9 @@ describe('territory siege asset kit', () => {
     expect(source).toContain('new THREE.InstancedMesh');
     expect(source).toContain('buildGroundStoneScatter');
     expect(source).toContain('[4.2, 0.72, 4.2]');
+    expect(source).not.toContain('buildMountainBoundary');
+    expect(TERRITORY_SIEGE_ASSET_URLS).not.toHaveProperty('boundaryRock');
+    expect(TERRITORY_SIEGE_ASSET_URLS).not.toHaveProperty('boundaryCliff');
   });
 
   it('replicates every active core channel instead of rendering only the local beam', () => {

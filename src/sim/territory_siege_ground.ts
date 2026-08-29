@@ -34,11 +34,16 @@ export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
   const ridge = Math.sin((x + z) * 0.039 - 0.8) * 0.2;
   const detail = Math.sin(x * 0.13 - z * 0.11 + 2.4) * 0.08;
   const gentle = Math.max(-0.48, Math.min(1.18, (0.24 + broad + cross + ridge + detail) * mask));
-  const ridgeInside = 1 - smoothstep(12, 38, edgeDistance);
+  const ridgeInside = 1 - smoothstep(10, 38, edgeDistance);
   const ridgeOutside = 1 - smoothstep(0, TERRITORY_SIEGE_VISUAL_MARGIN, -edgeDistance);
   const boundaryMask = edgeDistance >= 0 ? ridgeInside : ridgeOutside;
-  const mountainNoise =
-    5.8 + Math.sin(x * 0.071 + z * 0.029) * 1.25 + Math.sin(z * 0.097 - x * 0.043 + 1.3) * 0.75;
+  // One continuous heightfield ridge replaces the old row of enlarged rock
+  // props. Broad frequencies shape long shoulders while the rectified crest
+  // term varies the skyline without breaking it into repeated round lumps.
+  const longShoulder = Math.sin(x * 0.021 + z * 0.013 + 0.4) * 3.6;
+  const crossShoulder = Math.sin(z * 0.034 - x * 0.018 + 1.7) * 2.7;
+  const crest = Math.max(0, Math.sin(x * 0.061 + z * 0.047 - 0.9)) * 4.8;
+  const mountainNoise = 19.5 + longShoulder + crossShoulder + crest;
   return gentle + Math.max(0, mountainNoise * boundaryMask);
 }
 
