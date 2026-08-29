@@ -961,7 +961,7 @@ const HUD_UPDATE_DRIVES: readonly DriveRow[] = [
     band: 'medium',
     gate: '',
     surface: 'chrome',
-    why: 'the live territory siege timer, gate/core progress and attacker tool controls; it returns after one elided visibility write when no siege is active',
+    why: 'the pre-war queue/teleport countdown plus live siege timer, gate/core progress and attacker tool controls; both inactive surfaces return after elided visibility writes',
   },
   {
     call: 'this.bgKillFeed.update',

@@ -96,11 +96,23 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       resolveActor,
       (change) => this.broadcastChange(change),
       () => this.broadcastSieges(),
+      (warId) => this.broadcastWarNotice(warId),
     );
   }
 
   reconnect(session: S): void {
     this.service.reconnectCharacter(session.characterId);
+    void this.service
+      .warNoticeForCharacter(session.characterId)
+      .then((war) => {
+        if (!session.left && !session.linkdead)
+          this.deps.send(session, {
+            t: 'territory_war_notice',
+            war,
+            revision: this.service.currentRevision(),
+          });
+      })
+      .catch((error) => console.error('territory war notice reconnect failed:', error));
   }
   disconnect(session: S): void {
     this.service.disconnectCharacter(session.characterId);
@@ -265,6 +277,19 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
         territoryMetrics().resync('frame_limit');
         this.deps.send(session, { t: 'territory_resync' });
       } else this.deps.sendRaw(session, frame);
+    }
+  }
+
+  private broadcastWarNotice(_warId: string | null): void {
+    for (const session of this.deps.sessions()) {
+      if (session.left || session.linkdead) continue;
+      const guildId = this.deps.sim.meta(session.pid)?.guildMembership?.guildId ?? null;
+      const war = guildId === null ? null : this.service.warNoticeFor(session.characterId, guildId);
+      this.deps.send(session, {
+        t: 'territory_war_notice',
+        war,
+        revision: this.service.currentRevision(),
+      });
     }
   }
 

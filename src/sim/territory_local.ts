@@ -153,6 +153,9 @@ export class TerritorySimRuntime {
   get map(): TerritoryMapState | null {
     return this.visible ? this.authority().state : null;
   }
+  get warNotice(): null {
+    return null;
+  }
 
   open(): void {
     this.visible = true;
@@ -223,6 +226,11 @@ export function installTerritorySim<T extends object>(prototype: T): void {
     territoryMap: {
       get(this: T) {
         return territory(this).map;
+      },
+    },
+    territoryWarNotice: {
+      get(this: T) {
+        return territory(this).warNotice;
       },
     },
     territoryOpen: {

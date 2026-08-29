@@ -21,6 +21,7 @@ import type {
   TerritorySiegeAction,
   TerritoryStructureKind,
   TerritoryStructureSlot,
+  TerritoryWarView,
 } from '../src/world_api';
 import { territoryMetrics } from './http/territory_metrics';
 import { TERRITORY_CONFIG, type TerritoryConfig } from './territory_config';
@@ -64,6 +65,7 @@ export type TerritoryActorResolver = (
 export class TerritoryService {
   private publicSnapshot: TerritoryMapState | null = null;
   private guildSnapshots = new Map<number, TerritoryGuildSnapshot>();
+  private registrations = new Map<string, Set<number>>();
   private refreshFlight: Promise<TerritoryMapState> | null = null;
   private readonly sieges = new Map<string, TerritorySiegeState>();
   private readonly siegeSlots = new Map<string, number>();
@@ -87,6 +89,7 @@ export class TerritoryService {
     private readonly resolveActor: TerritoryActorResolver,
     private readonly publish: (change: TerritoryPublishedChange) => void,
     private readonly publishSieges: () => void = () => undefined,
+    private readonly publishWarNotice: (warId: string | null) => void = () => undefined,
     config: TerritoryConfig = TERRITORY_CONFIG,
   ) {
     this.siegeRules = {
@@ -112,10 +115,18 @@ export class TerritoryService {
     this.refreshFlight = Promise.all([
       this.repository.loadPublicSnapshot(),
       this.repository.loadGuildViewsSnapshot(),
+      this.repository.loadActiveWarRegistrations(),
     ])
-      .then(([snapshot, guildSnapshots]) => {
+      .then(([snapshot, guildSnapshots, registrations]) => {
         this.publicSnapshot = snapshot;
         this.guildSnapshots = guildSnapshots;
+        const byWar = new Map<string, Set<number>>();
+        for (const registration of registrations) {
+          const characters = byWar.get(registration.warId) ?? new Set<number>();
+          characters.add(registration.characterId);
+          byWar.set(registration.warId, characters);
+        }
+        this.registrations = byWar;
         this.lastGuildSnapshotRefreshAt = Date.now();
         return snapshot;
       })
@@ -167,10 +178,48 @@ export class TerritoryService {
             : actor?.guildId === Number(war.defenderGuildId)
               ? 'defender'
               : null,
+        registered: this.registrations.get(war.id)?.has(characterId) ?? false,
       })),
       guild,
       siege: this.siegeForCharacter(characterId, Date.now()),
     };
+  }
+
+  warNoticeFor(
+    characterId: number,
+    guildId: number,
+    warId: string | null = null,
+  ): TerritoryWarView | null {
+    const candidates = (this.publicSnapshot?.wars ?? [])
+      .filter(
+        (war) =>
+          (warId === null || war.id === warId) &&
+          (war.status === 'declared' || war.status === 'forming') &&
+          (Number(war.attackerGuildId) === guildId || Number(war.defenderGuildId) === guildId),
+      )
+      .sort((a, b) => {
+        const registeredOrder =
+          Number(this.registrations.get(b.id)?.has(characterId) ?? false) -
+          Number(this.registrations.get(a.id)?.has(characterId) ?? false);
+        return registeredOrder || a.startsAt.localeCompare(b.startsAt);
+      });
+    const war = candidates[0];
+    if (!war) return null;
+    return {
+      ...war,
+      mySide: Number(war.attackerGuildId) === guildId ? 'attacker' : 'defender',
+      registered: this.registrations.get(war.id)?.has(characterId) ?? false,
+    };
+  }
+
+  async warNoticeForCharacter(characterId: number): Promise<TerritoryWarView | null> {
+    await this.ready;
+    const actor = await this.actor(characterId);
+    return actor ? this.warNoticeFor(characterId, actor.guildId) : null;
+  }
+
+  currentRevision(): number {
+    return this.publicSnapshot?.revision ?? 0;
   }
 
   siegeForCharacter(characterId: number, nowMs = Date.now()) {
@@ -243,6 +292,7 @@ export class TerritoryService {
         if (next) this.publicSnapshot = next;
         else await this.refreshPublicSnapshot();
         this.publish({ delta: activation, guildId: 0, guild: null });
+        for (const war of activation.warsUpsert ?? []) this.publishWarNotice(war.id);
       }
       if (force || activation || hydrationDue) {
         const records = await this.repository.loadDueSieges(new Date(nowMs));
@@ -305,11 +355,13 @@ export class TerritoryService {
           if (!rolled) return;
           this.sieges.clear();
           this.siegeSlots.clear();
+          this.registrations.clear();
           this.siegeCommandIds.clear();
           await this.refreshPublicSnapshot();
           territoryMetrics().resync('season');
           this.publish({ delta: null, guildId: 0, guild: null });
           this.publishSieges();
+          this.publishWarNotice(null);
         })
         .catch((error) => console.error('territory season rollover failed:', error))
         .finally(() => {
@@ -500,9 +552,21 @@ export class TerritoryService {
         break;
       case 'join_war':
         result = await this.repository.joinWar(ctx, command.warId);
-        if (result.ok && result.seat) {
+        if (result.ok) {
+          const characters = this.registrations.get(command.warId) ?? new Set<number>();
+          characters.add(characterId);
+          this.registrations.set(command.warId, characters);
+          const updatedWar = result.war;
+          if (updatedWar && this.publicSnapshot) {
+            this.publicSnapshot = {
+              ...this.publicSnapshot,
+              wars: this.publicSnapshot.wars.map((war) =>
+                war.id === updatedWar.id ? { ...updatedWar, mySide: null, registered: false } : war,
+              ),
+            };
+          }
           const state = this.sieges.get(command.warId);
-          if (state) {
+          if (state && result.seat) {
             territorySiegeRestoreSeat(
               state,
               { characterId, side: result.seat.side, seatNo: result.seat.seatNo, connected: true },
@@ -511,14 +575,26 @@ export class TerritoryService {
             territorySiegeJoin(state, characterId, result.seat.side, Date.now(), this.siegeRules);
           }
           this.publishSieges();
+          this.publishWarNotice(command.warId);
         }
         break;
       case 'leave_war':
         result = await this.repository.leaveWar(ctx, command.warId);
         if (result.ok) {
+          this.registrations.get(command.warId)?.delete(characterId);
+          const updatedWar = result.war;
+          if (updatedWar && this.publicSnapshot) {
+            this.publicSnapshot = {
+              ...this.publicSnapshot,
+              wars: this.publicSnapshot.wars.map((war) =>
+                war.id === updatedWar.id ? { ...updatedWar, mySide: null, registered: false } : war,
+              ),
+            };
+          }
           const state = this.sieges.get(command.warId);
           if (state) territorySiegeLeave(state, characterId);
           this.publishSieges();
+          this.publishWarNotice(command.warId);
         }
         break;
     }
@@ -533,6 +609,9 @@ export class TerritoryService {
     const guild = await this.repository.loadGuildView(actor);
     this.guildSnapshots.set(actor.guildId, guild);
     this.publish({ delta: result.delta, guildId: actor.guildId, guild });
+    if (command.kind === 'declare_war') {
+      for (const war of result.delta.warsUpsert ?? []) this.publishWarNotice(war.id);
+    }
     return result;
   }
 
@@ -549,9 +628,12 @@ export class TerritoryService {
       if (next) this.publicSnapshot = next;
       else await this.refreshPublicSnapshot();
       this.publish({ delta, guildId: 0, guild: null });
+      this.registrations.delete(warId);
+      this.publishWarNotice(warId);
     } else {
       await this.refreshPublicSnapshot();
       this.publish({ delta: null, guildId: 0, guild: null });
+      this.publishWarNotice(warId);
     }
     return true;
   }

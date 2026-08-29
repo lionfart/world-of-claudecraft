@@ -280,6 +280,7 @@ export const IWORLD_MEMBERS = [
   { name: 'bgFlagAction', kind: 'method' },
   // --- seasonal guild territory + 20v20 keep siege (IWorldTerritory) ---
   { name: 'territoryMap', kind: 'data' },
+  { name: 'territoryWarNotice', kind: 'data' },
   { name: 'territoryOpen', kind: 'method' },
   { name: 'territoryClose', kind: 'method' },
   { name: 'territoryPlaceKeep', kind: 'method' },
@@ -628,8 +629,8 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
     // even when the total agrees. Only running the suite says what these
     // numbers really are; never reconcile them by arithmetic in the diff (the
     // numbers below were set from a suite run, not from this narrative).
-    expect(IWORLD_MEMBERS.length).toBe(337);
-    expect(DATA_MEMBERS.length).toBe(86);
+    expect(IWORLD_MEMBERS.length).toBe(338);
+    expect(DATA_MEMBERS.length).toBe(87);
     expect(METHOD_MEMBERS.length).toBe(251);
   });
   it('has no duplicate member names', () => {
@@ -955,6 +956,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'territoryRepair',
       'territorySiegeAction',
       'territoryUpgrade',
+      'territoryWarNotice',
       'toggleMounted',
       'toggleWeaponStow',
       'toolEffectSlots',
@@ -1063,6 +1065,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'talentSpec',
       'talents',
       'territoryMap',
+      'territoryWarNotice',
       'toolEffectSlots',
       'townFocus',
       'tradeInfo',
@@ -1626,6 +1629,7 @@ type _ExhaustBattleground = AssertNever<
 
 const FACET_TERRITORY = [
   'territoryMap',
+  'territoryWarNotice',
   'territoryOpen',
   'territoryClose',
   'territoryPlaceKeep',
@@ -1952,8 +1956,8 @@ describe('W1: aggregate IWorld member set equals the disjoint union of the facet
 
   it('the facet union equals the pinned IWORLD_MEMBERS set', () => {
     const union = Object.values(FACET_MEMBER_ARRAYS).flatMap((arr) => [...arr]);
-    expect(union.length, 'union size before dedup (catches a duplicated member)').toBe(337);
-    expect(new Set(union).size, 'union size after dedup (catches a duplicated member)').toBe(337);
+    expect(union.length, 'union size before dedup (catches a duplicated member)').toBe(338);
+    expect(new Set(union).size, 'union size after dedup (catches a duplicated member)').toBe(338);
     const sortedUnion = [...union].sort();
     const pinned = IWORLD_MEMBERS.map((m) => m.name).sort();
     expect(sortedUnion).toEqual(pinned);

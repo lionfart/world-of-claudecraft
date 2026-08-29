@@ -3911,9 +3911,9 @@ export class GameServer {
     } catch (err) {
       console.error('curator standing refresh failed:', err);
     }
+    territoryGame.reconnect(this, session);
     return session;
   }
-
   // Rebind a linkdead session to a fresh socket. The character never left the
   // world, so this only swaps the transport, refreshes the per-login account
   // metadata, and resets the per-connection wire/input state so the new client

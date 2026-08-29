@@ -10682,7 +10682,7 @@
     right: 68px;
     bottom: 22px;
     z-index: 2;
-    padding: 10px 12px;
+    padding: 10px 12px 12px;
     color: var(--color-text);
     background: linear-gradient(180deg, rgba(24, 16, 9, 0.92), rgba(11, 8, 5, 0.95));
     border: 1px solid var(--gold-dim);
@@ -10720,6 +10720,195 @@
   .territory-actions button:disabled {
     opacity: 0.42;
     cursor: default;
+  }
+
+  #territory-structure-section {
+    margin-top: 9px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(187, 139, 67, 0.34);
+  }
+  #territory-structure-title {
+    margin-bottom: 6px;
+    color: #e8c88d;
+    font-family: var(--title-font);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  #territory-structure-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .territory-slot-card {
+    --territory-slot-accent: #a16a30;
+    position: relative;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+    min-height: 52px;
+    padding: 5px 7px 5px 5px;
+    overflow: hidden;
+    color: #e9ddc7;
+    text-align: left;
+    border: 1px solid #5e482b;
+    border-radius: 4px;
+    background:
+      radial-gradient(
+        circle at 17px 15px,
+        color-mix(in srgb, var(--territory-slot-accent) 38%, transparent),
+        transparent 30px
+      ),
+      linear-gradient(145deg, #2d2115, #17100a);
+    box-shadow:
+      inset 0 1px 0 #ffffff12,
+      0 1px 3px #0008;
+    cursor: var(--cursor-point);
+  }
+  .territory-slot-card[data-territory-slot="keep_core"] {
+    --territory-slot-accent: #d6a640;
+  }
+  .territory-slot-card[data-territory-slot="gate"],
+  .territory-slot-card[data-territory-slot="wall"] {
+    --territory-slot-accent: #9a7654;
+  }
+  .territory-slot-card[data-territory-slot^="tower_"] {
+    --territory-slot-accent: #a64532;
+  }
+  .territory-slot-card[data-territory-slot="storehouse"] {
+    --territory-slot-accent: #99812f;
+  }
+  .territory-slot-card[data-territory-slot="construction_workshop"] {
+    --territory-slot-accent: #b5672d;
+  }
+  .territory-slot-card[data-territory-slot="siege_workshop"] {
+    --territory-slot-accent: #8c3426;
+  }
+  .territory-slot-card > .ui-icon {
+    width: 34px;
+    height: 34px;
+    padding: 7px;
+    box-sizing: border-box;
+    color: #f0d09a;
+    border: 1px solid color-mix(in srgb, var(--territory-slot-accent) 70%, #332417);
+    border-radius: 50% 50% 44% 44%;
+    background: linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--territory-slot-accent) 65%, #24170c),
+      #120c08
+    );
+    filter: drop-shadow(0 2px 2px #000a);
+  }
+  .territory-slot-card > span {
+    min-width: 0;
+  }
+  .territory-slot-card strong,
+  .territory-slot-card small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .territory-slot-card strong {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+  .territory-slot-card small {
+    margin-top: 3px;
+    color: #ab9b81;
+    font-size: 9px;
+  }
+  .territory-slot-card.is-actionable:hover,
+  .territory-slot-card.is-actionable:focus-visible {
+    color: #fff3d4;
+    border-color: var(--gold);
+    outline: none;
+    box-shadow:
+      inset 0 0 12px color-mix(in srgb, var(--territory-slot-accent) 22%, transparent),
+      0 0 0 2px #d6a64033;
+  }
+  .territory-slot-card.is-built {
+    border-color: color-mix(in srgb, var(--territory-slot-accent) 75%, #5e482b);
+  }
+  .territory-slot-card.is-building > .ui-icon {
+    filter: sepia(0.4) drop-shadow(0 2px 2px #000a);
+  }
+  .territory-slot-card:disabled {
+    opacity: 0.48;
+    cursor: default;
+  }
+
+  #territory-war-notice {
+    position: fixed;
+    display: none;
+    top: 64px;
+    left: 50%;
+    width: min(520px, calc(100vw - 24px));
+    z-index: 91;
+    box-sizing: border-box;
+    transform: translateX(-50%);
+    padding: 11px 14px 12px;
+    color: var(--color-text);
+    text-align: center;
+    border: 1px solid #b84b31;
+    background:
+      linear-gradient(90deg, transparent, #8d321729, transparent),
+      linear-gradient(180deg, rgba(42, 21, 13, 0.97), rgba(13, 9, 7, 0.98));
+    box-shadow:
+      0 5px 20px #000b,
+      inset 0 1px 0 #ffb36b22;
+    pointer-events: auto;
+  }
+  #territory-war-kicker {
+    color: #db7651;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  #territory-war-title {
+    margin-top: 2px;
+    color: #f0cd87;
+    font-family: var(--title-font);
+    font-size: 16px;
+    font-weight: bold;
+  }
+  #territory-war-queue,
+  #territory-war-start {
+    margin-top: 3px;
+    color: var(--color-text-muted);
+    font-size: 11px;
+  }
+  #territory-war-countdown {
+    margin-top: 5px;
+    color: #fff1c5;
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+    font-weight: bold;
+    text-shadow: 0 1px 5px #000;
+  }
+  #territory-war-teleport {
+    min-height: 14px;
+    margin-top: 2px;
+    color: #efb95d;
+    font-size: 10px;
+  }
+  #territory-war-action {
+    min-width: 150px;
+    min-height: 32px;
+    margin-top: 7px;
+    padding: 5px 12px;
+    color: #f9e4bb;
+    border: 1px solid #9a6932;
+    border-radius: 3px;
+    background: linear-gradient(#54341e, #2a1a10);
+    cursor: var(--cursor-point);
+  }
+  #territory-war-action:hover,
+  #territory-war-action:focus-visible {
+    border-color: var(--gold);
+    outline: 2px solid #d6a64033;
   }
 
   #territory-siege-hud {
@@ -10784,6 +10973,22 @@
     cursor: default;
   }
   @media (max-width: 620px) {
+    #territory-panel {
+      left: 12px;
+      right: 54px;
+      bottom: 12px;
+      max-height: 46%;
+      overflow-y: auto;
+    }
+    #territory-structure-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .territory-slot-card,
+    #territory-primary-action,
+    #territory-war-action {
+      min-height: 44px;
+    }
+    #territory-war-notice,
     #territory-siege-hud {
       top: 42px;
     }

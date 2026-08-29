@@ -7,6 +7,7 @@ import type {
   TerritorySiegeView,
   TerritoryStructureKind,
   TerritoryStructureSlot,
+  TerritoryWarView,
 } from '../world_api';
 
 type SendCommand = (payload: { cmd: ClientCommand } & Record<string, unknown>) => void;
@@ -14,7 +15,9 @@ type SendCommand = (payload: { cmd: ClientCommand } & Record<string, unknown>) =
 /** Owns the on-demand territory REST mirror and compact WebSocket command surface. */
 export class TerritoryClient {
   state: TerritoryMapState | null = null;
+  notice: TerritoryWarView | null = null;
   private commandSeq = 0;
+  private knownRevision = 0;
 
   constructor(
     private readonly base: () => string,
@@ -23,10 +26,30 @@ export class TerritoryClient {
   ) {}
 
   handleMessage(msg: Record<string, unknown>): boolean {
+    if (msg.t === 'territory_war_notice') {
+      if (Number.isSafeInteger(msg.revision) && Number(msg.revision) > 0)
+        this.knownRevision = Number(msg.revision);
+      const war =
+        msg.war &&
+        typeof msg.war === 'object' &&
+        typeof (msg.war as Record<string, unknown>).id === 'string'
+          ? (msg.war as TerritoryWarView)
+          : null;
+      this.notice = war;
+      if (war && this.state) {
+        const wars = this.state.wars.filter((entry) => entry.id !== war.id);
+        wars.push(war);
+        wars.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+        this.state = { ...this.state, wars };
+      }
+      return true;
+    }
     if (msg.t === 'territory_delta' && this.state && typeof msg.delta === 'object') {
       const next = applyTerritoryDelta(this.state, msg.delta as TerritoryDelta);
-      if (next) this.state = next;
-      else void this.loadChanges();
+      if (next) {
+        this.state = next;
+        this.knownRevision = next.revision;
+      } else void this.loadChanges();
       return true;
     }
     if (msg.t === 'territory_resync') {
@@ -94,7 +117,7 @@ export class TerritoryClient {
     this.send({
       ...payload,
       commandId: this.commandId(),
-      expectedRevision: this.state?.revision ?? 0,
+      expectedRevision: this.state?.revision ?? this.knownRevision,
     });
   }
 
@@ -105,8 +128,10 @@ export class TerritoryClient {
       });
       if (!res.ok) return;
       const state = (await res.json()) as TerritoryMapState;
-      if (state && Number.isSafeInteger(state.revision) && Array.isArray(state.cells))
+      if (state && Number.isSafeInteger(state.revision) && Array.isArray(state.cells)) {
         this.state = state;
+        this.knownRevision = state.revision;
+      }
     } catch {
       // Resync may race a reconnect. A later watch or revision gap retries.
     }
@@ -130,8 +155,10 @@ export class TerritoryClient {
         next = next ? applyTerritoryDelta(next, delta) : null;
         if (!next) break;
       }
-      if (next) this.state = next;
-      else await this.loadSnapshot();
+      if (next) {
+        this.state = next;
+        this.knownRevision = next.revision;
+      } else await this.loadSnapshot();
     } catch {
       await this.loadSnapshot();
     }
@@ -170,6 +197,11 @@ export function installTerritoryClient<T extends object>(prototype: T): void {
     territoryMap: {
       get(this: T) {
         return client(this).state;
+      },
+    },
+    territoryWarNotice: {
+      get(this: T) {
+        return client(this).notice;
       },
     },
     territoryOpen: {

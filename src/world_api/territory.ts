@@ -68,6 +68,8 @@ export interface TerritoryWarView {
   attackerCount: number;
   defenderCount: number;
   mySide: TerritoryWarSide | null;
+  /** Viewer-private queue state; public snapshots and deltas always carry false. */
+  registered: boolean;
 }
 
 export interface TerritorySiegeView {
@@ -111,6 +113,8 @@ export interface TerritoryMapState {
 
 export interface IWorldTerritory {
   territoryMap: TerritoryMapState | null;
+  /** Pre-battle notice remains available even while the strategic map is closed. */
+  territoryWarNotice: TerritoryWarView | null;
   territoryOpen(): void;
   territoryClose(): void;
   territoryPlaceKeep(cellId: number): void;

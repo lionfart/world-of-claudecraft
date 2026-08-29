@@ -89,6 +89,7 @@ export type TerritoryMutationResult =
       duplicate: boolean;
       guildId: number;
       seat?: { warId: string; side: TerritoryWarSide; seatNo: number };
+      war?: TerritoryWarView;
     }
   | { ok: false; error: MutationError };
 
@@ -499,10 +500,26 @@ export class TerritoryRepository {
         attackerCount: num(row.attacker_count),
         defenderCount: num(row.defender_count),
         mySide: null,
+        registered: false,
       })),
       guild: null,
       siege: null,
     };
+  }
+
+  /** One startup/cache-refresh batch; never queried per map viewer. */
+  async loadActiveWarRegistrations(): Promise<Array<{ warId: string; characterId: number }>> {
+    const season = await this.activeSeason(this.pool);
+    const result = await this.pool.query<{ war_id: string; character_id: number }>(
+      `SELECT p.war_id, p.character_id
+         FROM territory_war_participants p
+         JOIN territory_wars w ON w.id = p.war_id
+        WHERE w.season_id = $1 AND w.status IN ('declared', 'forming', 'active')
+          AND p.left_at IS NULL AND p.seat_no IS NOT NULL
+        ORDER BY p.war_id, p.character_id`,
+      [season.id],
+    );
+    return result.rows.map((row) => ({ warId: row.war_id, characterId: row.character_id }));
   }
 
   /**
@@ -807,6 +824,7 @@ export class TerritoryRepository {
   private async mutateParticipation(
     ctx: TerritoryMutationContext,
     action: 'join_war' | 'leave_war',
+    warId: string,
     perform: (
       client: PoolClient,
       season: SeasonRow,
@@ -871,9 +889,10 @@ export class TerritoryRepository {
         [
           ctx.commandId,
           season.id,
-          JSON.stringify({ revision: num(season.revision), ...outcome.seat }),
+          JSON.stringify({ revision: num(season.revision), warId, ...outcome.seat }),
         ],
       );
+      const war = await this.warView(client, warId, ctx.guildId, ctx.characterId);
       await client.query('COMMIT');
       return {
         ok: true,
@@ -881,6 +900,7 @@ export class TerritoryRepository {
         duplicate: false,
         guildId: ctx.guildId,
         seat: outcome.seat,
+        ...(war ? { war } : {}),
       };
     } catch (error) {
       await client.query('ROLLBACK');
@@ -1176,6 +1196,7 @@ export class TerritoryRepository {
             attackerCount: 0,
             defenderCount: 0,
             mySide: null,
+            registered: false,
           },
         ],
       };
@@ -1183,7 +1204,7 @@ export class TerritoryRepository {
   }
 
   joinWar(ctx: TerritoryMutationContext, warId: string): Promise<TerritoryMutationResult> {
-    return this.mutateParticipation(ctx, 'join_war', async (client, season) => {
+    return this.mutateParticipation(ctx, 'join_war', warId, async (client, season) => {
       const war = await client.query<{
         attacker_guild_id: number;
         defender_guild_id: number;
@@ -1234,7 +1255,7 @@ export class TerritoryRepository {
   }
 
   leaveWar(ctx: TerritoryMutationContext, warId: string): Promise<TerritoryMutationResult> {
-    return this.mutateParticipation(ctx, 'leave_war', async (client, season) => {
+    return this.mutateParticipation(ctx, 'leave_war', warId, async (client, season) => {
       const war = await client.query(
         `SELECT 1 FROM territory_wars
           WHERE id = $1 AND season_id = $2
@@ -1258,6 +1279,7 @@ export class TerritoryRepository {
     client: PoolClient,
     warId: string,
     viewerGuildId: number | null,
+    viewerCharacterId: number | null,
   ): Promise<TerritoryWarView | null> {
     const result = await client.query<{
       id: string;
@@ -1273,17 +1295,19 @@ export class TerritoryRepository {
       winner_guild_id: number | null;
       attacker_count: string | number;
       defender_count: string | number;
+      registered: boolean;
     }>(
       `SELECT w.id, w.target_cell_id, w.attacker_guild_id, ag.name AS attacker_name,
               w.defender_guild_id, dg.name AS defender_name, w.status, w.declared_at,
               w.starts_at, w.ends_at, w.winner_guild_id,
               count(p.character_id) FILTER (WHERE p.side = 'attacker' AND p.left_at IS NULL) AS attacker_count,
-              count(p.character_id) FILTER (WHERE p.side = 'defender' AND p.left_at IS NULL) AS defender_count
+              count(p.character_id) FILTER (WHERE p.side = 'defender' AND p.left_at IS NULL) AS defender_count,
+              COALESCE(bool_or(p.character_id = $2 AND p.left_at IS NULL AND p.seat_no IS NOT NULL), false) AS registered
          FROM territory_wars w JOIN guilds ag ON ag.id = w.attacker_guild_id
          JOIN guilds dg ON dg.id = w.defender_guild_id
          LEFT JOIN territory_war_participants p ON p.war_id = w.id
         WHERE w.id = $1 GROUP BY w.id, ag.name, dg.name`,
-      [warId],
+      [warId, viewerCharacterId ?? 0],
     );
     const row = result.rows[0];
     if (!row) return null;
@@ -1307,6 +1331,7 @@ export class TerritoryRepository {
           : viewerGuildId === row.defender_guild_id
             ? 'defender'
             : null,
+      registered: row.registered,
     };
   }
 
@@ -1382,7 +1407,7 @@ export class TerritoryRepository {
       }
       const wars: TerritoryWarView[] = [];
       for (const row of activated.rows) {
-        const view = await this.warView(client, row.id, null);
+        const view = await this.warView(client, row.id, null, null);
         if (view) wars.push(view);
       }
       const bumped = await client.query<{ revision: string | number }>(
@@ -1737,7 +1762,7 @@ export class TerritoryRepository {
           WHERE id = $1`,
         [warId, winnerGuildId, reason],
       );
-      const resolvedWar = await this.warView(client, warId, null);
+      const resolvedWar = await this.warView(client, warId, null, null);
       const bumped = await client.query<{ revision: string | number }>(
         `UPDATE territory_seasons SET revision = revision + 1 WHERE id = $1 RETURNING revision`,
         [lockedSeason.id],

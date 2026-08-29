@@ -522,9 +522,20 @@
         <div id="territory-economy"></div>
         <div class="territory-actions">
           <button type="button" id="territory-primary-action"></button>
-          <button type="button" id="territory-build-action"></button>
-          <button type="button" id="territory-upgrade-action"></button>
         </div>
+        <section id="territory-structure-section" aria-labelledby="territory-structure-title">
+          <div id="territory-structure-title" data-i18n="hudChrome.territoryMap.structureSlots">Keep structures</div>
+          <div id="territory-structure-grid">
+            <button type="button" class="territory-slot-card" data-territory-slot="keep_core" data-icon="crown"><span><strong id="territory-slot-keep_core-name" data-i18n="hudChrome.territoryMap.slotKeep">Keep core</strong><small id="territory-slot-keep_core-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="gate" data-icon="lock"><span><strong id="territory-slot-gate-name" data-i18n="hudChrome.territoryMap.slotGate">Gate</strong><small id="territory-slot-gate-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="wall" data-icon="tank"><span><strong id="territory-slot-wall-name" data-i18n="hudChrome.territoryMap.slotWall">Walls</strong><small id="territory-slot-wall-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="tower_north" data-icon="target"><span><strong id="territory-slot-tower_north-name" data-i18n="hudChrome.territoryMap.slotTowerNorth">North tower</strong><small id="territory-slot-tower_north-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="tower_south" data-icon="target"><span><strong id="territory-slot-tower_south-name" data-i18n="hudChrome.territoryMap.slotTowerSouth">South tower</strong><small id="territory-slot-tower_south-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="storehouse" data-icon="chest"><span><strong id="territory-slot-storehouse-name" data-i18n="hudChrome.territoryMap.slotStorehouse">Storehouse</strong><small id="territory-slot-storehouse-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="construction_workshop" data-icon="crafting"><span><strong id="territory-slot-construction_workshop-name" data-i18n="hudChrome.territoryMap.slotConstructionWorkshop">Builder workshop</strong><small id="territory-slot-construction_workshop-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="siege_workshop" data-icon="attack"><span><strong id="territory-slot-siege_workshop-name" data-i18n="hudChrome.territoryMap.slotSiegeWorkshop">Siege workshop</strong><small id="territory-slot-siege_workshop-status"></small></span></button>
+          </div>
+        </section>
       </div>
       <span id="map-summary" class="visually-hidden" role="status" aria-live="polite"></span>
       <span id="map-marker-summary" class="visually-hidden"></span>
@@ -546,6 +557,15 @@
     <div id="professions-window" class="window panel"></div>
     <div id="calendar-window" class="window panel"></div>
     <div id="arena-status"></div>
+    <div id="territory-war-notice" class="panel" role="status" aria-live="polite" aria-atomic="true">
+      <div id="territory-war-kicker"></div>
+      <div id="territory-war-title"></div>
+      <div id="territory-war-queue"></div>
+      <div id="territory-war-start"></div>
+      <div id="territory-war-countdown"></div>
+      <div id="territory-war-teleport"></div>
+      <button type="button" id="territory-war-action"></button>
+    </div>
     <div id="territory-siege-hud" class="panel" role="status" aria-live="polite" aria-atomic="true">
       <div id="territory-siege-title"></div>
       <div id="territory-siege-timer"></div>

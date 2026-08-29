@@ -65,6 +65,7 @@ function repositoryFake(snapshot: TerritoryMapState, dueSieges: unknown[] = []) 
         ],
       ]),
     ),
+    loadActiveWarRegistrations: vi.fn().mockResolvedValue([]),
     activateDueWars: vi.fn().mockResolvedValue(null),
     loadDueSieges: vi.fn().mockResolvedValue(dueSieges),
     completeDueStructures: vi.fn().mockResolvedValue(null),
@@ -88,6 +89,7 @@ describe('territory service hot paths', () => {
       resolveActor,
       vi.fn(),
       vi.fn(),
+      vi.fn(),
       config,
     );
 
@@ -98,6 +100,7 @@ describe('territory service hot paths', () => {
     expect(second.guild).toEqual(first.guild);
     expect(repository.loadPublicSnapshot).toHaveBeenCalledTimes(1);
     expect(repository.loadGuildViewsSnapshot).toHaveBeenCalledTimes(1);
+    expect(repository.loadActiveWarRegistrations).toHaveBeenCalledTimes(1);
     expect(repository.loadDueSieges).toHaveBeenCalledTimes(1);
   });
 
@@ -106,6 +109,7 @@ describe('territory service hot paths', () => {
     const service = new TerritoryService(
       repository as unknown as TerritoryRepository,
       vi.fn().mockReturnValue(null),
+      vi.fn(),
       vi.fn(),
       vi.fn(),
       config,
@@ -119,6 +123,53 @@ describe('territory service hot paths', () => {
     expect(repository.loadDueSieges).toHaveBeenCalledTimes(1);
     expect(repository.completeDueStructures).not.toHaveBeenCalled();
     expect(repository.rollSeasonIfDue).not.toHaveBeenCalled();
+  });
+
+  it('personalizes a declared-war queue without exposing participant identities', async () => {
+    const war = {
+      id: '00000000-0000-4000-8000-000000000010',
+      targetCellId: 3,
+      attackerGuildId: '7',
+      attackerGuildName: 'Seven',
+      defenderGuildId: '8',
+      defenderGuildName: 'Eight',
+      status: 'declared' as const,
+      declaredAt: '2026-01-01T00:00:00.000Z',
+      startsAt: '2026-01-01T00:05:00.000Z',
+      endsAt: '2026-01-01T01:05:00.000Z',
+      winnerGuildId: null,
+      attackerCount: 6,
+      defenderCount: 4,
+      mySide: null,
+      registered: false,
+    };
+    const repository = repositoryFake(mapState([war]));
+    repository.loadActiveWarRegistrations.mockResolvedValue([{ warId: war.id, characterId: 11 }]);
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 11,
+        guildId: 7,
+        guildName: 'Seven',
+        rank: 'member',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+    );
+
+    const snapshot = await service.snapshotForCharacter(11);
+    const notice = await service.warNoticeForCharacter(11);
+
+    expect(snapshot.wars[0]).toMatchObject({ mySide: 'attacker', registered: true });
+    expect(notice).toMatchObject({
+      attackerCount: 6,
+      defenderCount: 4,
+      mySide: 'attacker',
+      registered: true,
+    });
+    expect(Object.keys(notice ?? {})).not.toContain('participants');
   });
 
   it('joins a live local siege without force-hydrating every participant again', async () => {
@@ -138,6 +189,7 @@ describe('territory service hot paths', () => {
       attackerCount: 0,
       defenderCount: 0,
       mySide: null,
+      registered: false,
     };
     const repository = repositoryFake(mapState([war]), [
       {
@@ -168,6 +220,7 @@ describe('territory service hot paths', () => {
         guildName: 'Seven',
         rank: 'member',
       }),
+      vi.fn(),
       vi.fn(),
       vi.fn(),
       config,
