@@ -4084,7 +4084,12 @@ export const ja_JP: EnTranslations = {
       "leaveRam": "Leave ram",
       "ramGate": "破城槌で城門を攻撃",
       "startCoreChannel": "Channel core",
-      "stopCoreChannel": "Stop channel"
+      "stopCoreChannel": "Stop channel",
+      "resultVictory": "Victory",
+      "resultDefeat": "Defeat",
+      "resultVictoryDetail": "Your guild has secured the territory.",
+      "resultDefeatDetail": "The territory belongs to the opposing guild.",
+      "resultReturn": "Returning to the world in {seconds}s"
     },
     "arenaGate": {
       "minLevelNote": "レベル {level} が必要です"

@@ -9,6 +9,7 @@ import {
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
   territorySiegeGroundLiftLocal,
+  territorySiegeTerrainLiftLocal,
 } from '../sim/territory_siege_ground';
 import { surfaceMat } from './gfx';
 import {
@@ -23,12 +24,13 @@ function place(
   x: number,
   y: number,
   z: number,
-  scale: number,
+  scale: number | readonly [number, number, number],
   yaw: number,
 ): THREE.Group {
   const asset = cloneTerritorySiegeAsset(key);
   asset.position.set(x, y, z);
-  asset.scale.setScalar(scale);
+  if (typeof scale === 'number') asset.scale.setScalar(scale);
+  else asset.scale.set(...scale);
   asset.rotation.y = yaw;
   parent.add(asset);
   return asset;
@@ -84,7 +86,7 @@ function buildTerrain(): THREE.Mesh {
   for (let index = 0; index < positions.count; index += 1) {
     const x = positions.getX(index);
     const z = positions.getZ(index);
-    const height = territorySiegeGroundLiftLocal(x, z);
+    const height = territorySiegeTerrainLiftLocal(x, z);
     positions.setY(index, height);
     const variation = Math.sin(x * 0.083 + z * 0.047) * 0.5 + Math.sin(z * 0.16 - x * 0.027) * 0.3;
     const soil = Math.max(0, Math.min(1, 0.42 + variation));
@@ -140,7 +142,7 @@ function buildLeafLitterClearings(): THREE.Mesh {
   for (let patchIndex = 0; patchIndex < placements.length; patchIndex += 1) {
     const patch = placements[patchIndex];
     const base = positions.length / 3;
-    positions.push(patch.x, territorySiegeGroundLiftLocal(patch.x, patch.z) + 0.045, patch.z);
+    positions.push(patch.x, territorySiegeTerrainLiftLocal(patch.x, patch.z) + 0.045, patch.z);
     uvs.push(patch.x * 0.12, patch.z * 0.12);
     for (let index = 0; index < segments; index += 1) {
       const angle = (index / segments) * Math.PI * 2;
@@ -149,7 +151,7 @@ function buildLeafLitterClearings(): THREE.Mesh {
       const pz = Math.sin(angle) * patch.rz * wobble;
       const x = patch.x + px * Math.cos(patch.yaw) - pz * Math.sin(patch.yaw);
       const z = patch.z + px * Math.sin(patch.yaw) + pz * Math.cos(patch.yaw);
-      positions.push(x, territorySiegeGroundLiftLocal(x, z) + 0.045, z);
+      positions.push(x, territorySiegeTerrainLiftLocal(x, z) + 0.045, z);
       uvs.push(x * 0.12, z * 0.12);
     }
     for (let index = 0; index < segments; index += 1)
@@ -180,7 +182,7 @@ function buildApproachRoad(): THREE.Mesh {
     const halfWidth = 7.2 + Math.sin(t * 13.1 + 0.4) * 0.65;
     for (const side of [-1, 1]) {
       const x = center + side * halfWidth;
-      positions.push(x, territorySiegeGroundLiftLocal(x, z) + 0.035, z);
+      positions.push(x, territorySiegeTerrainLiftLocal(x, z) + 0.035, z);
       uvs.push(side < 0 ? 0 : 1, t * 14);
     }
     if (index < segments) {
@@ -205,83 +207,62 @@ function hash01(x: number, z: number): number {
   return value - Math.floor(value);
 }
 
-/** Dense crossed-blade ground cover in one draw call. */
-function buildGrassCarpet(): THREE.Mesh {
-  const positions: number[] = [];
-  const colors: number[] = [];
-  const indices: number[] = [];
-  const tip = new THREE.Color();
-  const root = new THREE.Color();
-  let tuft = 0;
-  for (
-    let gz = -TERRITORY_SIEGE_FIELD_HALF_Z + 3;
-    gz <= TERRITORY_SIEGE_FIELD_HALF_Z - 3;
-    gz += 1.45
-  ) {
-    for (
-      let gx = -TERRITORY_SIEGE_FIELD_HALF_X + 3;
-      gx <= TERRITORY_SIEGE_FIELD_HALF_X - 3;
-      gx += 1.5
-    ) {
-      const seed = hash01(gx, gz);
-      if (seed < 0.28) continue;
-      const x = gx + (hash01(gx + 13.4, gz) - 0.5) * 1.2;
-      const z = gz + (hash01(gx, gz - 9.7) - 0.5) * 1.15;
-      if (z > 14 && Math.abs(x) < 11.5) continue;
-      const inCastle = z > -76 && z < 21 && Math.abs(x) < 47;
-      if (inCastle && (Math.abs(x) < 5.5 || Math.abs(z + 24) < 5.5)) continue;
-      const y = territorySiegeGroundLiftLocal(x, z) + 0.025;
-      const height = 0.3 + hash01(x + 4.1, z + 7.8) * 0.5;
-      const width = 0.09 + seed * 0.11;
-      const yaw = seed * Math.PI;
-      const flower = hash01(x - 17.3, z + 6.2) > 0.965;
-      tip.set(flower ? 0xe4b34c : 0x668f42);
-      root.set(0x263d24);
-      const base = positions.length / 3;
-      for (const turn of [yaw, yaw + Math.PI / 2]) {
-        const dx = (Math.cos(turn) * width) / 2;
-        const dz = (Math.sin(turn) * width) / 2;
-        const leanX = Math.cos(yaw) * height * 0.16;
-        const leanZ = Math.sin(yaw) * height * 0.16;
-        positions.push(
-          x - dx,
-          y,
-          z - dz,
-          x + dx,
-          y,
-          z + dz,
-          x + leanX + dx * 0.28,
-          y + height,
-          z + leanZ + dz * 0.28,
-          x + leanX - dx * 0.28,
-          y + height,
-          z + leanZ - dz * 0.28,
-        );
-        colors.push(root.r, root.g, root.b, root.r, root.g, root.b);
-        colors.push(tip.r, tip.g, tip.b, tip.r, tip.g, tip.b);
-      }
-      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-      indices.push(base + 4, base + 5, base + 6, base + 4, base + 6, base + 7);
-      tuft += 1;
+/** Low, clustered pebbles break up the soil without reading as repeated spikes. */
+function buildGroundStoneScatter(): THREE.InstancedMesh {
+  const placements: { x: number; z: number; scale: number; yaw: number; color: number }[] = [];
+  for (let patch = 0; patch < 34; patch += 1) {
+    const side = patch % 2 === 0 ? -1 : 1;
+    const centerX = side * (28 + hash01(patch * 3.7, 2.1) * 55);
+    const centerZ = -119 + hash01(patch * 7.3, 5.4) * 244;
+    const count = 4 + (patch % 5);
+    for (let index = 0; index < count; index += 1) {
+      const angle = hash01(patch + index * 4.2, centerZ) * Math.PI * 2;
+      const distance = 0.8 + hash01(centerX, index * 8.1) * 5.5;
+      const x = centerX + Math.cos(angle) * distance;
+      const z = centerZ + Math.sin(angle) * distance;
+      if (Math.abs(x) > TERRITORY_SIEGE_FIELD_HALF_X - 3) continue;
+      placements.push({
+        x,
+        z,
+        scale: 0.32 + hash01(x, z) * 0.72,
+        yaw: hash01(z, x) * Math.PI,
+        color: hash01(x + 4, z - 9) > 0.45 ? 0x77766b : 0x5d6258,
+      });
     }
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingSphere();
-  const material = surfaceMat({ vertexColors: true, roughness: 1, side: THREE.DoubleSide });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = `territory-siege-grass:${tuft}`;
-  mesh.castShadow = false;
+  const geometry = new THREE.DodecahedronGeometry(0.46, 0);
+  const material = surfaceMat({ color: 0xffffff, roughness: 1 });
+  const mesh = new THREE.InstancedMesh(geometry, material, placements.length);
+  const transform = new THREE.Object3D();
+  const color = new THREE.Color();
+  placements.forEach((stone, index) => {
+    transform.position.set(
+      stone.x,
+      territorySiegeTerrainLiftLocal(stone.x, stone.z) + 0.06,
+      stone.z,
+    );
+    transform.rotation.set(0.1, stone.yaw, -0.08);
+    transform.scale.set(stone.scale * 1.35, stone.scale * 0.38, stone.scale);
+    transform.updateMatrix();
+    mesh.setMatrixAt(index, transform.matrix);
+    mesh.setColorAt(index, color.setHex(stone.color));
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.name = `territory-siege-ground-stones:${placements.length}`;
+  mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
 
 /** Natural, textured ground plus foliage for the enlarged outer battlefield. */
 export function buildTerritorySiegeNaturalField(root: THREE.Object3D): void {
-  root.add(buildTerrain(), buildLeafLitterClearings(), buildApproachRoad(), buildGrassCarpet());
+  root.add(
+    buildTerrain(),
+    buildLeafLitterClearings(),
+    buildApproachRoad(),
+    buildGroundStoneScatter(),
+  );
 
   for (let index = 0; index < TERRITORY_SIEGE_TREES.length; index += 1) {
     const tree = TERRITORY_SIEGE_TREES[index];
@@ -318,17 +299,23 @@ export function buildTerritorySiegeNaturalField(root: THREE.Object3D): void {
       bush.scale * 0.55,
       bush.yaw,
     );
-    const fernX = bush.x + Math.cos(bush.yaw) * 3.1;
-    const fernZ = bush.z + Math.sin(bush.yaw) * 3.1;
-    place(
-      root,
-      'fern',
-      fernX,
-      territorySiegeGroundLiftLocal(fernX, fernZ),
-      fernZ,
-      1.7 + (index % 4) * 0.18,
-      bush.yaw + 1.3,
-    );
+    for (const [offset, turn, scale] of [
+      [3.1, 1.3, 1.7 + (index % 4) * 0.18],
+      [2.25, -1.2, 1.35 + (index % 3) * 0.16],
+      [4.1, 2.55, 1.15 + (index % 2) * 0.18],
+    ] as const) {
+      const fernX = bush.x + Math.cos(bush.yaw + turn) * offset;
+      const fernZ = bush.z + Math.sin(bush.yaw + turn) * offset;
+      place(
+        root,
+        'fern',
+        fernX,
+        territorySiegeGroundLiftLocal(fernX, fernZ),
+        fernZ,
+        scale,
+        bush.yaw + turn + 0.7,
+      );
+    }
   }
 }
 
@@ -336,10 +323,18 @@ export function buildTerritorySiegeNaturalField(root: THREE.Object3D): void {
 export function buildTerritorySiegeCastleSettlement(root: THREE.Object3D): void {
   let roadIndex = 0;
   for (let z = 13; z >= -65; z -= 7.2) {
-    place(root, roadIndex++ % 2 === 0 ? 'roadA' : 'roadB', 0, 0.025, z, 4.2, 0);
+    place(root, roadIndex++ % 2 === 0 ? 'roadA' : 'roadB', 0, 0, z, [4.2, 0.72, 4.2], 0);
   }
   for (let x = -34; x <= 34; x += 7.2) {
-    place(root, roadIndex++ % 2 === 0 ? 'roadA' : 'roadB', x, 0.023, -24, 4.2, Math.PI / 2);
+    place(
+      root,
+      roadIndex++ % 2 === 0 ? 'roadA' : 'roadB',
+      x,
+      0,
+      -24,
+      [4.2, 0.72, 4.2],
+      Math.PI / 2,
+    );
   }
 
   for (const home of TERRITORY_SIEGE_HOMES)

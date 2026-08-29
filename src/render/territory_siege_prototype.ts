@@ -50,43 +50,91 @@ function model(
   return asset;
 }
 
-function objectiveBeacon(color: number, radius: number): THREE.Group {
-  const group = new THREE.Group();
+interface ObjectiveBeacon {
+  root: THREE.Group;
+  segments: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  halo: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+}
+
+function segmentedRingGeometry(
+  innerRadius: number,
+  outerRadius: number,
+  segmentCount: number,
+  fillFraction: number,
+  subdivisions = 4,
+): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (let segment = 0; segment < segmentCount; segment += 1) {
+    const start = (segment / segmentCount) * Math.PI * 2;
+    const length = (Math.PI * 2 * fillFraction) / segmentCount;
+    const base = positions.length / 3;
+    for (let step = 0; step <= subdivisions; step += 1) {
+      const angle = start + (step / subdivisions) * length;
+      for (const radius of [innerRadius, outerRadius])
+        positions.push(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+    }
+    for (let step = 0; step < subdivisions; step += 1) {
+      const cursor = base + step * 2;
+      indices.push(cursor, cursor + 2, cursor + 1, cursor + 1, cursor + 2, cursor + 3);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function objectiveBeacon(color: number, radius: number): ObjectiveBeacon {
+  const root = new THREE.Group();
   const fill = new THREE.Mesh(
     new THREE.CircleGeometry(radius * 0.93, 40),
     new THREE.MeshBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.025,
+      opacity: 0.014,
       depthWrite: false,
       side: THREE.DoubleSide,
     }),
   );
   fill.rotation.x = -Math.PI / 2;
   fill.position.y = 0.035;
-  group.add(fill);
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(radius * 0.92, radius, 48),
+  root.add(fill);
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.84, radius * 0.855, 64),
     new THREE.MeshBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.28,
+      opacity: 0.075,
       depthWrite: false,
       side: THREE.DoubleSide,
     }),
   );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.055;
-  group.add(ring);
-  return group;
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.y = 0.048;
+  root.add(halo);
+  const segments = new THREE.Mesh(
+    segmentedRingGeometry(radius * 0.965, radius, 12, 0.56, 4),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.2,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  segments.position.y = 0.065;
+  root.add(segments);
+  return { root, segments, halo };
 }
 
 function towerRangeBeacon(centerX: number, centerZ: number, radius: number): THREE.Group {
   const group = new THREE.Group();
   const positions: number[] = [];
   const indices: number[] = [];
-  const segments = 128;
-  const thickness = 0.36;
+  const segments = 160;
+  const thickness = 0.16;
   for (let index = 0; index < segments; index += 1) {
     const angle = (index / segments) * Math.PI * 2;
     for (const ringRadius of [radius - thickness, radius]) {
@@ -96,7 +144,7 @@ function towerRangeBeacon(centerX: number, centerZ: number, radius: number): THR
     }
     const base = index * 2;
     const next = ((index + 1) % segments) * 2;
-    indices.push(base, next, base + 1, base + 1, next, next + 1);
+    if (index % 10 < 6) indices.push(base, next, base + 1, base + 1, next, next + 1);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -106,9 +154,9 @@ function towerRangeBeacon(centerX: number, centerZ: number, radius: number): THR
   const ring = new THREE.Mesh(
     geometry,
     new THREE.MeshBasicMaterial({
-      color: 0xf29a55,
+      color: 0xf6c77d,
       transparent: true,
-      opacity: 0.42,
+      opacity: 0.22,
       depthWrite: false,
       side: THREE.DoubleSide,
     }),
@@ -229,7 +277,7 @@ function buildTowerWarning(): {
     new THREE.MeshBasicMaterial({
       color: 0xd64b24,
       transparent: true,
-      opacity: 0.07,
+      opacity: 0.035,
       depthWrite: false,
       side: THREE.DoubleSide,
     }),
@@ -238,11 +286,11 @@ function buildTowerWarning(): {
   fill.position.y = 0.07;
   root.add(fill);
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.82, 1, 40),
+    new THREE.RingGeometry(0.93, 1, 48),
     new THREE.MeshBasicMaterial({
       color: 0xffb12b,
       transparent: true,
-      opacity: 0.46,
+      opacity: 0.28,
       depthWrite: false,
       side: THREE.DoubleSide,
     }),
@@ -437,7 +485,8 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
   model(root, 'castle', [0, 0, -63], [5.3, 4.4, 5.3], Math.PI);
   model(root, 'workshop', [-35, 0, -52], [4.4, 4.4, 4.4], Math.PI / 5);
 
-  const coreRoot = objectiveBeacon(0x43c7ff, TERRITORY_SIEGE_CORE_ATTACK_RADIUS);
+  const coreBeacon = objectiveBeacon(0x61d8e6, TERRITORY_SIEGE_CORE_ATTACK_RADIUS);
+  const coreRoot = coreBeacon.root;
   coreRoot.position.set(0, 0, TERRITORY_SIEGE_CORE_Z);
   root.add(coreRoot);
   const pedestal = new THREE.Mesh(
@@ -480,9 +529,9 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
   const ram = ramParts.root;
   ram.position.set(0, 0, 23);
   root.add(ram);
-  const ramBuildBeacon = objectiveBeacon(0xe69c35, 8);
-  ramBuildBeacon.position.set(0, 0, 27);
-  root.add(ramBuildBeacon);
+  const ramBuildBeacon = objectiveBeacon(0xe3ad63, 8);
+  ramBuildBeacon.root.position.set(0, 0, 27);
+  root.add(ramBuildBeacon.root);
 
   const towerWarnings = Array.from({ length: 8 }, () => buildTowerWarning());
   for (const warning of towerWarnings) root.add(warning.root);
@@ -503,7 +552,14 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
     for (const tower of towerModels) tower.visible = towersActive;
     for (const range of towerRanges) range.visible = towersActive && siege.state === 'active';
     ram.visible = state.ramVisible;
-    ramBuildBeacon.visible = !!siege && !siege.ramDeployed && !siege.gateOpen;
+    ramBuildBeacon.root.visible = !!siege && !siege.ramDeployed && !siege.gateOpen;
+    const objectivePulse = 0.5 + Math.sin(timeSeconds * 1.65) * 0.5;
+    coreBeacon.segments.rotation.y = timeSeconds * 0.035;
+    coreBeacon.segments.material.opacity = 0.14 + objectivePulse * 0.08;
+    coreBeacon.halo.material.opacity = 0.05 + objectivePulse * 0.035;
+    ramBuildBeacon.segments.rotation.y = -timeSeconds * 0.045;
+    ramBuildBeacon.segments.material.opacity = 0.14 + objectivePulse * 0.07;
+    ramBuildBeacon.halo.material.opacity = 0.045 + objectivePulse * 0.03;
     ramParts.head.rotation.x = state.ramSwing;
     coreHalo.rotation.z = timeSeconds * 0.55;
     coreHalo.scale.setScalar(0.92 + state.coreChannelPulse * 0.16);
@@ -524,8 +580,8 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
       warning.root.scale.setScalar(zone.radius);
       const urgency = Math.max(0, Math.min(1, 1 - zone.detonatesIn / 1.8));
       warning.ring.rotation.z = timeSeconds * (1.5 + urgency * 3);
-      warning.ring.material.opacity = 0.25 + urgency * 0.38;
-      warning.fill.material.opacity = 0.045 + urgency * 0.18;
+      warning.ring.material.opacity = 0.16 + urgency * 0.3;
+      warning.fill.material.opacity = 0.025 + urgency * 0.11;
     }
   };
   update(null, 0, origin);

@@ -10991,6 +10991,102 @@
     filter: saturate(0.3) brightness(0.65);
     pointer-events: none;
   }
+  #territory-siege-result {
+    position: fixed;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    left: 50%;
+    top: 18%;
+    width: min(270px, calc(100vw - 32px));
+    z-index: 94;
+    box-sizing: border-box;
+    padding: 12px 18px 11px;
+    transform: translateX(-50%);
+    color: #f3e4c2;
+    text-align: center;
+    border: 1px solid #9c7441;
+    border-radius: 5px;
+    background:
+      radial-gradient(circle at 50% 0%, #eac56e25, transparent 58%),
+      linear-gradient(180deg, rgba(38, 28, 20, 0.96), rgba(11, 9, 8, 0.97));
+    box-shadow:
+      0 10px 34px #000b,
+      inset 0 1px 0 #ffe2a92e;
+    pointer-events: none;
+    animation: territory-result-arrive 420ms cubic-bezier(0.2, 0.86, 0.25, 1.08) both;
+  }
+  #territory-siege-result.is-victory {
+    border-color: #c9a74f;
+    box-shadow:
+      0 10px 34px #000b,
+      0 0 25px #d7b8502b,
+      inset 0 1px 0 #ffe2a947;
+  }
+  #territory-siege-result.is-defeat {
+    border-color: #815142;
+    filter: saturate(0.72);
+  }
+  #territory-result-sigil {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 1px;
+    color: #f5d675;
+    font-size: 24px;
+    line-height: 30px;
+    text-shadow: 0 0 12px #f2bf4d99;
+    animation: territory-result-sigil 1.35s ease-in-out infinite;
+  }
+  .is-defeat #territory-result-sigil {
+    color: #b88b78;
+    text-shadow: 0 0 10px #8b463f66;
+  }
+  #territory-result-title {
+    color: #f4d981;
+    font-family: var(--title-font);
+    font-size: 21px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  #territory-result-detail {
+    margin-top: 2px;
+    color: #d9c9a8;
+    font-size: 10px;
+  }
+  #territory-result-return {
+    margin-top: 6px;
+    color: #9e927d;
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+  }
+  @keyframes territory-result-arrive {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-12px) scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+  }
+  @keyframes territory-result-sigil {
+    0%,
+    100% {
+      opacity: 0.72;
+      transform: scale(0.92) rotate(-4deg);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.08) rotate(4deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #territory-siege-result,
+    #territory-result-sigil {
+      animation: none;
+    }
+  }
   @media (max-width: 620px) {
     #territory-panel {
       left: 8px;

@@ -4084,7 +4084,12 @@ export const en_XA: EnTranslations = {
       "leaveRam": "[Ļéáʋé ŕáɱ]",
       "ramGate": "[Ŕáɱ ĝáţé]",
       "startCoreChannel": "[Çĥáññéļ çóŕé]",
-      "stopCoreChannel": "[Šţóþ çĥáññéļ]"
+      "stopCoreChannel": "[Šţóþ çĥáññéļ]",
+      "resultVictory": "[Ʋíçţóŕý]",
+      "resultDefeat": "[Ðéƒéáţ]",
+      "resultVictoryDetail": "[Ýóúŕ ĝúíļð ĥáš šéçúŕéð ţĥé ţéŕŕíţóŕý.]",
+      "resultDefeatDetail": "[Ţĥé ţéŕŕíţóŕý ƀéļóñĝš ţó ţĥé óþþóšíñĝ ĝúíļð.]",
+      "resultReturn": "[Ŕéţúŕñíñĝ ţó ţĥé ŵóŕļð íñ {seconds}š]"
     },
     "arenaGate": {
       "minLevelNote": "[Ŕéɋúíŕéš ļéʋéļ {level}]"

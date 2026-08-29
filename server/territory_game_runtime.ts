@@ -7,9 +7,14 @@ import {
   territorySiegeRamSeat,
   territorySiegeSpawn,
 } from '../src/sim/territory_siege_layout';
+import {
+  TERRITORY_SIEGE_RESULT_PRESENTATION_MS,
+  territorySiegeResultReturnIn,
+} from '../src/sim/territory_siege_result';
 import type {
   TerritoryMapState,
   TerritorySiegeAction,
+  TerritorySiegeView,
   TerritoryStructureKind,
   TerritoryStructureSlot,
 } from '../src/world_api';
@@ -87,6 +92,9 @@ interface SessionTerritoryState {
   warId: string | null;
   returnPos: { x: number; z: number; facing: number } | null;
   controlAnchor: { x: number; z: number } | null;
+  resultSiege: TerritorySiegeView | null;
+  resultReturnAtMs: number | null;
+  resultSecond: number | null;
 }
 
 export interface TerritoryGameDeps<S extends TerritoryGameSession> {
@@ -200,6 +208,7 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       const siege = this.service.siegeForCharacter(session.characterId, nowMs);
       if (placement && siege) this.updateFighter(session, placement, siege, nowMs);
     }
+    this.tickResultReturns(nowMs);
     if (zonesChanged) this.broadcastSieges();
   }
 
@@ -302,7 +311,15 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
   private state(session: S): SessionTerritoryState {
     let state = this.states.get(session);
     if (!state) {
-      state = { watching: false, warId: null, returnPos: null, controlAnchor: null };
+      state = {
+        watching: false,
+        warId: null,
+        returnPos: null,
+        controlAnchor: null,
+        resultSiege: null,
+        resultReturnAtMs: null,
+        resultSecond: null,
+      };
       this.states.set(session, state);
     }
     return state;
@@ -371,12 +388,31 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       const placement = this.service.siegePlacementForCharacter(session.characterId);
       if (placement) this.service.reconnectCharacter(session.characterId, nowMs);
       const baseSiege = this.service.siegeForCharacter(session.characterId, nowMs);
-      const siege = baseSiege
+      let siege = baseSiege
         ? {
             ...baseSiege,
             towerZones: this.towerZones.view(baseSiege.warId, nowMs),
           }
         : null;
+      if (siege?.state === 'ended' && siege.winner !== null) {
+        state.resultReturnAtMs ??= nowMs + TERRITORY_SIEGE_RESULT_PRESENTATION_MS;
+        siege = {
+          ...siege,
+          resultReturnIn: territorySiegeResultReturnIn(state.resultReturnAtMs, nowMs),
+        };
+        state.resultSiege = siege;
+        state.resultSecond = siege.resultReturnIn;
+      } else if (!siege && state.resultSiege && state.resultReturnAtMs !== null) {
+        siege = {
+          ...state.resultSiege,
+          resultReturnIn: territorySiegeResultReturnIn(state.resultReturnAtMs, nowMs),
+        };
+        state.resultSiege = siege;
+      } else if (siege && siege.state !== 'ended') {
+        state.resultSiege = null;
+        state.resultReturnAtMs = null;
+        state.resultSecond = null;
+      }
       if (!siege && state.warId === null) continue;
       if (siege && placement && state.warId !== siege.warId)
         this.enterSiege(session, state, placement);
@@ -385,6 +421,29 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       else this.deps.sim.setTerritorySiegeTeam(session.pid, null);
       state.warId = siege?.warId ?? null;
       this.deps.send(session, { t: 'territory_siege', siege });
+    }
+  }
+
+  private tickResultReturns(nowMs: number): void {
+    for (const session of this.deps.sessions()) {
+      if (session.left || session.linkdead) continue;
+      const state = this.state(session);
+      if (!state.resultSiege || state.resultReturnAtMs === null) continue;
+      const seconds = territorySiegeResultReturnIn(state.resultReturnAtMs, nowMs);
+      if (seconds === 0) {
+        this.returnFromSiege(session, state);
+        this.deps.sim.setTerritorySiegeTeam(session.pid, null);
+        state.warId = null;
+        state.resultSiege = null;
+        state.resultReturnAtMs = null;
+        state.resultSecond = null;
+        this.deps.send(session, { t: 'territory_siege', siege: null });
+        continue;
+      }
+      if (seconds === state.resultSecond) continue;
+      state.resultSecond = seconds;
+      state.resultSiege = { ...state.resultSiege, resultReturnIn: seconds };
+      this.deps.send(session, { t: 'territory_siege', siege: state.resultSiege });
     }
   }
 

@@ -4084,7 +4084,12 @@ export const tr_TR: EnTranslations = {
       "leaveRam": "Koçbaşından çık",
       "ramGate": "Kapıya koçbaşıyla vur",
       "startCoreChannel": "Çekirdeğe odaklan",
-      "stopCoreChannel": "Odaklanmayı kes"
+      "stopCoreChannel": "Odaklanmayı kes",
+      "resultVictory": "Zafer",
+      "resultDefeat": "Mağlubiyet",
+      "resultVictoryDetail": "Loncan bölgeyi ele geçirdi.",
+      "resultDefeatDetail": "Bölge rakip loncanın kontrolünde kaldı.",
+      "resultReturn": "{seconds} saniye sonra dünyaya dönülüyor"
     },
     "arenaGate": {
       "minLevelNote": "Seviye {level} gerektirir"

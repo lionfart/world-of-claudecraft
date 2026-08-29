@@ -28,6 +28,7 @@ const siege: TerritorySiegeView = {
   respawnIn: 0,
   timeLeft: 100,
   winner: null,
+  resultReturnIn: 0,
 };
 
 describe('territory siege prototype visual state', () => {

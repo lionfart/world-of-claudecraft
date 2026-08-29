@@ -106,6 +106,8 @@ export interface TerritorySiegeView {
   respawnIn: number;
   timeLeft: number;
   winner: TerritoryWarSide | null;
+  /** Result-card countdown; zero during forming and active play. */
+  resultReturnIn: number;
 }
 
 export interface TerritoryGuildView {

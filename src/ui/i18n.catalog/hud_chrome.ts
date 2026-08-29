@@ -5618,6 +5618,11 @@ export const hudChromeStrings = {
     ramGate: 'Ram gate',
     startCoreChannel: 'Channel core',
     stopCoreChannel: 'Stop channel',
+    resultVictory: 'Victory',
+    resultDefeat: 'Defeat',
+    resultVictoryDetail: 'Your guild has secured the territory.',
+    resultDefeatDetail: 'The territory belongs to the opposing guild.',
+    resultReturn: 'Returning to the world in {seconds}s',
   },
   // Ranked Arena's minimum-level queue gate (src/sim/social/arena.ts
   // arenaQueueJoin, 1v1/2v2 only): the arena window's disabled-queue note

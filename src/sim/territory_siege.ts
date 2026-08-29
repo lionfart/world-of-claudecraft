@@ -453,5 +453,6 @@ export function territorySiegeViewFor(
       seat.deadUntilMs === null ? 0 : Math.max(0, Math.ceil((seat.deadUntilMs - nowMs) / 1000)),
     timeLeft: Math.max(0, Math.ceil((state.definition.endsAtMs - nowMs) / 1000)),
     winner: state.winner,
+    resultReturnIn: 0,
   };
 }

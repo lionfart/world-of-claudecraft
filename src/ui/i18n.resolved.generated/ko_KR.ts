@@ -4084,7 +4084,12 @@ export const ko_KR: EnTranslations = {
       "leaveRam": "Leave ram",
       "ramGate": "공성추로 성문 공격",
       "startCoreChannel": "Channel core",
-      "stopCoreChannel": "Stop channel"
+      "stopCoreChannel": "Stop channel",
+      "resultVictory": "Victory",
+      "resultDefeat": "Defeat",
+      "resultVictoryDetail": "Your guild has secured the territory.",
+      "resultDefeatDetail": "The territory belongs to the opposing guild.",
+      "resultReturn": "Returning to the world in {seconds}s"
     },
     "arenaGate": {
       "minLevelNote": "레벨 {level} 필요"

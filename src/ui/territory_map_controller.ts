@@ -206,15 +206,39 @@ export class TerritoryMapController {
 
   updateSiegeHud(): void {
     const siege = this.world.territoryMap?.siege ?? null;
-    this.updateWarNotice(siege !== null && siege.state !== 'ended');
+    const result = element('#territory-siege-result');
+    const resultVisible = !!siege && siege.state === 'ended' && siege.winner !== null;
+    this.updateWarNotice(siege !== null);
     this.writers.setDisplay(
       element('#territory-siege-hud'),
       siege && siege.state !== 'ended' ? 'block' : 'none',
     );
+    this.writers.setDisplay(result, resultVisible ? 'flex' : 'none');
     document.body.classList.toggle(
       'territory-siege-control-locked',
       !!siege && (siege.ramJoined || siege.coreChanneling),
     );
+    if (resultVisible && siege) {
+      const victory = siege.mySide === siege.winner;
+      result.classList.toggle('is-victory', victory);
+      result.classList.toggle('is-defeat', !victory);
+      this.writers.setText(
+        element('#territory-result-title'),
+        t(victory ? 'hudChrome.territoryMap.resultVictory' : 'hudChrome.territoryMap.resultDefeat'),
+      );
+      this.writers.setText(
+        element('#territory-result-detail'),
+        t(
+          victory
+            ? 'hudChrome.territoryMap.resultVictoryDetail'
+            : 'hudChrome.territoryMap.resultDefeatDetail',
+        ),
+      );
+      this.writers.setText(
+        element('#territory-result-return'),
+        t('hudChrome.territoryMap.resultReturn', { seconds: siege.resultReturnIn }),
+      );
+    }
     if (!siege || siege.state === 'ended') return;
     this.writers.setText(
       element('#territory-siege-title'),

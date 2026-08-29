@@ -4084,7 +4084,12 @@ export const fr_CA: EnTranslations = {
       "leaveRam": "Leave ram",
       "ramGate": "Ram gate",
       "startCoreChannel": "Channel core",
-      "stopCoreChannel": "Stop channel"
+      "stopCoreChannel": "Stop channel",
+      "resultVictory": "Victory",
+      "resultDefeat": "Defeat",
+      "resultVictoryDetail": "Your guild has secured the territory.",
+      "resultDefeatDetail": "The territory belongs to the opposing guild.",
+      "resultReturn": "Returning to the world in {seconds}s"
     },
     "arenaGate": {
       "minLevelNote": "Niveau requis : {level}"

@@ -1,5 +1,6 @@
 export const TERRITORY_SIEGE_FIELD_HALF_X = 96;
 export const TERRITORY_SIEGE_FIELD_HALF_Z = 136;
+export const TERRITORY_SIEGE_STONE_LANE_HEIGHT = 0.072;
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
   if (edge0 === edge1) return value < edge0 ? 0 : 1;
@@ -12,7 +13,7 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
  * courtyard stay level for objective readability while the outer flanks roll
  * enough to catch light and stop reading as a flat debug plane.
  */
-export function territorySiegeGroundLiftLocal(x: number, z: number): number {
+export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
   const edgeDistance = Math.min(
     TERRITORY_SIEGE_FIELD_HALF_X - Math.abs(x),
     TERRITORY_SIEGE_FIELD_HALF_Z - Math.abs(z),
@@ -31,4 +32,20 @@ export function territorySiegeGroundLiftLocal(x: number, z: number): number {
   const ridge = Math.sin((x + z) * 0.039 - 0.8) * 0.2;
   const detail = Math.sin(x * 0.13 - z * 0.11 + 2.4) * 0.08;
   return Math.max(-0.48, Math.min(1.18, (0.24 + broad + cross + ridge + detail) * mask));
+}
+
+/**
+ * The castle's stone modules are deliberately flattened to a seven-centimetre
+ * profile. This matching walk surface keeps feet on the paving instead of
+ * letting characters sink through its decorative mesh.
+ */
+export function territorySiegeStoneLaneLiftLocal(x: number, z: number): number {
+  const vertical = z >= -69 && z <= 17 ? 1 - smoothstep(3.55, 4.05, Math.abs(x)) : 0;
+  const horizontal = x >= -38 && x <= 38 ? 1 - smoothstep(3.55, 4.05, Math.abs(z + 24)) : 0;
+  return Math.max(vertical, horizontal) * TERRITORY_SIEGE_STONE_LANE_HEIGHT;
+}
+
+/** Authoritative player surface, including the low castle paving. */
+export function territorySiegeGroundLiftLocal(x: number, z: number): number {
+  return Math.max(territorySiegeTerrainLiftLocal(x, z), territorySiegeStoneLaneLiftLocal(x, z));
 }

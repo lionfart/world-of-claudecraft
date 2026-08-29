@@ -3,7 +3,10 @@ import { DUNGEON_FLOOR_Y, territorySiegeOrigin } from '../src/sim/data';
 import {
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
+  TERRITORY_SIEGE_STONE_LANE_HEIGHT,
   territorySiegeGroundLiftLocal,
+  territorySiegeStoneLaneLiftLocal,
+  territorySiegeTerrainLiftLocal,
 } from '../src/sim/territory_siege_ground';
 import { groundHeight } from '../src/sim/world';
 
@@ -32,8 +35,21 @@ describe('territory siege shared ground', () => {
       { x: TERRITORY_SIEGE_FIELD_HALF_X, z: 0 },
       { x: 0, z: TERRITORY_SIEGE_FIELD_HALF_Z },
     ]) {
-      expect(territorySiegeGroundLiftLocal(point.x, point.z)).toBeCloseTo(0, 5);
+      expect(territorySiegeTerrainLiftLocal(point.x, point.z)).toBeCloseTo(0, 5);
     }
+  });
+
+  it('matches the flattened castle paving with a low authoritative walk surface', () => {
+    expect(territorySiegeStoneLaneLiftLocal(0, -42)).toBeCloseTo(
+      TERRITORY_SIEGE_STONE_LANE_HEIGHT,
+      6,
+    );
+    expect(territorySiegeStoneLaneLiftLocal(30, -24)).toBeCloseTo(
+      TERRITORY_SIEGE_STONE_LANE_HEIGHT,
+      6,
+    );
+    expect(territorySiegeGroundLiftLocal(0, -42)).toBeCloseTo(TERRITORY_SIEGE_STONE_LANE_HEIGHT, 6);
+    expect(territorySiegeStoneLaneLiftLocal(8, -42)).toBe(0);
   });
 
   it('feeds the same relief into authoritative world height sampling', () => {

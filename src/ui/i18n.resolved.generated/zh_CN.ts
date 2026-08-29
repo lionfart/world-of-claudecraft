@@ -4084,7 +4084,12 @@ export const zh_CN: EnTranslations = {
       "leaveRam": "Leave ram",
       "ramGate": "用攻城锤攻击城门",
       "startCoreChannel": "Channel core",
-      "stopCoreChannel": "Stop channel"
+      "stopCoreChannel": "Stop channel",
+      "resultVictory": "Victory",
+      "resultDefeat": "Defeat",
+      "resultVictoryDetail": "Your guild has secured the territory.",
+      "resultDefeatDetail": "The territory belongs to the opposing guild.",
+      "resultReturn": "Returning to the world in {seconds}s"
     },
     "arenaGate": {
       "minLevelNote": "需要等级 {level}"

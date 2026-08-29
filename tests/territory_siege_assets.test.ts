@@ -68,4 +68,15 @@ describe('territory siege asset kit', () => {
     expect(source).toContain("ring.name = 'territory-siege-tower-range'");
     expect(source).toContain('territorySiegeGroundLiftLocal(x, z)');
   });
+
+  it('uses clustered natural ground dressing instead of the old isolated spike carpet', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('../src/render/territory_siege_environment.ts', import.meta.url)),
+      'utf8',
+    );
+    expect(source).not.toContain('buildGrassCarpet');
+    expect(source).not.toContain('territory-siege-grass:');
+    expect(source).toContain('buildGroundStoneScatter');
+    expect(source).toContain('[4.2, 0.72, 4.2]');
+  });
 });
