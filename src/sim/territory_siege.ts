@@ -148,7 +148,7 @@ export function territorySiegeControlFor(
 }
 
 export function createTerritorySiege(definition: TerritorySiegeDefinition): TerritorySiegeState {
-  const gateMaxHp = definition.gateLevel <= 0 ? 0 : structureHp(100, definition.gateLevel);
+  const gateMaxHp = structureHp(100, Math.max(1, definition.gateLevel));
   const coreMaxHp = structureHp(150, definition.coreLevel);
   return {
     definition,

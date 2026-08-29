@@ -1,10 +1,19 @@
 import * as THREE from 'three';
 import { territorySiegeOrigin } from '../sim/data';
-import { TERRITORY_SIEGE_FLOOR_Y } from '../sim/territory_siege_layout';
+import {
+  TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
+  TERRITORY_SIEGE_CORE_Z,
+  TERRITORY_SIEGE_FLOOR_Y,
+  TERRITORY_SIEGE_GATE_Z,
+} from '../sim/territory_siege_layout';
 import type { TerritorySiegeView } from '../world_api';
 import { surfaceMat } from './gfx';
 import { cloneTerritorySiegeAsset, type TerritorySiegeAssetKey } from './territory_siege_assets';
-import { territorySiegeVisualState } from './territory_siege_visual_core';
+import {
+  TERRITORY_SIEGE_CORE_CRYSTAL_SCALE,
+  TERRITORY_SIEGE_GATE_MODEL_SCALE,
+  territorySiegeVisualState,
+} from './territory_siege_visual_core';
 
 export interface TerritorySiegePrototypeView {
   group: THREE.Group;
@@ -32,16 +41,32 @@ function model(
 
 function objectiveBeacon(color: number, radius: number): THREE.Group {
   const group = new THREE.Group();
+  const fill = new THREE.Mesh(
+    new THREE.CircleGeometry(radius * 0.93, 40),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.08,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  fill.rotation.x = -Math.PI / 2;
+  fill.position.y = 0.035;
+  group.add(fill);
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(radius * 0.72, radius, 32),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, side: THREE.DoubleSide }),
+    new THREE.RingGeometry(radius * 0.87, radius, 40),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.78,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
   );
   ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.05;
+  ring.position.y = 0.055;
   group.add(ring);
-  const light = new THREE.PointLight(color, 3.2, radius * 5, 2);
-  light.position.y = 2.5;
-  group.add(light);
   return group;
 }
 
@@ -153,7 +178,12 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
 
   for (const x of [-34, 34]) model(root, 'tower', [x, 0, 18], [5.1, 4.4, 5.1]);
 
-  const gate = model(root, 'gate', [0, 0, 17.3], [4, 1.35, 3]);
+  const gate = model(
+    root,
+    'gate',
+    [0, 0, TERRITORY_SIEGE_GATE_Z],
+    [...TERRITORY_SIEGE_GATE_MODEL_SCALE],
+  );
   const gateBaseScale = gate.scale.clone();
   const gateBeacon = objectiveBeacon(0xd06035, 3.5);
   gateBeacon.position.set(0, 0, 22);
@@ -162,22 +192,39 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
   model(root, 'castle', [0, 0, -40], [5.3, 4.4, 5.3], Math.PI);
   model(root, 'workshop', [-22, 0, 34], [5.4, 5.4, 5.4], Math.PI / 5);
 
-  const coreRoot = objectiveBeacon(0x55cfff, 7);
-  coreRoot.position.set(0, 0, -26);
+  const coreRoot = objectiveBeacon(0x43c7ff, TERRITORY_SIEGE_CORE_ATTACK_RADIUS);
+  coreRoot.position.set(0, 0, TERRITORY_SIEGE_CORE_Z);
   root.add(coreRoot);
   const pedestal = new THREE.Mesh(
-    new THREE.CylinderGeometry(3.2, 4.1, 1.2, 12),
-    surfaceMat({ color: 0x61584b, roughness: 0.85, metalness: 0.15 }),
+    new THREE.CylinderGeometry(2.35, 2.8, 0.8, 12),
+    surfaceMat({ color: 0x3e4651, roughness: 0.7, metalness: 0.35 }),
   );
-  pedestal.position.y = 0.6;
+  pedestal.position.y = 0.4;
   pedestal.castShadow = true;
+  pedestal.receiveShadow = true;
   coreRoot.add(pedestal);
-  const core = model(coreRoot, 'core', [0, 1.15, 0], [4.5, 4.5, 4.5]);
-  const coreHalo = new THREE.Mesh(
-    new THREE.TorusGeometry(2.8, 0.16, 8, 40),
-    new THREE.MeshBasicMaterial({ color: 0x73d8ff, transparent: true, opacity: 0.75 }),
+  model(coreRoot, 'coreAltar', [0, 0.72, 0], [4.1, 4.1, 4.1], Math.PI);
+  const core = model(
+    coreRoot,
+    'coreCrystal',
+    [0, 5.1, 0],
+    [
+      TERRITORY_SIEGE_CORE_CRYSTAL_SCALE,
+      TERRITORY_SIEGE_CORE_CRYSTAL_SCALE,
+      TERRITORY_SIEGE_CORE_CRYSTAL_SCALE,
+    ],
   );
-  coreHalo.position.y = 3.2;
+  core.rotation.z = Math.PI / 4;
+  const coreHalo = new THREE.Mesh(
+    new THREE.TorusGeometry(1.55, 0.12, 8, 36),
+    new THREE.MeshBasicMaterial({
+      color: 0x73d8ff,
+      transparent: true,
+      opacity: 0.7,
+      depthWrite: false,
+    }),
+  );
+  coreHalo.position.y = 5.1;
   coreHalo.rotation.x = Math.PI / 2;
   coreRoot.add(coreHalo);
 
@@ -215,10 +262,7 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
     gate.scale.set(gateBaseScale.x, gateBaseScale.y * state.gateScaleY, gateBaseScale.z);
     gate.position.y = (1 - state.gateScaleY) * 1.8;
     gateBeacon.visible = state.gateVisible;
-    core.scale.setScalar(4.5 * state.coreScaleY);
-    core.rotation.y = timeSeconds * 0.7;
-    coreHalo.rotation.z = timeSeconds * 0.9;
-    coreHalo.scale.setScalar(0.9 + Math.sin(timeSeconds * 2.4) * 0.08);
+    core.scale.setScalar(TERRITORY_SIEGE_CORE_CRYSTAL_SCALE * state.coreScaleY);
     coreRoot.visible = siege !== null;
     ram.visible = state.ramVisible;
     ramBuildBeacon.visible = !!siege && !siege.ramDeployed && !siege.gateOpen;
@@ -228,7 +272,7 @@ export function buildTerritorySiegePrototype(slot: number): TerritorySiegeProtot
       aimCylinder(
         coreBeam,
         new THREE.Vector3(player.x - origin.x, 1.6, player.z - origin.z),
-        new THREE.Vector3(0, 3.4, -26),
+        new THREE.Vector3(0, 5.1, TERRITORY_SIEGE_CORE_Z),
       );
     }
     for (let index = 0; index < towerWarnings.length; index += 1) {

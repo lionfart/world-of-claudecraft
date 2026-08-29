@@ -6,7 +6,10 @@ export const TERRITORY_SIEGE_FLOOR_Y = DUNGEON_FLOOR_Y;
 export const TERRITORY_SIEGE_FIELD_HALF_X = 46;
 export const TERRITORY_SIEGE_FIELD_HALF_Z = 66;
 export const TERRITORY_SIEGE_GATE_Z = 18;
-export const TERRITORY_SIEGE_GATE_HALF_WIDTH = 9;
+export const TERRITORY_SIEGE_GATE_HALF_WIDTH = 10;
+export const TERRITORY_SIEGE_CORE_Z = -26;
+export const TERRITORY_SIEGE_CORE_ATTACK_RADIUS = 12;
+export const TERRITORY_SIEGE_CORE_COLLIDER_RADIUS = 2.8;
 
 /** Stable, separated spawn rows for the first twenty seats on each side. */
 export function territorySiegeSpawn(
@@ -32,9 +35,9 @@ export function territorySiegeActionPoint(
   const origin = territorySiegeOrigin(slot);
   const local =
     action === 'start_core_channel'
-      ? { x: 0, z: -26, radius: 7 }
+      ? { x: 0, z: TERRITORY_SIEGE_CORE_Z, radius: TERRITORY_SIEGE_CORE_ATTACK_RADIUS }
       : action === 'stop_core_channel'
-        ? { x: 0, z: -26, radius: Number.POSITIVE_INFINITY }
+        ? { x: 0, z: TERRITORY_SIEGE_CORE_Z, radius: Number.POSITIVE_INFINITY }
         : action === 'deploy_ram'
           ? { x: 0, z: 27, radius: 8 }
           : action === 'leave_ram'
@@ -96,7 +99,13 @@ export function territorySiegeLocalColliders(): Collider[] {
     { type: 'obb', x: 22, z: 18, hw: 12, hd: 2, rot: 0, moveTopY: wallTop, cameraTopY: wallTop },
     { type: 'circle', x: -34, z: 18, r: 4, moveTopY: y + 7, cameraTopY: y + 9 },
     { type: 'circle', x: 34, z: 18, r: 4, moveTopY: y + 7, cameraTopY: y + 9 },
-    { type: 'obb', x: 0, z: -26, hw: 3.5, hd: 3.5, rot: 0, cameraTopY: y + 10 },
+    {
+      type: 'circle',
+      x: 0,
+      z: TERRITORY_SIEGE_CORE_Z,
+      r: TERRITORY_SIEGE_CORE_COLLIDER_RADIUS,
+      cameraTopY: y + 6.5,
+    },
   ];
 }
 

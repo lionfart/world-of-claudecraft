@@ -7,10 +7,11 @@ export const TERRITORY_SIEGE_ASSET_URLS = {
   wall: '/models/biome/hex_wall.glb',
   tower: '/models/biome/hex_tower.glb',
   workshop: '/models/biome/hex_blacksmith.glb',
-  gate: '/models/dungeon/wooden_gate.glb',
+  gate: '/models/biome/dungeon_gate_door.glb',
   cart: '/models/props/cart.glb',
   log: '/models/resources/wood_log_a.glb',
-  core: '/models/props/star_heart_crystal.glb',
+  coreAltar: '/models/props/enchanting_altar.glb',
+  coreCrystal: '/models/resources/gem_large.glb',
 } as const;
 
 export type TerritorySiegeAssetKey = keyof typeof TERRITORY_SIEGE_ASSET_URLS;

@@ -95,9 +95,21 @@ describe('territory siege', () => {
     expect(territorySiegeApplyAction(state, 10, 'start_core_channel', 30_000, rules).ok).toBe(true);
   });
 
-  it('supports an unbuilt gate and resolves core destruction exactly once', () => {
+  it('provisions a sealed base gate when the territory has no built gate', () => {
     const state = match(0);
     territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
+    expect(state.gateMaxHp).toBe(125);
+    expect(territorySiegeViewFor(state, 10, 1_000)?.gateOpen).toBe(false);
+    expect(territorySiegeApplyAction(state, 10, 'start_core_channel', 2_000, rules)).toEqual({
+      ok: false,
+      reason: 'gate_locked_core',
+    });
+  });
+
+  it('resolves core destruction exactly once after the base gate falls', () => {
+    const state = match(0);
+    territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
+    state.gateHp = 0;
     territorySiegeApplyAction(state, 10, 'start_core_channel', 2_000, rules);
     territorySiegeTick(state, 30_000, rules);
     expect(state.winner).toBe('attacker');

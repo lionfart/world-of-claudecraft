@@ -4,7 +4,7 @@ import { territoryConfigFromEnv } from '../../server/territory_config';
 describe('territory config', () => {
   it('ships the v1 test preset', () => {
     const config = territoryConfigFromEnv({});
-    expect(config.warNoticeSeconds).toBe(300);
+    expect(config.warNoticeSeconds).toBe(60);
     expect(config.teamSize).toBe(20);
     expect(config.realmWarSlots).toBe(4);
     expect(config.disconnectGraceSeconds).toBe(120);

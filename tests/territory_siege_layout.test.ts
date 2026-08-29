@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { territorySiegeOrigin } from '../src/sim/data';
 import {
   clampTerritorySiegeGate,
+  TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
   TERRITORY_SIEGE_FIELD_HALF_X,
+  TERRITORY_SIEGE_GATE_HALF_WIDTH,
   territorySiegeActionPoint,
   territorySiegeBandColliders,
+  territorySiegeLocalColliders,
   territorySiegeSpawn,
 } from '../src/sim/territory_siege_layout';
 
@@ -33,6 +36,12 @@ describe('territory siege instance layout', () => {
     expect((origin.z + 46 - point.z) ** 2).toBeGreaterThan(point.radius ** 2);
   });
 
+  it('gives the core channel a readable combat-sized attack area', () => {
+    const point = territorySiegeActionPoint(0, 'start_core_channel');
+    expect(point.radius).toBe(TERRITORY_SIEGE_CORE_ATTACK_RADIUS);
+    expect(point.radius).toBeGreaterThanOrEqual(12);
+  });
+
   it('blocks the gate crossing until the gate is destroyed', () => {
     const origin = territorySiegeOrigin(0);
     const blocked = clampTerritorySiegeGate(0, false, origin.z + 23, origin.x, origin.z + 15, 0.6);
@@ -40,5 +49,14 @@ describe('territory siege instance layout', () => {
     expect(clampTerritorySiegeGate(0, true, origin.z + 23, origin.x, origin.z + 15, 0.6).z).toBe(
       origin.z + 15,
     );
+  });
+
+  it('seals the complete twenty-unit opening between the front wall segments', () => {
+    const frontWalls = territorySiegeLocalColliders().filter(
+      (collider) => collider.type === 'obb' && collider.z === 18 && Math.abs(collider.x) === 22,
+    );
+    expect(frontWalls).toHaveLength(2);
+    expect(frontWalls.map((wall) => Math.abs(wall.x) - wall.hw)).toEqual([10, 10]);
+    expect(TERRITORY_SIEGE_GATE_HALF_WIDTH).toBe(10);
   });
 });
