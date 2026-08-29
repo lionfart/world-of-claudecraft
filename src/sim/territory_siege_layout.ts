@@ -7,9 +7,17 @@ import {
   TERRITORY_SIEGE_TREES,
 } from './territory_siege_environment';
 
+export {
+  TERRITORY_SIEGE_FIELD_HALF_X,
+  TERRITORY_SIEGE_FIELD_HALF_Z,
+} from './territory_siege_ground';
+
+import {
+  TERRITORY_SIEGE_FIELD_HALF_X,
+  TERRITORY_SIEGE_FIELD_HALF_Z,
+} from './territory_siege_ground';
+
 export const TERRITORY_SIEGE_FLOOR_Y = DUNGEON_FLOOR_Y;
-export const TERRITORY_SIEGE_FIELD_HALF_X = 82;
-export const TERRITORY_SIEGE_FIELD_HALF_Z = 116;
 export const TERRITORY_SIEGE_GATE_Z = 18;
 export const TERRITORY_SIEGE_GATE_HALF_WIDTH = 10;
 export const TERRITORY_SIEGE_WALL_HALF_X = 44;

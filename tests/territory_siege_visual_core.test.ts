@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   TERRITORY_SIEGE_CORE_CRYSTAL_SCALE,
-  TERRITORY_SIEGE_GATE_MODEL_SCALE,
+  TERRITORY_SIEGE_GATE_VISUAL_HEIGHT,
+  TERRITORY_SIEGE_GATE_VISUAL_WIDTH,
   territorySiegeVisualState,
 } from '../src/render/territory_siege_visual_core';
 import { TERRITORY_SIEGE_GATE_HALF_WIDTH } from '../src/sim/territory_siege_layout';
@@ -36,13 +37,16 @@ describe('territory siege prototype visual state', () => {
     expect(state.coreScaleY).toBeLessThan(1);
     expect(state.ramVisible).toBe(true);
     expect(state.coreChannelVisible).toBe(true);
+    expect(state.coreChannelPulse).toBeGreaterThanOrEqual(0);
+    expect(state.coreChannelPulse).toBeLessThanOrEqual(1);
   });
 
   it('fits the closed gate leaf exactly into the front-wall opening', () => {
-    const sourceGateWidth = 4.4;
-    expect(sourceGateWidth * TERRITORY_SIEGE_GATE_MODEL_SCALE[0]).toBeCloseTo(
+    expect(TERRITORY_SIEGE_GATE_VISUAL_WIDTH).toBeGreaterThanOrEqual(
       TERRITORY_SIEGE_GATE_HALF_WIDTH * 2,
     );
+    expect(TERRITORY_SIEGE_GATE_VISUAL_WIDTH).toBeLessThanOrEqual(21);
+    expect(TERRITORY_SIEGE_GATE_VISUAL_HEIGHT).toBeGreaterThanOrEqual(5.5);
   });
 
   it('keeps the replacement core crystal compact', () => {

@@ -72,14 +72,3 @@ export const TERRITORY_SIEGE_HOMES: readonly TerritorySiegeBuildingPlacement[] =
   { kind: 'homeB', x: -27, z: -37, scale: 7.6, yaw: 0.15 },
   { kind: 'homeA', x: 27, z: -39, scale: 7.8, yaw: -0.2 },
 ];
-
-export const TERRITORY_SIEGE_TERRAIN_PATCHES: readonly TerritorySiegeSceneryPlacement[] = [
-  { x: -49, z: 83, scale: 16, yaw: 0.2 },
-  { x: 52, z: 75, scale: 19, yaw: 1.1 },
-  { x: -61, z: 39, scale: 15, yaw: 2.4 },
-  { x: 61, z: 24, scale: 17, yaw: 0.7 },
-  { x: -59, z: -26, scale: 18, yaw: 1.8 },
-  { x: 61, z: -53, scale: 16, yaw: 2.7 },
-  { x: -55, z: -83, scale: 17, yaw: 0.5 },
-  { x: 54, z: -91, scale: 14, yaw: 1.5 },
-];

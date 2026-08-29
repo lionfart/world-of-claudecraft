@@ -1,6 +1,7 @@
 import type { TerritorySiegeView } from '../world_api';
 
-export const TERRITORY_SIEGE_GATE_MODEL_SCALE = [10 / 2.2, 5 / 4.4, 1 / 1.4] as const;
+export const TERRITORY_SIEGE_GATE_VISUAL_WIDTH = 20.4;
+export const TERRITORY_SIEGE_GATE_VISUAL_HEIGHT = 5.8;
 export const TERRITORY_SIEGE_CORE_CRYSTAL_SCALE = 2.8;
 
 export interface TerritorySiegeVisualState {
@@ -10,6 +11,7 @@ export interface TerritorySiegeVisualState {
   ramVisible: boolean;
   ramSwing: number;
   coreChannelVisible: boolean;
+  coreChannelPulse: number;
 }
 
 export function territorySiegeVisualState(
@@ -24,5 +26,6 @@ export function territorySiegeVisualState(
     ramVisible: siege?.ramDeployed ?? false,
     ramSwing: siege?.ramDeployed && siege.ramCooldown > 0 ? Math.sin(timeSeconds * 8) * 0.28 : 0,
     coreChannelVisible: siege?.coreChanneling ?? false,
+    coreChannelPulse: 0.5 + Math.sin(timeSeconds * 5.4) * 0.5,
   };
 }

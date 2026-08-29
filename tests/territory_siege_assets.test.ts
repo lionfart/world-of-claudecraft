@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   TERRITORY_SIEGE_ASSET_URLS,
+  TERRITORY_SIEGE_TEXTURE_URLS,
   territorySiegeAssetsInternalsForTest,
 } from '../src/render/territory_siege_assets';
 
@@ -18,8 +19,11 @@ describe('territory siege asset kit', () => {
     }
   });
 
-  it('uses a closed gate leaf and a compact altar core kit', () => {
-    expect(TERRITORY_SIEGE_ASSET_URLS.gate).toBe('/models/biome/dungeon_gate_door.glb');
+  it('drops the arched gate asset in favor of a fitted leaf and keeps the compact core kit', () => {
+    expect(TERRITORY_SIEGE_ASSET_URLS).not.toHaveProperty('gate');
+    expect(territorySiegeAssetsInternalsForTest.urls).not.toContain(
+      '/models/biome/dungeon_gate_door.glb',
+    );
     expect(TERRITORY_SIEGE_ASSET_URLS.coreAltar).toBe('/models/props/enchanting_altar.glb');
     expect(TERRITORY_SIEGE_ASSET_URLS.coreCrystal).toBe('/models/resources/gem_large.glb');
     expect(territorySiegeAssetsInternalsForTest.urls).not.toContain(
@@ -29,7 +33,9 @@ describe('territory siege asset kit', () => {
 
   it('builds the battlefield from optimized natural and settlement assets', () => {
     expect(TERRITORY_SIEGE_ASSET_URLS).toMatchObject({
-      treePineLarge: '/models/dungeon/tree_pine_orange_large.glb',
+      naturalPine: '/models/foliage/pine_2.glb',
+      naturalOak: '/models/foliage/oak_3.glb',
+      fern: '/models/foliage/fern.glb',
       rock: '/models/foliage/rock_1.glb',
       bush: '/models/foliage/bush.glb',
       homeA: '/models/biome/hex_home_a.glb',
@@ -37,5 +43,19 @@ describe('territory siege asset kit', () => {
       roadA: '/models/dungeon/path_a.glb',
       well: '/models/biome/hex_well.glb',
     });
+  });
+
+  it('preloads tiled PBR grass and dirt surfaces for the siege field', () => {
+    expect(TERRITORY_SIEGE_TEXTURE_URLS).toMatchObject({
+      grassColor: '/textures/terrain/Grass001_Color.jpg',
+      grassNormal: '/textures/terrain/Grass001_NormalGL.jpg',
+      dirtColor: '/textures/terrain/Ground023_Color.jpg',
+      dirtNormal: '/textures/terrain/Ground023_NormalGL.jpg',
+    });
+    for (const url of territorySiegeAssetsInternalsForTest.textureUrls) {
+      expect(existsSync(fileURLToPath(new URL(`../public${url}`, import.meta.url))), url).toBe(
+        true,
+      );
+    }
   });
 });

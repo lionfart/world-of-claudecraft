@@ -29,6 +29,7 @@ import {
   STRIP_MAX_X,
   STRIP_MIN_X,
   STRIP_ZONES,
+  territorySiegeOriginAt,
   WORLD_MAX_X,
   WORLD_MAX_Z,
   WORLD_MIN_X,
@@ -67,6 +68,7 @@ import {
   terrainRegionHas,
 } from './terrain_region_index';
 import { cragLayer, highlandMask, reliefBase, ridged2, warpedCoords } from './terrain_relief';
+import { territorySiegeGroundLiftLocal } from './territory_siege_ground';
 import type { BiomeId, HeightStamp, ZoneDef } from './types';
 import { wildheartFieldHeight } from './wildheart_field';
 
@@ -3964,9 +3966,12 @@ function applyReachPoolWalkwayBed(x: number, z: number, h: number): number {
   return applyReachPoolDeckTieIn(x, z, applyReachPoolRimEase(x, z, h));
 }
 
-// Ground height including instanced dungeon floors (flat, far off-world, plus
+// Ground height including isolated PvP fields and far-off-world dungeon floors.
 export function groundHeight(x: number, z: number, seed: number): number {
-  if (isTerritorySiegePos(x)) return DUNGEON_FLOOR_Y;
+  if (isTerritorySiegePos(x)) {
+    const origin = territorySiegeOriginAt(z);
+    return DUNGEON_FLOOR_Y + territorySiegeGroundLiftLocal(x - origin.x, z - origin.z);
+  }
   if (isBgPos(x)) {
     // The battleground band is the one instanced region with REAL terrain:
     // the Thornhollow field's sculpted heightfield, identical for sim,
