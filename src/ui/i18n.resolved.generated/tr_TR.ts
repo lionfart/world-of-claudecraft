@@ -4095,6 +4095,24 @@ export const tr_TR: EnTranslations = {
       "resultDefeatDetail": "Bölge rakip loncanın kontrolünde kaldı.",
       "resultReturn": "{seconds} saniye sonra dünyaya dönülüyor"
     },
+    "guildTerritory": {
+      "title": "Toprak Komutası",
+      "subtitle": "Klan toprakları ve kuşatma harekâtları",
+      "loading": "Toprak komutası yükleniyor…",
+      "territory": "Topraklar",
+      "openMap": "Savaş Haritasını Aç",
+      "canManage": "Savaş yetkilisi",
+      "memberView": "Taktik görünüm",
+      "noWars": "İlan edilmiş veya süren bir toprak savaşı yok.",
+      "attacking": "Saldırı",
+      "defending": "Savunma",
+      "target": "Hedef altıgen {cell}",
+      "startsIn": "{time} sonra başlıyor",
+      "endsIn": "{time} sonra bitiyor",
+      "cancel": "Savaşı geri çek",
+      "cancelPrompt": "Bu savaş ilanı geri çekilsin mi? Bu işlem yalnızca savaş başlamadan önce yapılabilir.",
+      "cancelConfirm": "Savaş ilanını geri çek"
+    },
     "arenaGate": {
       "minLevelNote": "Seviye {level} gerektirir"
     },

@@ -1,6 +1,7 @@
 // Pure projection and hit-testing for the seasonal strategic map. The painter
 // receives only visible cells; it never scans the full manifest itself.
 
+import { type TerritoryVisualBiome, territoryVisualBiome } from '../sim/territory_biome';
 import {
   axialKey,
   axialToWorld,
@@ -35,6 +36,7 @@ export interface TerritoryMapHex {
   my: number;
   radiusPx: number;
   terrain: TerritoryTerrain;
+  biome: TerritoryVisualBiome;
   resource: TerritoryResourceKind | null;
   ownerGuildId: string | null;
   ownerGuildName: string | null;
@@ -138,6 +140,7 @@ export function buildTerritoryMapModel(input: {
         my: (point.y - center.y) * pixelsPerUnit + input.canvasSize / 2,
         radiusPx: pixelsPerUnit,
         terrain: cell.terrain,
+        biome: territoryVisualBiome(cell, manifest.radius),
         resource: cell.resource,
         ownerGuildId: owner?.ownerGuildId ?? null,
         ownerGuildName: owner?.ownerGuildName ?? null,

@@ -29,6 +29,7 @@ import { classDisplayName } from './entity_i18n';
 import { esc } from './esc';
 import { captureFormDraft, restoreFormDraft } from './form_draft';
 import { loadGuildHideOffline, saveGuildHideOffline } from './guild_hide_offline';
+import { guildTerritoryPanelModel } from './guild_territory_view';
 import { formatDateTime, formatNumber, t, tPlural } from './i18n';
 import { localizeZone } from './server_i18n';
 import {
@@ -50,6 +51,7 @@ import {
 } from './social_view';
 import { focusActiveTab, wireTabStrip } from './tab_strip_painter';
 import { tabStripHtml, tabStripModel } from './tab_strip_view';
+import { territoryWarCountdown } from './territory_map_panel_view';
 import { svgIcon } from './ui_icons';
 
 // Typeahead timings (named, not bare literals): debounce a keystroke
@@ -91,6 +93,8 @@ export interface SocialWindowDeps {
   showPrompt(text: string, acceptLabel: string, onAccept: () => void, onDecline: () => void): void;
   /** Open the chat bar pre-filled with a whisper to this player. */
   startWhisper(name: string): void;
+  /** Open the strategic War Map from the Guild command panel. */
+  openTerritoryMap?(): void;
 }
 
 function cap(s: string): string {
@@ -219,6 +223,7 @@ export class SocialWindow {
   // is actionable info, never gated on graphics tier). Loaded once; the delegated body
   // handler flips + persists it and refreshes the list in place.
   private hideOffline = loadGuildHideOffline();
+  private territoryWatching = false;
 
   constructor(private readonly deps: SocialWindowDeps) {}
 
@@ -246,6 +251,7 @@ export class SocialWindow {
   close(): void {
     const el = this.deps.root();
     el.classList.remove('open');
+    this.syncTerritoryWatch(false);
     this.deps.hideTooltip();
     const target = this.returnFocus;
     this.returnFocus = null;
@@ -317,7 +323,23 @@ export class SocialWindow {
 
   private contentSig(): string {
     const w = this.deps.world();
-    return JSON.stringify({ social: w.socialInfo, party: w.partyInfo });
+    return JSON.stringify({
+      social: w.socialInfo,
+      party: w.partyInfo,
+      territory: this.tab === 'guild' ? w.territoryMap : null,
+      // While the Guild command panel is visible its pre-battle/battle clock
+      // advances once per second even if no network delta arrives.
+      territorySecond: this.tab === 'guild' ? Math.floor(Date.now() / 1_000) : 0,
+    });
+  }
+
+  private syncTerritoryWatch(force = true): void {
+    const w = this.deps.world();
+    const shouldWatch = force && this.isOpen && this.tab === 'guild' && !!w.socialInfo?.guild;
+    if (shouldWatch === this.territoryWatching) return;
+    this.territoryWatching = shouldWatch;
+    if (shouldWatch) w.territoryOpen();
+    else w.territoryClose();
   }
 
   // Full rebuild: title, tabs, body, notice, and the tab's footer (with its
@@ -335,6 +357,7 @@ export class SocialWindow {
     // pattern).
     const pledgePanel = pledgePanelView(w.socialInfo);
     if (this.tab === 'pledges' && !pledgePanel) this.tab = 'guild';
+    this.syncTerritoryWatch();
     const tab = this.tab;
     const online = w.socialInfo !== null;
     const realmTag =
@@ -518,6 +541,10 @@ export class SocialWindow {
       this.saveBillboard();
       return;
     }
+    if (node.dataset.act === 'territory-open-map') {
+      this.deps.openTerritoryMap?.();
+      return;
+    }
     if (node.dataset.act === 'pledge-settings-save') {
       this.savePledgeSettings();
       return;
@@ -525,7 +552,17 @@ export class SocialWindow {
     const w = this.deps.world();
     const act = node.dataset.act;
     const name = node.dataset.name ?? '';
-    if (act === 'unfriend') w.friendRemove(name);
+    const warId = node.dataset.warId ?? '';
+    if (act === 'territory-join-war' && warId) w.territoryJoinWar(warId);
+    else if (act === 'territory-leave-war' && warId) w.territoryLeaveWar(warId);
+    else if (act === 'territory-cancel-war' && warId)
+      this.deps.showPrompt(
+        esc(t('hudChrome.guildTerritory.cancelPrompt')),
+        t('hudChrome.guildTerritory.cancelConfirm'),
+        () => w.territoryCancelWar(warId),
+        () => {},
+      );
+    else if (act === 'unfriend') w.friendRemove(name);
     else if (act === 'unblock') w.blockRemove(name);
     else if (act === 'unignore') w.ignoreRemove(name);
     else if (act === 'gkick') w.guildKick(name);
@@ -686,7 +723,79 @@ export class SocialWindow {
           : guildMemberRowHtml(item.row, now),
       )
       .join('');
-    return head + this.billboardHtml(g) + toggle + body;
+    return head + this.billboardHtml(g) + this.territoryCommandHtml(now) + toggle + body;
+  }
+
+  private territoryCommandHtml(now: number): string {
+    const w = this.deps.world();
+    const panel = guildTerritoryPanelModel(w.territoryMap, now);
+    const openMap =
+      `<button type="button" class="btn soc-territory-map" data-act="territory-open-map">` +
+      `${svgIcon('map')}<span>${esc(t('hudChrome.guildTerritory.openMap'))}</span></button>`;
+    if (!panel) {
+      return (
+        `<section class="soc-territory-command loading">` +
+        `<div class="soc-territory-title"><span class="soc-territory-emblem">${svgIcon('map')}</span>` +
+        `<span><b>${esc(t('hudChrome.guildTerritory.title'))}</b>` +
+        `<small>${esc(t('hudChrome.guildTerritory.loading'))}</small></span></div>` +
+        openMap +
+        `</section>`
+      );
+    }
+    const guild = panel.guild;
+    const resources = (
+      [
+        ['resourceWood', guild.resources.wood],
+        ['resourceIron', guild.resources.iron],
+        ['resourceGrain', guild.resources.grain],
+        ['resourceLabor', guild.resources.labor],
+      ] as const
+    )
+      .map(
+        ([key, value]) =>
+          `<span><small>${esc(t(`hudChrome.territoryMap.${key}`))}</small><b>${esc(formatNumber(value, { maximumFractionDigits: 0 }))}</b></span>`,
+      )
+      .join('');
+    const wars =
+      panel.wars.length === 0
+        ? `<div class="soc-territory-empty">${esc(t('hudChrome.guildTerritory.noWars'))}</div>`
+        : panel.wars
+            .map((war) => {
+              const roleKey = war.side === 'attacker' ? 'attacking' : 'defending';
+              const timerKey = war.status === 'active' ? 'endsIn' : 'startsIn';
+              const roleIcon = war.side === 'attacker' ? svgIcon('attack') : svgIcon('tank');
+              const actions =
+                (war.canJoin
+                  ? `<button type="button" class="btn" data-act="territory-join-war" data-war-id="${esc(war.id)}">${esc(t('hudChrome.territoryMap.joinWar'))}</button>`
+                  : '') +
+                (war.canLeave
+                  ? `<button type="button" class="btn" data-act="territory-leave-war" data-war-id="${esc(war.id)}">${esc(t('hudChrome.territoryMap.leaveWar'))}</button>`
+                  : '') +
+                (war.canCancel
+                  ? `<button type="button" class="btn danger" data-act="territory-cancel-war" data-war-id="${esc(war.id)}">${esc(t('hudChrome.guildTerritory.cancel'))}</button>`
+                  : '');
+              return (
+                `<article class="soc-territory-war ${war.side}">` +
+                `<div class="soc-territory-war-icon">${roleIcon}</div>` +
+                `<div class="soc-territory-war-main"><b>${esc(t(`hudChrome.guildTerritory.${roleKey}`))} · ${esc(war.opponentName)}</b>` +
+                `<small>${esc(t('hudChrome.guildTerritory.target', { cell: formatNumber(war.targetCellId, { maximumFractionDigits: 0 }) }))} · ${esc(t(`hudChrome.guildTerritory.${timerKey}`, { time: territoryWarCountdown(war.secondsRemaining) }))}</small>` +
+                `<small>${esc(t('hudChrome.territoryMap.warQueue', { attackers: formatNumber(war.attackerCount, { maximumFractionDigits: 0 }), defenders: formatNumber(war.defenderCount, { maximumFractionDigits: 0 }) }))}</small></div>` +
+                (actions ? `<div class="soc-territory-war-actions">${actions}</div>` : '') +
+                `</article>`
+              );
+            })
+            .join('');
+    return (
+      `<section class="soc-territory-command">` +
+      `<header class="soc-territory-header"><div class="soc-territory-title"><span class="soc-territory-emblem">${svgIcon('map')}</span>` +
+      `<span><b>${esc(t('hudChrome.guildTerritory.title'))}</b><small>${esc(t('hudChrome.guildTerritory.subtitle'))}</small></span></div>` +
+      `<span class="soc-territory-permission ${panel.canManage ? 'manager' : ''}">${svgIcon(panel.canManage ? 'crown' : 'lock')}${esc(t(panel.canManage ? 'hudChrome.guildTerritory.canManage' : 'hudChrome.guildTerritory.memberView'))}</span></header>` +
+      `<div class="soc-territory-overview"><div class="soc-territory-capacity"><small>${esc(t('hudChrome.guildTerritory.territory'))}</small>` +
+      `<b>${esc(t('hudChrome.territoryMap.capacity', { owned: formatNumber(guild.ownedCellCount, { maximumFractionDigits: 0 }), capacity: formatNumber(guild.cellCapacity, { maximumFractionDigits: 0 }) }))}</b></div>` +
+      `<div class="soc-territory-resources">${resources}</div>${openMap}</div>` +
+      `<div class="soc-territory-wars">${wars}</div>` +
+      `</section>`
+    );
   }
 
   // The guild billboard: the officer-set message pinned between the guild head

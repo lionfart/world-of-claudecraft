@@ -96,6 +96,9 @@ export class TerritoryClient {
   declareWar(cellId: number): void {
     this.mutate({ cmd: 'territory_declare_war', cellId });
   }
+  cancelWar(warId: string): void {
+    this.mutate({ cmd: 'territory_cancel_war', warId });
+  }
   joinWar(warId: string): void {
     this.mutate({ cmd: 'territory_join_war', warId });
   }
@@ -242,6 +245,11 @@ export function installTerritoryClient<T extends object>(prototype: T): void {
     territoryDeclareWar: {
       value(this: T, cellId: number) {
         client(this).declareWar(cellId);
+      },
+    },
+    territoryCancelWar: {
+      value(this: T, warId: string) {
+        client(this).cancelWar(warId);
       },
     },
     territoryJoinWar: {

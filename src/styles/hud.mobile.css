@@ -4702,6 +4702,32 @@
   body.mobile-touch #social-window .soc-body {
     grid-template-columns: 1fr;
   }
+  body.mobile-touch #social-window .soc-territory-header,
+  body.mobile-touch #social-window .soc-territory-overview,
+  body.mobile-touch #social-window .soc-territory-war {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  body.mobile-touch #social-window .soc-territory-permission {
+    align-self: center;
+  }
+  body.mobile-touch #social-window .soc-territory-capacity,
+  body.mobile-touch #social-window .soc-territory-resources {
+    flex: 1 1 100%;
+  }
+  body.mobile-touch #social-window .soc-territory-map {
+    width: 100%;
+    justify-content: center;
+  }
+  body.mobile-touch #social-window .soc-territory-war-main {
+    flex: 1 1 calc(100% - 40px);
+  }
+  body.mobile-touch #social-window .soc-territory-war-actions {
+    width: 100%;
+  }
+  body.mobile-touch #social-window .soc-territory-war-actions .btn {
+    flex: 1;
+  }
   body.mobile-touch .raid-groups {
     grid-template-columns: 1fr;
   }

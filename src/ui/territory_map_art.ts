@@ -1,6 +1,11 @@
+import type { TerritoryVisualBiome } from '../sim/territory_biome';
 import type { TerritoryResourceKind, TerritoryTerrain } from '../sim/territory_manifest';
 
-export type TerritoryMapArtKey = TerritoryTerrain | TerritoryResourceKind | 'keep';
+export type TerritoryMapArtKey =
+  | TerritoryVisualBiome
+  | TerritoryTerrain
+  | TerritoryResourceKind
+  | 'keep';
 export type TerritoryMapArt = Partial<Record<TerritoryMapArtKey, HTMLImageElement>>;
 
 export interface TerritoryMapArtRect {
@@ -52,8 +57,17 @@ export function territoryFeatureArtRect(
  */
 export const TERRITORY_MAP_ART_SOURCES: Readonly<Record<TerritoryMapArtKey, string>> = {
   grassland: '/territory_map/grassland.webp',
+  ocean: '/territory_map/ocean.webp',
+  coast: '/territory_map/coast.webp',
+  woodlands: '/territory_map/woodlands.webp',
   forest: '/territory_map/forest.webp',
   highland: '/territory_map/highland.webp',
+  mountain: '/territory_map/mountain.webp',
+  snowfield: '/territory_map/snowfield.webp',
+  snowForest: '/territory_map/snow-forest.webp',
+  snowMountain: '/territory_map/snow-mountain.webp',
+  desert: '/territory_map/desert.webp',
+  desertMesa: '/territory_map/desert-mesa.webp',
   marsh: '/territory_map/marsh.webp',
   wastes: '/territory_map/wastes.webp',
   wood: '/territory_map/wood.webp',

@@ -77,6 +77,7 @@ const TERRITORY_COMMANDS = new Set([
   'territory_join_war',
   'territory_leave_war',
   'territory_siege_action',
+  'territory_cancel_war',
 ]);
 const WS_FRAME_MAX_BYTES = 16 * 1024;
 
@@ -285,11 +286,18 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
         slot: message.slot as TerritoryStructureSlot,
       };
     } else if (
-      (command === 'territory_join_war' || command === 'territory_leave_war') &&
+      (command === 'territory_join_war' ||
+        command === 'territory_leave_war' ||
+        command === 'territory_cancel_war') &&
       typeof message.warId === 'string'
     ) {
       mutation = {
-        kind: command === 'territory_join_war' ? 'join_war' : 'leave_war',
+        kind:
+          command === 'territory_join_war'
+            ? 'join_war'
+            : command === 'territory_leave_war'
+              ? 'leave_war'
+              : 'cancel_war',
         warId: message.warId,
       };
     } else if (

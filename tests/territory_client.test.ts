@@ -35,6 +35,10 @@ describe('territory client war notices', () => {
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ cmd: 'territory_join_war', expectedRevision: 12 }),
     );
+    client.cancelWar(war.id);
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ cmd: 'territory_cancel_war', warId: war.id, expectedRevision: 12 }),
+    );
     expect(client.handleMessage({ t: 'territory_war_notice', war: null })).toBe(true);
     expect(client.notice).toBeNull();
   });

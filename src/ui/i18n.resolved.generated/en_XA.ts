@@ -4095,6 +4095,24 @@ export const en_XA: EnTranslations = {
       "resultDefeatDetail": "[Ţĥé ţéŕŕíţóŕý ƀéļóñĝš ţó ţĥé óþþóšíñĝ ĝúíļð.]",
       "resultReturn": "[Ŕéţúŕñíñĝ ţó ţĥé ŵóŕļð íñ {seconds}š]"
     },
+    "guildTerritory": {
+      "title": "[Ţéŕŕíţóŕý Çóɱɱáñð]",
+      "subtitle": "[Ĝúíļð ĥóļðíñĝš áñð šíéĝé óþéŕáţíóñš]",
+      "loading": "[Ļóáðíñĝ ţéŕŕíţóŕý çóɱɱáñð…]",
+      "territory": "[Ţéŕŕíţóŕý]",
+      "openMap": "[Óþéñ Ŵáŕ Ɱáþ]",
+      "canManage": "[Ŵáŕ óƒƒíçéŕ]",
+      "memberView": "[Ţáçţíçáļ ʋíéŵ]",
+      "noWars": "[Ñó ðéçļáŕéð óŕ áçţíʋé ţéŕŕíţóŕý ŵáŕš.]",
+      "attacking": "[Áţţáçķíñĝ]",
+      "defending": "[Ðéƒéñðíñĝ]",
+      "target": "[Ţáŕĝéţ ĥéẋ {cell}]",
+      "startsIn": "[Šţáŕţš íñ {time}]",
+      "endsIn": "[Éñðš íñ {time}]",
+      "cancel": "[Ŵíţĥðŕáŵ ŵáŕ]",
+      "cancelPrompt": "[Ŵíţĥðŕáŵ ţĥíš ŵáŕ ðéçļáŕáţíóñ? Ţĥíš íš þóššíƀļé óñļý ƀéƒóŕé ţĥé ƀáţţļé ƀéĝíñš.]",
+      "cancelConfirm": "[Ŵíţĥðŕáŵ ðéçļáŕáţíóñ]"
+    },
     "arenaGate": {
       "minLevelNote": "[Ŕéɋúíŕéš ļéʋéļ {level}]"
     },

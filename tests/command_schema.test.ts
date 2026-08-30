@@ -66,9 +66,10 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 // the Proving Shore tutorial adds its one start_tutorial pair back on top, and
 // the v0.40.0 sync merge brings the release side's one new pair with it. The
 // directional combat branch adds the dodge pair, and seasonal territory warfare
-// adds its ten watch/claim/build/war/siege command pairs.
-const EXPECTED_SEND_COUNT = 210;
-const EXPECTED_DISPATCH_COUNT = 223;
+// adds its territory watch/claim/build/war/siege command pairs, including the
+// officer-plus pre-battle declaration withdrawal command.
+const EXPECTED_SEND_COUNT = 211;
+const EXPECTED_DISPATCH_COUNT = 224;
 const EXPECTED_DISPATCH_ONLY_COUNT = 13;
 
 // The chat sub-channel routing switch (server/game.ts `switch

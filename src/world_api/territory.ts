@@ -153,6 +153,7 @@ export interface IWorldTerritory {
   /** Kept on the protocol seam for forwards compatibility; v1 rejects it because structures have no HP. */
   territoryRepair(cellId: number, slot: TerritoryStructureSlot): void;
   territoryDeclareWar(cellId: number): void;
+  territoryCancelWar(warId: string): void;
   territoryJoinWar(warId: string): void;
   territoryLeaveWar(warId: string): void;
   territorySiegeAction(action: TerritorySiegeAction): void;

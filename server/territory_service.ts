@@ -51,6 +51,7 @@ export type TerritoryCommand =
   | { kind: 'upgrade'; cellId: number; slot: TerritoryStructureSlot }
   | { kind: 'repair'; cellId: number; slot: TerritoryStructureSlot }
   | { kind: 'declare_war'; cellId: number }
+  | { kind: 'cancel_war'; warId: string }
   | { kind: 'join_war'; warId: string }
   | { kind: 'leave_war'; warId: string }
   | { kind: 'siege_action'; action: TerritorySiegeAction };
@@ -560,6 +561,13 @@ export class TerritoryService {
     }
     const actor = await this.actor(characterId);
     if (!actor) return { ok: false, error: 'not_in_guild' };
+    if (
+      (command.kind === 'declare_war' || command.kind === 'cancel_war') &&
+      actor.rank !== 'leader' &&
+      actor.rank !== 'officer'
+    ) {
+      return { ok: false, error: 'forbidden' };
+    }
     const ctx: TerritoryMutationContext = { ...actor, commandId, expectedRevision };
     let result: TerritoryMutationResult;
     switch (command.kind) {
@@ -585,6 +593,9 @@ export class TerritoryService {
         break;
       case 'declare_war':
         result = await this.repository.declareWar(ctx, command.cellId);
+        break;
+      case 'cancel_war':
+        result = await this.repository.cancelWar(ctx, command.warId);
         break;
       case 'join_war':
         {
@@ -660,6 +671,9 @@ export class TerritoryService {
     this.publish({ delta: result.delta, guildId: actor.guildId, guild });
     if (command.kind === 'declare_war') {
       for (const war of result.delta.warsUpsert ?? []) this.publishWarNotice(war.id);
+    } else if (command.kind === 'cancel_war') {
+      this.registrations.delete(command.warId);
+      this.publishWarNotice(command.warId);
     }
     return result;
   }

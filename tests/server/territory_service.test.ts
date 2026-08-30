@@ -72,10 +72,80 @@ function repositoryFake(snapshot: TerritoryMapState, dueSieges: unknown[] = []) 
     rollSeasonIfDue: vi.fn().mockResolvedValue(false),
     joinWar: vi.fn(),
     leaveWar: vi.fn(),
+    declareWar: vi.fn(),
+    cancelWar: vi.fn(),
+    loadGuildView: vi.fn().mockResolvedValue(null),
   };
 }
 
 describe('territory service hot paths', () => {
+  it('rejects member war declarations and withdrawals before reaching persistence', async () => {
+    const repository = repositoryFake(mapState());
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 11,
+        guildId: 7,
+        guildName: 'Seven',
+        rank: 'member',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+    );
+
+    await expect(
+      service.execute(11, '00000000-0000-4000-8000-000000000020', 1, {
+        kind: 'declare_war',
+        cellId: 4,
+      }),
+    ).resolves.toEqual({ ok: false, error: 'forbidden' });
+    await expect(
+      service.execute(11, '00000000-0000-4000-8000-000000000021', 1, {
+        kind: 'cancel_war',
+        warId: '00000000-0000-4000-8000-000000000010',
+      }),
+    ).resolves.toEqual({ ok: false, error: 'forbidden' });
+    expect(repository.declareWar).not.toHaveBeenCalled();
+    expect(repository.cancelWar).not.toHaveBeenCalled();
+  });
+
+  it('routes an officer withdrawal through the authoritative repository', async () => {
+    const repository = repositoryFake(mapState());
+    repository.cancelWar.mockResolvedValue({
+      ok: true,
+      delta: null,
+      duplicate: false,
+      guildId: 7,
+    });
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 11,
+        guildId: 7,
+        guildName: 'Seven',
+        rank: 'officer',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+    );
+    const warId = '00000000-0000-4000-8000-000000000010';
+
+    await expect(
+      service.execute(11, '00000000-0000-4000-8000-000000000022', 1, {
+        kind: 'cancel_war',
+        warId,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(repository.cancelWar).toHaveBeenCalledWith(
+      expect.objectContaining({ characterId: 11, rank: 'officer' }),
+      warId,
+    );
+  });
+
   it('serves hot personalized snapshots without a per-viewer guild query', async () => {
     const repository = repositoryFake(mapState());
     const resolveActor = vi.fn().mockReturnValue({

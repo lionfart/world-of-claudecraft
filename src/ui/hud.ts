@@ -4633,6 +4633,7 @@ export class Hud {
     showPrompt: (text, acceptLabel, onAccept, onDecline) =>
       this.showPrompt(text, acceptLabel, onAccept, onDecline),
     startWhisper: (name) => this.startWhisper(name),
+    openTerritoryMap: () => this.openTerritoryMapWindow(),
   });
   // Set by main.ts once the realm's /api/status advert answers, which lands AFTER
   // this window is constructed: a hosted dev/PBE realm booted with
@@ -10383,6 +10384,24 @@ export class Hud {
     this.mapLevel = 'zone'; // always open on the per-zone detail map
     this.mapHoverZone = null;
     el.style.display = 'block';
+    this.updateMapWindow();
+    this.syncAnyWindowOpenState();
+  }
+
+  private openTerritoryMapWindow(): void {
+    const el = $('#map-window');
+    this.closeOtherWindows('#map-window');
+    this.mapZoom = MAP_OPEN_ZOOM;
+    this.mapCenter = null;
+    this.mapPing = null;
+    this.mapZoneOverride = null;
+    this.mapHoverZone = null;
+    this.mapDrag = null;
+    this.mapLevel = 'territory';
+    el.style.display = 'block';
+    // Opening from the Guild panel closes that panel's lightweight watch first;
+    // the full map controller immediately takes ownership of the live stream.
+    this.territoryMap.open();
     this.updateMapWindow();
     this.syncAnyWindowOpenState();
   }

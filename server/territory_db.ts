@@ -50,21 +50,6 @@ const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>
   construction_workshop: 'construction_workshop',
   siege_workshop: 'siege_workshop',
 };
-const GUILD_COLORS = [
-  '#b95545',
-  '#3e78b2',
-  '#4f8d55',
-  '#a06bb2',
-  '#c08a35',
-  '#3d9295',
-  '#a55478',
-  '#697fbc',
-  '#9b793f',
-  '#577f66',
-  '#b65d3f',
-  '#5368a2',
-] as const;
-
 type MutationError =
   | 'disabled'
   | 'not_in_guild'
@@ -156,7 +141,14 @@ function iso(value: Date | string): string {
 }
 
 export function territoryGuildColor(guildId: number): string {
-  return GUILD_COLORS[Math.abs(guildId) % GUILD_COLORS.length];
+  const id = Math.abs(Math.trunc(guildId));
+  // Golden-angle stepping keeps neighbouring guild ids far apart on the hue
+  // wheel. Small saturation/lightness cycles preserve distinction even after
+  // a full hue wrap while remaining vivid enough for thin frontier ribbons.
+  const hue = Math.round((id * 137.508 + 17) % 360);
+  const saturation = 66 + (id % 3) * 7;
+  const lightness = 48 + ((id * 5) % 3) * 5;
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
 function buildCost(kind: TerritoryStructureKind, nextLevel: number) {
@@ -1202,6 +1194,50 @@ export class TerritoryRepository {
             registered: false,
           },
         ],
+      };
+    });
+  }
+
+  cancelWar(ctx: TerritoryMutationContext, warId: string): Promise<TerritoryMutationResult> {
+    return this.mutate(ctx, 'cancel_war', null, async (client, season) => {
+      if (!validRankForManage(ctx.rank)) return 'forbidden';
+      const war = await client.query<{
+        attacker_guild_id: number;
+        status: TerritoryWarStatus;
+        starts_at: Date | string;
+      }>(
+        `SELECT attacker_guild_id, status, starts_at FROM territory_wars
+          WHERE id = $1 AND season_id = $2 FOR UPDATE`,
+        [warId, season.id],
+      );
+      const row = war.rows[0];
+      if (!row) return 'war_not_found';
+      if (row.attacker_guild_id !== ctx.guildId) return 'forbidden';
+      if (
+        !['declared', 'forming'].includes(row.status) ||
+        new Date(row.starts_at).getTime() <= Date.now()
+      ) {
+        return 'registration_closed';
+      }
+      const cancelled = await client.query(
+        `UPDATE territory_wars
+            SET status = 'cancelled', resolved_at = now(), version = version + 1
+          WHERE id = $1 AND season_id = $2
+            AND status IN ('declared', 'forming') AND starts_at > now()`,
+        [warId, season.id],
+      );
+      if ((cancelled.rowCount ?? 0) !== 1) return 'registration_closed';
+      await client.query(
+        `UPDATE territory_war_participants
+            SET left_at = now(), seat_no = NULL
+          WHERE war_id = $1 AND left_at IS NULL`,
+        [warId],
+      );
+      const view = await this.warView(client, warId, ctx.guildId, ctx.characterId);
+      if (!view) return 'war_not_found';
+      return {
+        revision: 0,
+        warsUpsert: [{ ...view, mySide: null, registered: false }],
       };
     });
   }

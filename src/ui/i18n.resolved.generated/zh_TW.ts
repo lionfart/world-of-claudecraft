@@ -4095,6 +4095,24 @@ export const zh_TW: EnTranslations = {
       "resultDefeatDetail": "The territory belongs to the opposing guild.",
       "resultReturn": "Returning to the world in {seconds}s"
     },
+    "guildTerritory": {
+      "title": "Territory Command",
+      "subtitle": "Guild holdings and siege operations",
+      "loading": "Loading territory command…",
+      "territory": "Territory",
+      "openMap": "Open War Map",
+      "canManage": "War officer",
+      "memberView": "Tactical view",
+      "noWars": "No declared or active territory wars.",
+      "attacking": "Attacking",
+      "defending": "Defending",
+      "target": "Target hex {cell}",
+      "startsIn": "Starts in {time}",
+      "endsIn": "Ends in {time}",
+      "cancel": "Withdraw war",
+      "cancelPrompt": "Withdraw this war declaration? This is possible only before the battle begins.",
+      "cancelConfirm": "Withdraw declaration"
+    },
     "arenaGate": {
       "minLevelNote": "需要等級 {level}"
     },

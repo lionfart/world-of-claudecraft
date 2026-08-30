@@ -331,6 +331,7 @@ export function installTerritorySim<T extends object>(prototype: T): void {
     },
     territoryRepair: { value() {} },
     territoryDeclareWar: { value() {} },
+    territoryCancelWar: { value() {} },
     territoryJoinWar: { value() {} },
     territoryLeaveWar: { value() {} },
     territorySiegeAction: { value() {} },

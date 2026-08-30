@@ -197,7 +197,7 @@ export class TerritoryMapPainter {
         const key = `${cell.ownerColor ? 'owned' : 'neutral'}:${color}`;
         const group = groups.get(key);
         if (group) group.cells.push(cell);
-        else groups.set(key, { color, alpha: cell.ownerColor ? 0.82 : 0.58, cells: [cell] });
+        else groups.set(key, { color, alpha: cell.ownerColor ? 0.78 : 0.58, cells: [cell] });
       }
       for (const group of groups.values()) {
         ctx.beginPath();
@@ -217,6 +217,7 @@ export class TerritoryMapPainter {
         ctx.lineWidth = cell.selected ? 3 : 1.8;
         ctx.stroke();
       }
+      this.territoryBorders(ctx, model.visibleCells, colors);
       return;
     }
     const useArt = (model.visibleCells[0]?.radiusPx ?? 0) >= 4.5 && Object.keys(art).length > 0;
@@ -241,7 +242,9 @@ export class TerritoryMapPainter {
           ctx.beginPath();
           this.hexPath(ctx, cell, 0.16);
           ctx.fillStyle = cell.ownerColor;
-          ctx.globalAlpha = 0.3;
+          // Ownership is a translucent heraldic wash: strong enough to group
+          // a realm at a glance without obscuring the authored biome art.
+          ctx.globalAlpha = 0.22;
           ctx.fill();
           ctx.globalAlpha = 1;
         }
@@ -293,7 +296,8 @@ export class TerritoryMapPainter {
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {
-    const key: TerritoryMapArtKey = cell.keepRoot ? 'keep' : (cell.resource ?? cell.terrain);
+    const key: TerritoryMapArtKey =
+      cell.biome === 'ocean' ? 'ocean' : cell.keepRoot ? 'keep' : (cell.resource ?? cell.biome);
     return art[key];
   }
 
@@ -302,24 +306,37 @@ export class TerritoryMapPainter {
     cells: readonly TerritoryMapHex[],
     colors: TerritoryColors,
   ): void {
-    ctx.strokeStyle = colors.border;
-    ctx.lineWidth = Math.min(3.2, Math.max(1.25, (cells[0]?.radiusPx ?? 1) * 0.18));
-    ctx.globalAlpha = 0.94;
-    ctx.beginPath();
+    const baseWidth = Math.min(3.8, Math.max(1.35, (cells[0]?.radiusPx ?? 1) * 0.2));
     for (const cell of cells) {
-      if (!cell.ownerGuildId) continue;
-      const radius = Math.max(0.3, cell.radiusPx - 0.12);
+      if (!cell.ownerGuildId || !cell.ownerColor) continue;
+      // Pull each coloured frontier slightly inside its own cell. At a border
+      // shared by two guilds this creates two slim parallel ribbons, preserving
+      // both identities instead of allowing the later-painted colour to win.
+      const inset = Math.min(1.7, Math.max(0.45, cell.radiusPx * 0.075));
+      const radius = Math.max(0.3, cell.radiusPx - inset);
       for (let side = 0; side < 6; side += 1) {
         if (!cell.borderSides[side]) continue;
         const start = -Math.PI / 6 - (Math.PI / 3) * side;
-        ctx.moveTo(cell.mx + Math.cos(start) * radius, cell.my + Math.sin(start) * radius);
-        ctx.lineTo(
-          cell.mx + Math.cos(start + Math.PI / 3) * radius,
-          cell.my + Math.sin(start + Math.PI / 3) * radius,
-        );
+        const x1 = cell.mx + Math.cos(start) * radius;
+        const y1 = cell.my + Math.sin(start) * radius;
+        const x2 = cell.mx + Math.cos(start + Math.PI / 3) * radius;
+        const y2 = cell.my + Math.sin(start + Math.PI / 3) * radius;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = colors.outline;
+        ctx.lineWidth = baseWidth + 2;
+        ctx.globalAlpha = 0.72;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = cell.ownerColor;
+        ctx.lineWidth = baseWidth;
+        ctx.globalAlpha = 0.98;
+        ctx.stroke();
       }
     }
-    ctx.stroke();
     ctx.globalAlpha = 1;
   }
 

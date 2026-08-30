@@ -650,6 +650,8 @@ export const COMMAND_NAMES = [
   'territory_join_war',
   'territory_leave_war',
   'territory_siege_action',
+  // Officer-plus may withdraw an outgoing declaration until its start instant.
+  'territory_cancel_war',
 ] as const;
 
 // The union both the send path (`online.ts`) and the dispatch switch
@@ -980,4 +982,5 @@ export const COMMAND_FACETS = {
   territory_join_war: 'IWorldTerritory',
   territory_leave_war: 'IWorldTerritory',
   territory_siege_action: 'IWorldTerritory',
+  territory_cancel_war: 'IWorldTerritory',
 } as const satisfies Partial<Record<ClientCommand, WorldFacet>>;
