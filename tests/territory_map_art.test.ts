@@ -10,6 +10,8 @@ import {
   TERRITORY_TRANSITION_ATLAS_ROWS,
   TERRITORY_TRANSITION_MATERIALS,
   territoryFeatureArtRect,
+  territoryMapArtIsGround,
+  territoryMapAuthoredTransitionForCell,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryTerrainArtRect,
@@ -23,7 +25,7 @@ const painterSource = readFileSync(join(repoRoot, 'src', 'ui', 'territory_map_pa
 describe('territory map art bundle', () => {
   it('ships a bounded optimized WebP bundle for terrain, resources, keep, and transitions', () => {
     const sources = Object.values(TERRITORY_MAP_ART_SOURCES);
-    expect(sources).toHaveLength(27);
+    expect(sources).toHaveLength(31);
     expect(new Set(sources).size).toBe(sources.length);
 
     let totalBytes = 0;
@@ -106,12 +108,39 @@ describe('territory map art bundle', () => {
     expect(territoryTransitionArtKey('grassland', 'forest', 1, 2, 0)).toBe('grasslandWoodlands');
     expect(territoryTransitionArtKey('forest', 'grassland', 1, 2, 0)).toBe('woodlandsGrassland');
     expect(territoryTransitionArtKey('highland', 'snowfield', 1, 2, 0)).toBe('highlandSnowfield');
-    expect(painterSource).toContain('this.transitionSprites(ctx, cell, art, rect)');
+    expect(painterSource).toContain('for (const cell of sorted) {\n      this.transitionSprites(');
     expect(painterSource).toContain('territoryTransitionAtlasFrame(key, side)');
     expect(painterSource).not.toContain('createImageData');
     expect(painterSource).not.toContain("document.createElement('canvas')");
     expect(painterSource).not.toContain('tileComposer');
     expect(painterSource).not.toContain('transitionBand');
+  });
+
+  it('uses the generated full-cell transition paintings on matching biome borders', () => {
+    const base = {
+      q: 1,
+      r: 2,
+      biome: 'grassland' as const,
+      resource: null,
+      resourceYield: 0,
+      keepRoot: false,
+      neighborBiomes: ['forest', null, null, null, null, null] as const,
+    };
+    expect(territoryMapAuthoredTransitionForCell(base)).toEqual({
+      key: 'grasslandWoodlands',
+      rotationSteps: 0,
+      mirrorX: false,
+    });
+    expect(
+      territoryMapAuthoredTransitionForCell({
+        ...base,
+        biome: 'highland',
+        neighborBiomes: [null, null, 'snowfield', null, null, null],
+      }),
+    ).toEqual({ key: 'highlandSnowfield', rotationSteps: 2, mirrorX: false });
+    expect(territoryMapArtIsGround('grasslandWoodlands')).toBe(true);
+    expect(territoryMapArtIsGround('mountain')).toBe(false);
+    expect(painterSource).toContain('const groundScale = 1.16');
   });
 
   it('addresses every material/direction sprite without overlap', () => {

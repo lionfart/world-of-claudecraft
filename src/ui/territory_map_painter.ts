@@ -7,6 +7,8 @@ import { t } from './i18n';
 import {
   type TerritoryMapArt,
   territoryMapArt,
+  territoryMapArtIsGround,
+  territoryMapAuthoredTransitionForCell,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryTerrainArtRect,
@@ -251,11 +253,6 @@ export class TerritoryMapPainter {
           ctx.fill();
           ctx.globalAlpha = 1;
         }
-        ctx.beginPath();
-        this.hexPath(ctx, cell, 0.16);
-        ctx.strokeStyle = colors.grid;
-        ctx.lineWidth = cell.ownerColor ? 0.8 : 0.5;
-        ctx.stroke();
       }
     }
     this.territoryBorders(ctx, model.visibleCells, colors);
@@ -286,18 +283,33 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    // Transition pixels are authored once in a compact sprite atlas. Runtime
-    // work is limited to image crops: no per-cell canvases, masks or pixel loops.
+    // Base terrain first, connection artwork second. Drawing a seam immediately
+    // after its cell let the following neighbour paint over it, making the
+    // authored transitions effectively invisible despite being loaded.
     for (const cell of sorted) {
-      const key = territoryMapArtKeyForCell(cell);
+      const authoredTransition = territoryMapAuthoredTransitionForCell(cell);
+      const key = authoredTransition?.key ?? territoryMapArtKeyForCell(cell);
       const image = art[key];
       if (!image) continue;
-      const rect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
-      const transform = territoryMapArtTransformForCell(cell, key);
+      const footprintRect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
+      const groundOnly = territoryMapArtIsGround(key);
+      // The supplied sprites include a bevel around the authored hex. Slightly
+      // overfilling ground art moves that bevel outside the clipped footprint,
+      // so adjacent cells read as one landscape rather than stacked counters.
+      const groundScale = 1.16;
+      const rect = groundOnly
+        ? {
+            x: cell.mx + (footprintRect.x - cell.mx) * groundScale,
+            y: cell.my + (footprintRect.y - cell.my) * groundScale,
+            width: footprintRect.width * groundScale,
+            height: footprintRect.height * groundScale,
+          }
+        : footprintRect;
+      const transform = authoredTransition ?? territoryMapArtTransformForCell(cell, key);
       ctx.save();
-      if (transform.rotationSteps) {
+      if (groundOnly) {
         ctx.beginPath();
-        this.hexPath(ctx, cell, 0.05);
+        this.hexPath(ctx, cell, 0.02);
         ctx.clip();
       }
       ctx.translate(cell.mx, cell.my);
@@ -305,7 +317,16 @@ export class TerritoryMapPainter {
       if (transform.mirrorX) ctx.scale(-1, 1);
       ctx.drawImage(image, rect.x - cell.mx, rect.y - cell.my, rect.width, rect.height);
       ctx.restore();
-      this.transitionSprites(ctx, cell, art, rect);
+    }
+    // Transition pixels are authored once in a compact sprite atlas. Runtime
+    // work is limited to image crops: no per-cell canvases, masks or pixel loops.
+    for (const cell of sorted) {
+      this.transitionSprites(
+        ctx,
+        cell,
+        art,
+        territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx),
+      );
     }
   }
 
@@ -342,7 +363,8 @@ export class TerritoryMapPainter {
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {
-    return art[territoryMapArtKeyForCell(cell)];
+    const transition = territoryMapAuthoredTransitionForCell(cell);
+    return art[transition?.key ?? territoryMapArtKeyForCell(cell)];
   }
 
   private territoryBorders(

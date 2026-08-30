@@ -4035,6 +4035,8 @@ export const ko_KR: EnTranslations = {
       "selectCell": "헥스를 선택해 상세 정보를 확인하세요.",
       "cell": "헥스 {cell}",
       "neutral": "중립 영토",
+      "impassableMountain": "Impassable mountain",
+      "mountainNotice": "Natural border · This territory cannot be claimed.",
       "owner": "{guild} 소유",
       "resource": "자원: {resource}",
       "noResource": "자원 매장지 없음",

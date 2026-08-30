@@ -4035,6 +4035,8 @@ export const en_XA: EnTranslations = {
       "selectCell": "[Šéļéçţ á ĥéẋ ţó íñšþéçţ íţ.]",
       "cell": "[Ĥéẋ {cell}]",
       "neutral": "[Ñéúţŕáļ ţéŕŕíţóŕý]",
+      "impassableMountain": "[Íɱþáššáƀļé ɱóúñţáíñ]",
+      "mountainNotice": "[Ñáţúŕáļ ƀóŕðéŕ · Ţĥíš ţéŕŕíţóŕý çáññóţ ƀé çļáíɱéð.]",
       "owner": "[Ĥéļð ƀý {guild}]",
       "resource": "[Ŕéšóúŕçé: {resource}]",
       "noResource": "[Ñó ŕéšóúŕçé ðéþóšíţ]",

@@ -4035,6 +4035,8 @@ export const ru_RU: EnTranslations = {
       "selectCell": "Выберите ячейку, чтобы осмотреть её.",
       "cell": "Ячейка {cell}",
       "neutral": "Нейтральная территория",
+      "impassableMountain": "Impassable mountain",
+      "mountainNotice": "Natural border · This territory cannot be claimed.",
       "owner": "Владение гильдии {guild}",
       "resource": "Ресурс: {resource}",
       "noResource": "Нет месторождения ресурсов",

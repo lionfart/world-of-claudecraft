@@ -12960,6 +12960,9 @@ export const tr_TR: Partial<Record<TranslationKey, string>> = {
   'hudChrome.territoryMap.selectCell': 'Ayrıntıları için bir altıgen seç.',
   'hudChrome.territoryMap.cell': 'Altıgen {cell}',
   'hudChrome.territoryMap.neutral': 'Tarafsız toprak',
+  'hudChrome.territoryMap.impassableMountain': 'Geçit vermez dağ',
+  'hudChrome.territoryMap.mountainNotice':
+    'Doğal sınır · Bu toprak sahiplenilemez.',
   'hudChrome.territoryMap.owner': '{guild} kontrolünde',
   'hudChrome.territoryMap.resource': 'Kaynak: {resource}',
   'hudChrome.territoryMap.noResource': 'Kaynak yatağı yok',

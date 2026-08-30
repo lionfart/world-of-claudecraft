@@ -14,6 +14,10 @@ export type TerritoryMapArtKey =
   | 'desertMesaAlt'
   | 'wastesAlt'
   | 'grainLow'
+  | 'grasslandWoodlands'
+  | 'grasslandHighland'
+  | 'grasslandDesert'
+  | 'highlandSnowfield'
   | 'keep'
   | 'transitionAtlas';
 export type TerritoryMapArt = Partial<Record<TerritoryMapArtKey, HTMLImageElement>>;
@@ -27,10 +31,24 @@ export interface TerritoryMapArtCell {
   readonly keepRoot: boolean;
 }
 
+export interface TerritoryMapTransitionCell extends TerritoryMapArtCell {
+  readonly neighborBiomes: readonly (TerritoryVisualBiome | null)[];
+}
+
 export interface TerritoryMapArtTransform {
   /** Clockwise sixth-turns around the exact authored hex footprint centre. */
   readonly rotationSteps: number;
   /** Safe silhouette variation that never tips upright trees or mountains. */
+  readonly mirrorX: boolean;
+}
+
+export interface TerritoryMapAuthoredTransition {
+  readonly key:
+    | 'grasslandWoodlands'
+    | 'grasslandHighland'
+    | 'grasslandDesert'
+    | 'highlandSnowfield';
+  readonly rotationSteps: number;
   readonly mirrorX: boolean;
 }
 
@@ -199,7 +217,13 @@ export const TERRITORY_MAP_ART_SOURCES: Readonly<Record<TerritoryMapArtKey, stri
   grainLow: '/territory_map/grain-low.webp',
   labor: '/territory_map/labor.webp',
   keep: '/territory_map/keep.webp',
-  transitionAtlas: '/territory_map/transition-atlas.webp',
+  grasslandWoodlands: '/territory_map/transition-grassland-woodlands.webp',
+  grasslandHighland: '/territory_map/transition-grassland-highland.webp',
+  grasslandDesert: '/territory_map/transition-grassland-desert.webp',
+  highlandSnowfield: '/territory_map/transition-highland-snowfield.webp',
+  // Versioned filename deliberately breaks stale CDN/browser caches whenever
+  // the authored transition atlas changes without changing the app shell URL.
+  transitionAtlas: '/territory_map/transition-atlas-authored.webp',
 };
 
 function artHash(q: number, r: number, salt: number): number {
@@ -265,6 +289,39 @@ function transitionBiomeGroup(biome: TerritoryVisualBiome): TransitionBiomeGroup
   return biome;
 }
 
+const AUTHORED_FULL_TILE_TRANSITIONS: Readonly<
+  Partial<Record<string, TerritoryMapAuthoredTransition['key']>>
+> = {
+  'grassland:woodlands': 'grasslandWoodlands',
+  'grassland:highland': 'grasslandHighland',
+  'grassland:desert': 'grasslandDesert',
+  'highland:snowfield': 'highlandSnowfield',
+};
+
+/**
+ * Selects one of the generated full-hex transition paintings for an ordinary
+ * border cell. The tile is rotated toward the matching neighbour and mirrored
+ * when the cell owns the opposite side of the authored material pair. Keeps
+ * and resource landmarks remain untouched and render with their own art.
+ */
+export function territoryMapAuthoredTransitionForCell(
+  cell: TerritoryMapTransitionCell,
+): TerritoryMapAuthoredTransition | null {
+  if (cell.keepRoot || cell.resource) return null;
+  const base = transitionBiomeGroup(cell.biome);
+  for (let side = 0; side < cell.neighborBiomes.length; side += 1) {
+    const neighborBiome = cell.neighborBiomes[side];
+    if (!neighborBiome) continue;
+    const neighbor = transitionBiomeGroup(neighborBiome);
+    if (base === neighbor) continue;
+    const forward = AUTHORED_FULL_TILE_TRANSITIONS[`${base}:${neighbor}`];
+    if (forward) return { key: forward, rotationSteps: side, mirrorX: false };
+    const reverse = AUTHORED_FULL_TILE_TRANSITIONS[`${neighbor}:${base}`];
+    if (reverse) return { key: reverse, rotationSteps: side, mirrorX: true };
+  }
+  return null;
+}
+
 /** Couples visual density to the resource tier while varying ordinary terrain. */
 export function territoryMapArtKeyForCell(cell: TerritoryMapArtCell): TerritoryMapArtKey {
   if (cell.keepRoot) return 'keep';
@@ -290,7 +347,9 @@ export function territoryMapArtKeyForCell(cell: TerritoryMapArtCell): TerritoryM
 const ROTATABLE_ART = new Set<TerritoryMapArtKey>([
   'grassland',
   'grasslandAlt',
+  'woodlands',
   'highland',
+  'highlandAlt',
   'marsh',
   'marshAlt',
   'marshBog',
@@ -300,8 +359,18 @@ const ROTATABLE_ART = new Set<TerritoryMapArtKey>([
   'desertAlt',
   'wastes',
   'wastesAlt',
+  'grain',
   'grainLow',
+  'grasslandWoodlands',
+  'grasslandHighland',
+  'grasslandDesert',
+  'highlandSnowfield',
 ]);
+
+/** Ground-only paintings can safely overfill and clip to erase sprite bevels. */
+export function territoryMapArtIsGround(key: TerritoryMapArtKey): boolean {
+  return ROTATABLE_ART.has(key);
+}
 
 /**
  * Flat terrain may rotate by exact 60-degree increments. Upright silhouettes

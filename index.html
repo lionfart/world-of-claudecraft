@@ -522,7 +522,7 @@
         <div id="territory-cell-detail"></div>
         <div id="territory-economy"></div>
         <div class="territory-actions">
-          <button type="button" id="territory-primary-action"></button>
+          <button type="button" class="btn" id="territory-primary-action"></button>
         </div>
         <section id="territory-structure-section" aria-labelledby="territory-structure-title">
           <div id="territory-structure-title" data-i18n="hudChrome.territoryMap.structureSlots">Keep structures</div>
@@ -559,13 +559,20 @@
     <div id="calendar-window" class="window panel"></div>
     <div id="arena-status"></div>
     <div id="territory-war-notice" class="panel" role="status" aria-live="polite" aria-atomic="true">
-      <div id="territory-war-kicker"></div>
-      <div id="territory-war-title"></div>
-      <div id="territory-war-queue"></div>
-      <div id="territory-war-start"></div>
+      <div class="territory-war-notice-head">
+        <span class="territory-war-notice-icon" data-icon="attack" aria-hidden="true"></span>
+        <div class="territory-war-notice-heading">
+          <div id="territory-war-kicker"></div>
+          <div id="territory-war-title"></div>
+        </div>
+      </div>
+      <div class="territory-war-notice-meta">
+        <div id="territory-war-queue"></div>
+        <div id="territory-war-start"></div>
+      </div>
       <div id="territory-war-countdown"></div>
       <div id="territory-war-teleport"></div>
-      <button type="button" id="territory-war-action"></button>
+      <button type="button" class="btn" id="territory-war-action"></button>
     </div>
     <div id="territory-siege-hud" class="panel" role="status" aria-live="polite" aria-atomic="true">
       <div id="territory-siege-title"></div>

@@ -4035,6 +4035,8 @@ export const tr_TR: EnTranslations = {
       "selectCell": "Ayrıntıları için bir altıgen seç.",
       "cell": "Altıgen {cell}",
       "neutral": "Tarafsız toprak",
+      "impassableMountain": "Geçit vermez dağ",
+      "mountainNotice": "Doğal sınır · Bu toprak sahiplenilemez.",
       "owner": "{guild} kontrolünde",
       "resource": "Kaynak: {resource}",
       "noResource": "Kaynak yatağı yok",

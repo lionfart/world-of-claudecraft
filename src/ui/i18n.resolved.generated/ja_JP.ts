@@ -4035,6 +4035,8 @@ export const ja_JP: EnTranslations = {
       "selectCell": "ヘックスを選択して詳細を確認してください。",
       "cell": "ヘックス {cell}",
       "neutral": "中立領地",
+      "impassableMountain": "Impassable mountain",
+      "mountainNotice": "Natural border · This territory cannot be claimed.",
       "owner": "{guild} が領有",
       "resource": "資源：{resource}",
       "noResource": "資源鉱床なし",

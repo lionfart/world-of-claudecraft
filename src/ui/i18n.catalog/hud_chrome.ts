@@ -5568,6 +5568,8 @@ export const hudChromeStrings = {
     selectCell: 'Select a hex to inspect it.',
     cell: 'Hex {cell}',
     neutral: 'Neutral territory',
+    impassableMountain: 'Impassable mountain',
+    mountainNotice: 'Natural border · This territory cannot be claimed.',
     owner: 'Held by {guild}',
     resource: 'Resource: {resource}',
     noResource: 'No resource deposit',

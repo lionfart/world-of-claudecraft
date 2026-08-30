@@ -10888,18 +10888,34 @@
     display: none;
     left: 14px;
     bottom: 14px;
-    width: min(330px, calc(100% - 78px));
+    width: min(286px, calc(100% - 78px));
     max-height: calc(100% - 76px);
     z-index: 2;
     box-sizing: border-box;
-    padding: 10px 10px 11px;
+    padding: 9px 9px 10px;
     overflow-y: auto;
     color: var(--color-text);
-    background: linear-gradient(180deg, rgba(24, 16, 9, 0.92), rgba(11, 8, 5, 0.95));
-    border: 1px solid var(--gold-dim);
-    border-radius: 5px;
-    box-shadow: 0 3px 12px #000a;
+    background:
+      radial-gradient(circle at 16px 14px, #d3ab4918, transparent 62px),
+      linear-gradient(145deg, rgba(29, 25, 22, 0.97), rgba(12, 11, 13, 0.98));
+    border: 1px solid #75602f;
+    border-left: 3px solid #d3ab49;
+    border-radius: 6px;
+    box-shadow:
+      inset 0 0 0 1px #e4b85012,
+      inset 0 8px 24px #0006,
+      0 5px 16px #000b;
     pointer-events: auto;
+  }
+  #territory-panel[data-mode='owned'] {
+    width: min(316px, calc(100% - 78px));
+  }
+  #territory-panel[data-mode='mountain'] {
+    width: min(258px, calc(100% - 78px));
+    border-left-color: #8e9a9d;
+    background:
+      radial-gradient(circle at 16px 14px, #a9bdc31a, transparent 62px),
+      linear-gradient(145deg, rgba(27, 29, 30, 0.97), rgba(11, 12, 14, 0.98));
   }
   #territory-panel-close {
     position: absolute;
@@ -10914,7 +10930,7 @@
     padding-right: 28px;
     color: var(--gold);
     font-family: var(--title-font);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
   }
   #territory-cell-detail,
@@ -10933,8 +10949,9 @@
     min-height: 28px;
     padding: 4px 7px;
     color: var(--color-text);
-    background: #2b2116;
-    border: 1px solid #66502d;
+    margin: 0;
+    background: linear-gradient(#54341e, #2a1a10);
+    border: 1px solid #8b6434;
     border-radius: 3px;
     cursor: var(--cursor-point);
   }
@@ -11065,24 +11082,53 @@
     display: none;
     right: 112px;
     bottom: 18px;
-    width: min(238px, calc(100vw - 128px));
+    width: min(286px, calc(100vw - 128px));
     z-index: 91;
     box-sizing: border-box;
-    padding: 7px 8px 8px;
+    padding: 8px;
     color: var(--color-text);
     text-align: left;
-    border: 1px solid #b84b31;
+    border: 1px solid #74402c;
+    border-left: 3px solid #b55f38;
+    border-radius: 6px;
     background:
-      linear-gradient(90deg, transparent, #8d321729, transparent),
-      linear-gradient(180deg, rgba(42, 21, 13, 0.97), rgba(13, 9, 7, 0.98));
+      radial-gradient(circle at 24px 22px, #d56a3a26, transparent 72px),
+      linear-gradient(90deg, #261814f2, #0d1015f5 62%);
     box-shadow:
-      0 5px 20px #000b,
-      inset 0 1px 0 #ffb36b22;
+      inset 0 0 0 1px #e4b8500d,
+      inset 0 8px 20px #0005,
+      0 5px 20px #000c;
     pointer-events: auto;
+  }
+  .territory-war-notice-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .territory-war-notice-icon {
+    width: 30px;
+    height: 30px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    color: #e08b5b;
+    background: radial-gradient(circle at 50% 35%, #5a2d1f, #08090b 74%);
+    border: 1px solid #74402c;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #d56a3a24;
+  }
+  .territory-war-notice-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .territory-war-notice-heading {
+    min-width: 0;
+    flex: 1;
   }
   #territory-war-kicker {
     color: #db7651;
-    font-size: 7px;
+    font-size: 8px;
     font-weight: bold;
     letter-spacing: 0.15em;
     text-transform: uppercase;
@@ -11091,34 +11137,62 @@
     margin-top: 1px;
     color: #f0cd87;
     font-family: var(--title-font);
+    overflow: hidden;
     font-size: 12px;
     font-weight: bold;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .territory-war-notice-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px;
+    margin-top: 6px;
   }
   #territory-war-queue,
   #territory-war-start {
-    margin-top: 1px;
-    color: var(--color-text-muted);
+    min-width: 0;
+    padding: 4px 5px;
+    overflow: hidden;
+    color: #bdb092;
     font-size: 9px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    background: #090b0d9e;
+    border: 1px solid #4e442c66;
+    border-radius: 3px;
+  }
+  #territory-war-start:empty {
+    display: none;
   }
   #territory-war-countdown {
-    margin-top: 3px;
-    color: #fff1c5;
-    font-size: 13px;
+    margin-top: 5px;
+    padding: 5px 7px;
+    color: #f3df9d;
+    font-size: 14px;
     font-variant-numeric: tabular-nums;
     font-weight: bold;
+    text-align: center;
+    background: linear-gradient(90deg, #0a0b0dcc, #2b2115b8, #0a0b0dcc);
+    border-top: 1px solid #6d572966;
+    border-bottom: 1px solid #6d572966;
     text-shadow: 0 1px 5px #000;
   }
   #territory-war-teleport {
-    min-height: 10px;
-    margin-top: 1px;
+    min-height: 0;
+    margin-top: 3px;
     color: #efb95d;
-    font-size: 8px;
+    font-size: 9px;
+    text-align: center;
+  }
+  #territory-war-teleport:empty {
+    display: none;
   }
   #territory-war-action {
     width: 100%;
-    min-height: 24px;
-    margin-top: 4px;
-    padding: 3px 8px;
+    min-height: 28px;
+    margin: 6px 0 0;
+    padding: 4px 8px;
     color: #f9e4bb;
     border: 1px solid #9a6932;
     border-radius: 3px;
@@ -11331,7 +11405,7 @@
     #territory-siege-hud {
       right: 56px;
       bottom: 70px;
-      width: min(238px, calc(100vw - 68px));
+      width: min(286px, calc(100vw - 68px));
     }
     .territory-siege-actions {
       grid-template-columns: repeat(2, 1fr);

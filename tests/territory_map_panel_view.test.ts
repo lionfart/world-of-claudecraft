@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  territoryCellPanelMode,
   territorySlotModels,
   territoryWarCountdown,
   territoryWarNoticeModel,
@@ -66,6 +67,12 @@ function state(rank: 'member' | 'officer' | 'leader' = 'leader'): TerritoryMapSt
 }
 
 describe('territory structure slot cards', () => {
+  it('shows development only for owned land and reduces mountains to a notice', () => {
+    expect(territoryCellPanelMode({ claimable: false, owned: false })).toBe('mountain');
+    expect(territoryCellPanelMode({ claimable: true, owned: false })).toBe('neutral');
+    expect(territoryCellPanelMode({ claimable: true, owned: true })).toBe('owned');
+  });
+
   it('maps an empty clicked card to its exact build slot and kind', () => {
     const gate = territorySlotModels(state(), 9).find((slot) => slot.slot === 'gate');
     expect(gate).toMatchObject({

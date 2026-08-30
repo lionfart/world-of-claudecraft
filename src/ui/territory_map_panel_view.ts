@@ -49,6 +49,17 @@ export interface TerritorySlotModel extends TerritorySlotDescriptor {
   action: TerritorySlotAction | null;
 }
 
+export type TerritoryCellPanelMode = 'mountain' | 'neutral' | 'owned';
+
+/** Keeps the map popup content aligned with the selected cell's real capabilities. */
+export function territoryCellPanelMode(input: {
+  claimable: boolean;
+  owned: boolean;
+}): TerritoryCellPanelMode {
+  if (!input.claimable) return 'mountain';
+  return input.owned ? 'owned' : 'neutral';
+}
+
 /** Pure structure-card projection shared by mouse, touch, and keyboard actions. */
 export function territorySlotModels(
   state: TerritoryMapState,

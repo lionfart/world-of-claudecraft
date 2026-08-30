@@ -4035,6 +4035,8 @@ export const zh_CN: EnTranslations = {
       "selectCell": "选择一个六角格以查看详情。",
       "cell": "六角格 {cell}",
       "neutral": "中立领地",
+      "impassableMountain": "Impassable mountain",
+      "mountainNotice": "Natural border · This territory cannot be claimed.",
       "owner": "由 {guild} 占领",
       "resource": "资源：{resource}",
       "noResource": "无资源矿床",

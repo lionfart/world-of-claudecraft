@@ -8,6 +8,7 @@ import type { PainterHostWriters } from './painter_host';
 import { TerritoryMapPainter } from './territory_map_painter';
 import {
   TERRITORY_SLOT_DESCRIPTORS,
+  territoryCellPanelMode,
   territorySlotModels,
   territoryWarCountdown,
   territoryWarNoticeModel,
@@ -486,20 +487,41 @@ export class TerritoryMapController {
     const detail = element('#territory-cell-detail');
     const economy = element('#territory-economy');
     const primary = element<HTMLButtonElement>('#territory-primary-action');
+    const actions = element<HTMLElement>('#territory-panel .territory-actions');
+    const structures = element<HTMLElement>('#territory-structure-section');
     if (!state || cellId === null) {
+      panel.dataset.mode = 'loading';
       this.writers.setText(title, t('hudChrome.territoryMap.loading'));
       this.writers.setText(detail, '');
       this.writers.setText(economy, '');
+      this.writers.setDisplay(economy, 'none');
+      this.writers.setDisplay(actions, 'none');
+      this.writers.setDisplay(structures, 'none');
       primary.disabled = true;
       this.renderStructureSlots(null);
       return;
     }
     const manifestCell = createTerritoryManifest(state.season.radius).byId.get(cellId);
     const owned = state.cells.find((entry) => entry.cellId === cellId);
-    this.writers.setText(title, t('hudChrome.territoryMap.cell', { cell: cellId }));
+    const claimable = territoryCellClaimable(manifestCell, state.season.radius);
+    const mode = territoryCellPanelMode({ claimable, owned: !!owned });
+    panel.dataset.mode = mode;
+    if (mode === 'mountain') {
+      this.writers.setText(title, t('hudChrome.territoryMap.impassableMountain'));
+      this.writers.setText(detail, t('hudChrome.territoryMap.mountainNotice'));
+      this.writers.setText(economy, '');
+      this.writers.setDisplay(economy, 'none');
+      this.writers.setDisplay(actions, 'none');
+      this.writers.setDisplay(structures, 'none');
+      primary.disabled = true;
+      this.renderStructureSlots(null);
+      panel.dataset.revision = String(state.revision);
+      return;
+    }
     const owner = owned
       ? t('hudChrome.territoryMap.owner', { guild: owned.ownerGuildName })
       : t('hudChrome.territoryMap.neutral');
+    this.writers.setText(title, owner);
     const resourceProfile = manifestCell
       ? territoryResourceProfile(manifestCell, state.season.radius)
       : null;
@@ -508,15 +530,17 @@ export class TerritoryMapController {
           resource: `${this.resourceLabel(resourceProfile.kind)} ×${resourceProfile.yield}`,
         })
       : t('hudChrome.territoryMap.noResource');
-    this.writers.setText(detail, `${owner} · ${resource}`);
+    this.writers.setText(detail, resource);
     this.writers.setText(
       economy,
       state.guild
         ? t('hudChrome.territoryMap.resources', state.guild.resources)
         : t('hudChrome.territoryMap.noGuild'),
     );
+    this.writers.setDisplay(economy, 'block');
     const action = this.primaryAction();
     primary.disabled = !action;
+    this.writers.setDisplay(actions, action ? 'flex' : 'none');
     const actionKey =
       action?.kind === 'place'
         ? 'placeKeep'
@@ -528,7 +552,8 @@ export class TerritoryMapController {
               ? 'leaveWar'
               : 'joinWar';
     this.writers.setText(primary, t(`hudChrome.territoryMap.${actionKey}`));
-    this.renderStructureSlots(state);
+    this.writers.setDisplay(structures, owned ? 'block' : 'none');
+    this.renderStructureSlots(owned ? state : null);
     panel.dataset.revision = String(state.revision);
   }
 

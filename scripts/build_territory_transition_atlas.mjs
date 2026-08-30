@@ -1,3 +1,4 @@
+import { copyFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -57,6 +58,13 @@ const sources = [
     join(authoredDir, 'highland-snowfield.webp'),
     { authored: true, mirror: true },
   ],
+];
+
+const authoredRuntimeSources = [
+  ['grassland-woodlands.webp', 'transition-grassland-woodlands.webp'],
+  ['grassland-highland.webp', 'transition-grassland-highland.webp'],
+  ['grassland-desert.webp', 'transition-grassland-desert.webp'],
+  ['highland-snowfield.webp', 'transition-highland-snowfield.webp'],
 ];
 
 function clamp01(value) {
@@ -156,7 +164,11 @@ await sharp(atlas, {
   raw: { width: atlasWidth, height: atlasHeight, channels: 4 },
 })
   .webp({ quality: 86, alphaQuality: 100, effort: 6, smartSubsample: true })
-  .toFile(join(terrainDir, 'transition-atlas.webp'));
+  .toFile(join(terrainDir, 'transition-atlas-authored.webp'));
+
+for (const [source, destination] of authoredRuntimeSources) {
+  await copyFile(join(authoredDir, source), join(terrainDir, destination));
+}
 
 process.stdout.write(
   `territory transition atlas: ${frameCount} frames, ${atlasWidth}x${atlasHeight}\n`,
