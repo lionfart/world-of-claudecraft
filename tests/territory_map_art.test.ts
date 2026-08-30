@@ -6,7 +6,6 @@ import {
   TERRITORY_MAP_ART_SOURCES,
   territoryFeatureArtRect,
   territoryTerrainArtRect,
-  territoryTerrainArtSourceRect,
 } from '../src/ui/territory_map_art';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -31,41 +30,28 @@ describe('territory map art bundle', () => {
     expect(totalBytes).toBeLessThan(800_000);
   });
 
-  it('covers the exact flat-top hex bounds with terrain texture', () => {
+  it('locks the authored opaque footprint to the exact pointy-top cell', () => {
     const radius = 20;
     const rect = territoryTerrainArtRect(100, 80, radius);
-    const halfHexHeight = (Math.sqrt(3) * radius) / 2;
-    expect(rect.x).toBe(80);
-    expect(rect.width).toBe(40);
-    expect(rect.y).toBeCloseTo(80 - halfHexHeight, 8);
-    expect(rect.y + rect.height).toBeCloseTo(80 + halfHexHeight, 8);
+    expect(rect.width).toBeCloseTo(Math.sqrt(3) * radius, 8);
+    expect(rect.x + rect.width / 2).toBeCloseTo(100, 8);
+    expect(rect.y + (rect.height * 123) / 384).toBeCloseTo(80 - radius, 8);
+    expect(rect.y + rect.height).toBeCloseTo(80 + radius, 8);
   });
 
-  it('samples the fully opaque centre patch of the supplied 256x384 terrain art', () => {
-    expect(territoryTerrainArtSourceRect(256, 384)).toEqual({
-      sx: 64,
-      sy: 184,
-      sw: 128,
-      sh: 72,
-    });
-  });
-
-  it('keeps the full keep and resource silhouette inside one hex', () => {
+  it('uses one identical footprint and pivot for terrain, resource, and keep art', () => {
     const radius = 20;
-    const rect = territoryFeatureArtRect(100, 80, radius);
-    const halfHexHeight = (Math.sqrt(3) * radius) / 2;
-    expect(rect.y).toBeGreaterThan(80 - halfHexHeight);
-    expect(rect.y + rect.height).toBeLessThanOrEqual(80 + halfHexHeight);
-    expect(rect.x).toBeGreaterThan(80);
-    expect(rect.x + rect.width).toBeLessThan(120);
-    expect(rect.height / rect.width).toBeCloseTo(384 / 256, 8);
+    expect(territoryFeatureArtRect(100, 80, radius)).toEqual(
+      territoryTerrainArtRect(100, 80, radius),
+    );
   });
 
-  it('cover-crops terrain and clips both art layers to the flat-top canvas path', () => {
+  it('draws one complete material-correct source tile per cell without crop distortion', () => {
     expect(painterSource).toContain('territoryTerrainArtRect(');
-    expect(painterSource).toContain('territoryTerrainArtSourceRect(');
-    expect(painterSource).toContain('territoryFeatureArtRect(');
-    expect(painterSource).toContain('this.hexPath(ctx, cell, 0.16);');
-    expect(painterSource).toContain('ctx.clip();');
+    expect(painterSource).toContain('const image = this.artForCell(cell, art);');
+    expect(painterSource).toContain(
+      'ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);',
+    );
+    expect(painterSource).not.toContain('territoryTerrainArtSourceRect(');
   });
 });

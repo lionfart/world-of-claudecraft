@@ -7,10 +7,8 @@ import { t } from './i18n';
 import {
   type TerritoryMapArt,
   type TerritoryMapArtKey,
-  territoryFeatureArtRect,
   territoryMapArt,
   territoryTerrainArtRect,
-  territoryTerrainArtSourceRect,
 } from './territory_map_art';
 import {
   buildTerritoryMapModel,
@@ -178,9 +176,9 @@ export class TerritoryMapPainter {
 
   private hexPath(ctx: CanvasRenderingContext2D, cell: TerritoryMapHex, inset = 0): void {
     const radius = Math.max(0.3, cell.radiusPx - inset);
-    ctx.moveTo(cell.mx + radius, cell.my);
+    ctx.moveTo(cell.mx, cell.my - radius);
     for (let i = 1; i < 6; i += 1) {
-      const angle = (Math.PI / 3) * i;
+      const angle = -Math.PI / 2 + (Math.PI / 3) * i;
       ctx.lineTo(cell.mx + Math.cos(angle) * radius, cell.my + Math.sin(angle) * radius);
     }
     ctx.closePath();
@@ -282,72 +280,16 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    // Every cell first receives an opaque terrain crop in cover mode. The
-    // supplied sprites are raised point-up dioramas; drawing their complete
-    // transparent canvas into a flat-top cell exposes triangular gaps.
+    // Each cell draws exactly one authored tile. Resource and keep images
+    // already include their matching forest/hill/plain/dirt footprint, so
+    // compositing them over a second terrain image would double the base and
+    // produce seams. Back-to-front order preserves their upright silhouettes.
     for (const cell of sorted) {
-      const image = art[cell.terrain];
+      const image = this.artForCell(cell, art);
       if (!image) continue;
-      this.drawClippedTerrain(
-        ctx,
-        cell,
-        image,
-        territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx),
-      );
+      const rect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
+      ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
     }
-    // Resource and keep paintings are a second, smaller layer. Their full
-    // silhouette stays inside the cell instead of obscuring adjacent territory.
-    for (const cell of sorted) {
-      const key: TerritoryMapArtKey | null = cell.keepRoot ? 'keep' : cell.resource;
-      if (!key) continue;
-      const image = art[key];
-      if (!image) continue;
-      this.drawClippedArt(
-        ctx,
-        cell,
-        image,
-        territoryFeatureArtRect(cell.mx, cell.my, cell.radiusPx),
-      );
-    }
-  }
-
-  private drawClippedTerrain(
-    ctx: CanvasRenderingContext2D,
-    cell: TerritoryMapHex,
-    image: HTMLImageElement,
-    rect: { x: number; y: number; width: number; height: number },
-  ): void {
-    const source = territoryTerrainArtSourceRect(image.naturalWidth, image.naturalHeight);
-    ctx.save();
-    ctx.beginPath();
-    this.hexPath(ctx, cell, 0.16);
-    ctx.clip();
-    ctx.drawImage(
-      image,
-      source.sx,
-      source.sy,
-      source.sw,
-      source.sh,
-      rect.x,
-      rect.y,
-      rect.width,
-      rect.height,
-    );
-    ctx.restore();
-  }
-
-  private drawClippedArt(
-    ctx: CanvasRenderingContext2D,
-    cell: TerritoryMapHex,
-    image: HTMLImageElement,
-    rect: { x: number; y: number; width: number; height: number },
-  ): void {
-    ctx.save();
-    ctx.beginPath();
-    this.hexPath(ctx, cell, 0.16);
-    ctx.clip();
-    ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
-    ctx.restore();
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {
@@ -369,7 +311,7 @@ export class TerritoryMapPainter {
       const radius = Math.max(0.3, cell.radiusPx - 0.12);
       for (let side = 0; side < 6; side += 1) {
         if (!cell.borderSides[side]) continue;
-        const start = (-Math.PI / 3) * side;
+        const start = -Math.PI / 6 - (Math.PI / 3) * side;
         ctx.moveTo(cell.mx + Math.cos(start) * radius, cell.my + Math.sin(start) * radius);
         ctx.lineTo(
           cell.mx + Math.cos(start + Math.PI / 3) * radius,

@@ -172,7 +172,7 @@ describe('territory service hot paths', () => {
     expect(Object.keys(notice ?? {})).not.toContain('participants');
   });
 
-  it('keeps the active-war notice available to defenders but closes late attacker entry', async () => {
+  it('keeps active notices for defenders and registered attackers but closes late attacker entry', async () => {
     const war = {
       id: '00000000-0000-4000-8000-000000000011',
       targetCellId: 4,
@@ -218,6 +218,23 @@ describe('territory service hot paths', () => {
       vi.fn(),
       config,
     );
+    const registeredAttackerRepository = repositoryFake(mapState([war]));
+    registeredAttackerRepository.loadActiveWarRegistrations.mockResolvedValue([
+      { warId: war.id, characterId: 13 },
+    ]);
+    const registeredAttackerService = new TerritoryService(
+      registeredAttackerRepository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 13,
+        guildId: 7,
+        guildName: 'Seven',
+        rank: 'member',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+    );
 
     await expect(defenderService.warNoticeForCharacter(11)).resolves.toMatchObject({
       id: war.id,
@@ -225,6 +242,12 @@ describe('territory service hot paths', () => {
       mySide: 'defender',
     });
     await expect(attackerService.warNoticeForCharacter(12)).resolves.toBeNull();
+    await expect(registeredAttackerService.warNoticeForCharacter(13)).resolves.toMatchObject({
+      id: war.id,
+      status: 'active',
+      mySide: 'attacker',
+      registered: true,
+    });
   });
 
   it('joins a live local siege without force-hydrating every participant again', async () => {

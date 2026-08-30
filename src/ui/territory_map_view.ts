@@ -57,8 +57,8 @@ export interface TerritoryMapModel {
 
 function fullSpan(manifest: TerritoryManifest): { x: number; y: number } {
   return {
-    x: manifest.radius * 3 + 2,
-    y: Math.sqrt(3) * (manifest.radius * 2 + 1),
+    x: Math.sqrt(3) * (manifest.radius * 2 + 1),
+    y: manifest.radius * 3 + 2,
   };
 }
 
@@ -118,13 +118,13 @@ export function buildTerritoryMapModel(input: {
   const maxX = center.x + spanX / 2 + margin;
   const minY = center.y - spanY / 2 - margin;
   const maxY = center.y + spanY / 2 + margin;
-  const qMin = Math.floor(minX / 1.5) - 2;
-  const qMax = Math.ceil(maxX / 1.5) + 2;
   const visibleCells: TerritoryMapHex[] = [];
-  for (let q = qMin; q <= qMax; q += 1) {
-    const rMin = Math.floor(minY / Math.sqrt(3) - q / 2) - 2;
-    const rMax = Math.ceil(maxY / Math.sqrt(3) - q / 2) + 2;
-    for (let r = rMin; r <= rMax; r += 1) {
+  const rMin = Math.floor(minY / 1.5) - 2;
+  const rMax = Math.ceil(maxY / 1.5) + 2;
+  for (let r = rMin; r <= rMax; r += 1) {
+    const qMin = Math.floor(minX / Math.sqrt(3) - r / 2) - 2;
+    const qMax = Math.ceil(maxX / Math.sqrt(3) - r / 2) + 2;
+    for (let q = qMin; q <= qMax; q += 1) {
       const cell = manifest.byAxial.get(axialKey(q, r));
       if (!cell) continue;
       const point = axialToWorld(q, r);
@@ -189,6 +189,6 @@ export function territoryCellAt(
 ): number | null {
   const x = (mx - canvasSize / 2) / view.pixelsPerUnit + view.center.x;
   const y = (my - canvasSize / 2) / view.pixelsPerUnit + view.center.y;
-  const axial = axialRound((2 / 3) * x, -x / 3 + y / Math.sqrt(3));
+  const axial = axialRound(x / Math.sqrt(3) - y / 3, (2 / 3) * y);
   return manifest.byAxial.get(axialKey(axial.q, axial.r))?.id ?? null;
 }

@@ -10,65 +10,39 @@ export interface TerritoryMapArtRect {
   height: number;
 }
 
-const SOURCE_ASPECT = 384 / 256;
 const HEX_HEIGHT = Math.sqrt(3);
-const FEATURE_HEIGHT_FRACTION = 0.94;
+const SOURCE_HEIGHT = 384;
+const SOURCE_FOOTPRINT_TOP = 123;
+const SOURCE_FOOTPRINT_HEIGHT = 261;
 
-export interface TerritoryMapArtSourceRect {
-  sx: number;
-  sy: number;
-  sw: number;
-  sh: number;
-}
-
-/** Exact bounding box of the flat-top canvas cell. */
+/**
+ * Lock the authored 256x384 pointy-top sprite to one pointy-top map cell.
+ * Its non-transparent footprint is exactly 256x261 at y=123: after scaling,
+ * that footprint spans sqrt(3)R by 2R while the transparent upper canvas keeps
+ * buildings upright and free to rise above their owning tile.
+ */
 export function territoryTerrainArtRect(
   mx: number,
   my: number,
   radius: number,
 ): TerritoryMapArtRect {
-  const height = radius * HEX_HEIGHT;
+  const height = (radius * 2 * SOURCE_HEIGHT) / SOURCE_FOOTPRINT_HEIGHT;
+  const width = radius * HEX_HEIGHT;
   return {
-    x: mx - radius,
-    y: my - height / 2,
-    width: radius * 2,
+    x: mx - width / 2,
+    y: my - radius - (height * SOURCE_FOOTPRINT_TOP) / SOURCE_HEIGHT,
+    width,
     height,
   };
 }
 
-/**
- * The supplied 256x384 illustrations are raised isometric dioramas with a
- * transparent upper half. Sampling their fully opaque central ground patch as
- * a cover texture prevents that transparency from exposing wedges inside our
- * flat-top topology. Fractions keep the crop correct if the atlas is rebuilt at
- * another lossless resolution.
- */
-export function territoryTerrainArtSourceRect(
-  naturalWidth: number,
-  naturalHeight: number,
-): TerritoryMapArtSourceRect {
-  return {
-    sx: naturalWidth * 0.25,
-    sy: naturalHeight * (184 / 384),
-    sw: naturalWidth * 0.5,
-    sh: naturalHeight * (72 / 384),
-  };
-}
-
-/** Keep/resource illustrations retain their full 256x384 silhouette inside a hex. */
+/** Every supplied location tile uses the same locked footprint and pivot. */
 export function territoryFeatureArtRect(
   mx: number,
   my: number,
   radius: number,
 ): TerritoryMapArtRect {
-  const height = radius * HEX_HEIGHT * FEATURE_HEIGHT_FRACTION;
-  const width = height / SOURCE_ASPECT;
-  return {
-    x: mx - width / 2,
-    y: my + (radius * HEX_HEIGHT) / 2 - height,
-    width,
-    height,
-  };
+  return territoryTerrainArtRect(mx, my, radius);
 }
 
 /**

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { territorySlotModels, territoryWarNoticeModel } from '../src/ui/territory_map_panel_view';
+import {
+  territorySlotModels,
+  territoryWarCountdown,
+  territoryWarNoticeModel,
+} from '../src/ui/territory_map_panel_view';
 import type { TerritoryMapState, TerritoryWarView } from '../src/world_api';
 
 function state(rank: 'member' | 'officer' | 'leader' = 'leader'): TerritoryMapState {
@@ -115,7 +119,13 @@ describe('territory pre-war notice', () => {
     });
   });
 
-  it('keeps an active siege visible for late defenders but not attackers', () => {
+  it('formats the five-minute registration and one-hour battle clocks without raw seconds', () => {
+    expect(territoryWarCountdown(300)).toBe('05:00');
+    expect(territoryWarCountdown(3_600)).toBe('1:00:00');
+    expect(territoryWarCountdown(3_527)).toBe('58:47');
+  });
+
+  it('keeps an active siege visible for late defenders and registered attackers only', () => {
     const now = Date.parse('2026-01-01T00:15:00.000Z');
     expect(territoryWarNoticeModel({ ...war, status: 'active', mySide: 'defender' }, now)).toEqual({
       visible: true,
@@ -125,7 +135,16 @@ describe('territory pre-war notice', () => {
       automaticTeleport: false,
     });
     expect(
-      territoryWarNoticeModel({ ...war, status: 'active', mySide: 'attacker' }, now).visible,
+      territoryWarNoticeModel(
+        { ...war, status: 'active', mySide: 'attacker', registered: true },
+        now,
+      ).visible,
+    ).toBe(true);
+    expect(
+      territoryWarNoticeModel(
+        { ...war, status: 'active', mySide: 'attacker', registered: false },
+        now,
+      ).visible,
     ).toBe(false);
   });
 });

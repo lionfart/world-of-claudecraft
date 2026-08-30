@@ -106,13 +106,25 @@ export interface TerritoryWarNoticeModel {
   automaticTeleport: boolean;
 }
 
+/** Stable HUD clock: registration uses MM:SS, the one-hour battle uses H:MM:SS. */
+export function territoryWarCountdown(totalSeconds: number): string {
+  const total = Math.max(0, Math.ceil(totalSeconds));
+  const hours = Math.floor(total / 3_600);
+  const minutes = Math.floor((total % 3_600) / 60);
+  const seconds = total % 60;
+  const tail = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return hours > 0 ? `${hours}:${tail}` : tail;
+}
+
 export function territoryWarNoticeModel(
   war: TerritoryWarView | null,
   nowMs: number,
 ): TerritoryWarNoticeModel {
   const startsAtMs = war ? new Date(war.startsAt).getTime() : Number.NaN;
   const endsAtMs = war ? new Date(war.endsAt).getTime() : Number.NaN;
-  const active = war?.status === 'active' && war.mySide === 'defender';
+  const active =
+    war?.status === 'active' &&
+    (war.mySide === 'defender' || (war.mySide === 'attacker' && war.registered));
   return {
     visible: !!war && (war.status === 'declared' || war.status === 'forming' || active),
     active,

@@ -64,11 +64,11 @@ export function axialDistance(q: number, r: number): number {
   return Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r));
 }
 
-/** Flat-topped axial centre in map-space units. */
+/** Pointy-topped axial centre matching the authored territory tile footprint. */
 export function axialToWorld(q: number, r: number, size = 1): { x: number; y: number } {
   return {
-    x: size * 1.5 * q,
-    y: size * Math.sqrt(3) * (r + q / 2),
+    x: size * Math.sqrt(3) * (q + r / 2),
+    y: size * 1.5 * r,
   };
 }
 

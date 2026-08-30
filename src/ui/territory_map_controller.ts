@@ -8,6 +8,7 @@ import { TerritoryMapPainter } from './territory_map_painter';
 import {
   TERRITORY_SLOT_DESCRIPTORS,
   territorySlotModels,
+  territoryWarCountdown,
   territoryWarNoticeModel,
 } from './territory_map_panel_view';
 import {
@@ -334,11 +335,8 @@ export class TerritoryMapController {
     this.writers.setText(
       element('#territory-war-kicker'),
       model.active
-        ? t('hudChrome.territoryMap.siegeTitle', {
-            attackers: war.attackerCount,
-            defenders: war.defenderCount,
-          })
-        : t('hudChrome.territoryMap.warDeclared'),
+        ? t('hudChrome.territoryMap.warOngoing')
+        : t('hudChrome.territoryMap.warStarting'),
     );
     this.writers.setText(
       element('#territory-war-title'),
@@ -365,8 +363,12 @@ export class TerritoryMapController {
     this.writers.setText(
       element('#territory-war-countdown'),
       model.active
-        ? t('hudChrome.territoryMap.siegeTimer', { seconds: model.secondsRemaining })
-        : t('hudChrome.territoryMap.warStartsIn', { seconds: model.secondsUntilStart }),
+        ? t('hudChrome.territoryMap.warOngoingCountdown', {
+            time: territoryWarCountdown(model.secondsRemaining),
+          })
+        : t('hudChrome.territoryMap.warStartingCountdown', {
+            time: territoryWarCountdown(model.secondsUntilStart),
+          }),
     );
     this.writers.setText(
       element('#territory-war-teleport'),

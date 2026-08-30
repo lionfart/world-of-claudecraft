@@ -205,7 +205,10 @@ export class TerritoryService {
           (warId === null || war.id === warId) &&
           (war.status === 'declared' || war.status === 'forming'
             ? Number(war.attackerGuildId) === guildId || Number(war.defenderGuildId) === guildId
-            : war.status === 'active' && Number(war.defenderGuildId) === guildId),
+            : war.status === 'active' &&
+              (Number(war.defenderGuildId) === guildId ||
+                (Number(war.attackerGuildId) === guildId &&
+                  (this.registrations.get(war.id)?.has(characterId) ?? false)))),
       )
       .sort((a, b) => {
         const activeOrder = Number(b.status === 'active') - Number(a.status === 'active');

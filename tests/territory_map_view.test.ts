@@ -69,6 +69,28 @@ describe('territory map view', () => {
     );
   });
 
+  it('projects neighboring cells on the pointy-top axes used by the supplied art', () => {
+    const model = buildTerritoryMapModel({
+      state: state(),
+      canvasSize: 560,
+      zoom: 5,
+      center: { x: 0, y: 0 },
+      hoveredCellId: null,
+      selectedCellId: null,
+    });
+    const centre = model.visibleCells.find((cell) => cell.q === 0 && cell.r === 0);
+    const east = model.visibleCells.find((cell) => cell.q === 1 && cell.r === 0);
+    const southEast = model.visibleCells.find((cell) => cell.q === 0 && cell.r === 1);
+    if (!centre || !east || !southEast) throw new Error('centre neighbors were culled');
+
+    expect(east.my).toBeCloseTo(centre.my, 8);
+    expect(east.mx - centre.mx).toBeCloseTo(Math.sqrt(3) * centre.radiusPx, 8);
+    expect(southEast.my - centre.my).toBeCloseTo(1.5 * centre.radiusPx, 8);
+    expect(
+      territoryCellAt(createTerritoryManifest(), model.view, 560, southEast.mx, southEast.my),
+    ).toBe(southEast.cellId);
+  });
+
   it('marks only the outside edges of contiguous guild territory', () => {
     const manifest = createTerritoryManifest();
     const centre = manifest.byAxial.get('0:0');
