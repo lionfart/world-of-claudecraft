@@ -63,12 +63,12 @@ function inlandTerrain(
   // directly here: that source is intentionally granular and would recreate
   // the checkerboard this visual geography is replacing. Both fields below
   // are low-frequency, so every branch produces a contiguous region.
-  if (elevation > 0.82) return 'mountain';
-  if (elevation > 0.72) return 'highland';
-  if (moisture > 0.72 && elevation < 0.43) return 'marsh';
-  if (moisture > 0.65) return 'forest';
-  if (moisture > 0.53) return 'woodlands';
-  if (moisture < 0.25 && elevation < 0.42) return 'wastes';
+  if (elevation > 0.93) return 'mountain';
+  if (elevation > 0.84) return 'highland';
+  if (moisture > 0.8 && elevation < 0.39) return 'marsh';
+  if (moisture > 0.82) return 'forest';
+  if (moisture > 0.6) return 'woodlands';
+  if (moisture < 0.18 && elevation < 0.36) return 'wastes';
   return 'grassland';
 }
 
@@ -89,21 +89,21 @@ export function territoryVisualBiome(
 
   // Cold cap. Elevation and moisture select broad sub-regions, not individual
   // random tiles, because both fields are sampled on a seven/eight-cell lattice.
-  if (ny < -0.36) {
-    if (elevation > 0.57 || Math.abs(nx + 0.06) < 0.1) return 'snowMountain';
-    return moisture > 0.5 ? 'snowForest' : 'snowfield';
+  if (ny < -0.67) {
+    if (elevation > 0.84 || (Math.abs(nx + 0.06) < 0.04 && elevation > 0.7)) return 'snowMountain';
+    return moisture > 0.7 ? 'snowForest' : 'snowfield';
   }
 
   // Warm continental east/south-east. Tall mesas stay within the desert mass
   // so their silhouettes do not pepper otherwise green land.
-  if (nx > 0.3 && ny > -0.12) {
-    return elevation > 0.58 ? 'desertMesa' : 'desert';
+  if (nx > 0.61 && ny > -0.02) {
+    return nx > 0.78 && elevation > 0.78 ? 'desertMesa' : 'desert';
   }
 
   // A diagonal mountain spine separates the western temperate lands from the
   // dry east. Noise breaks it into natural passes while preserving continuity.
   const ridge = Math.abs(nx + ny * 0.28 + 0.05);
-  if (ridge < 0.1 && elevation > 0.38) return elevation > 0.55 ? 'mountain' : 'highland';
+  if (ridge < 0.045 && elevation > 0.62) return elevation > 0.83 ? 'mountain' : 'highland';
 
   return inlandTerrain(cell.terrain, moisture, elevation);
 }

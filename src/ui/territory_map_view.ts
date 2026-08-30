@@ -52,6 +52,8 @@ export interface TerritoryMapHex {
   hovered: boolean;
   selected: boolean;
   borderSides: readonly boolean[];
+  /** Visual biome on each axial side, in TERRITORY_AXIAL_DIRECTIONS order. */
+  neighborBiomes: readonly (TerritoryVisualBiome | null)[];
 }
 
 export interface TerritoryMapModel {
@@ -162,6 +164,10 @@ export function buildTerritoryMapModel(input: {
           if (!owner) return false;
           const neighbor = manifest.byAxial.get(axialKey(q + dq, r + dr));
           return !neighbor || owned.get(neighbor.id)?.ownerGuildId !== owner.ownerGuildId;
+        }),
+        neighborBiomes: TERRITORY_AXIAL_DIRECTIONS.map(([dq, dr]) => {
+          const neighbor = manifest.byAxial.get(axialKey(q + dq, r + dr));
+          return neighbor ? territoryVisualBiome(neighbor, manifest.radius) : null;
         }),
       });
     }

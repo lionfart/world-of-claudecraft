@@ -89,6 +89,9 @@ describe('territory map view', () => {
     expect(
       territoryCellAt(createTerritoryManifest(), model.view, 560, southEast.mx, southEast.my),
     ).toBe(southEast.cellId);
+    expect(centre.neighborBiomes).toHaveLength(6);
+    expect(centre.neighborBiomes[0]).toBe(east.biome);
+    expect(centre.neighborBiomes[5]).toBe(southEast.biome);
   });
 
   it('marks only the outside edges of contiguous guild territory', () => {

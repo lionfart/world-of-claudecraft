@@ -56,6 +56,25 @@ describe('territory visual biomes', () => {
     expect([...biomes].some((biome) => ['highland', 'mountain'].includes(biome))).toBe(true);
   });
 
+  it('keeps landmark biomes sparse and lets temperate ground dominate', () => {
+    const manifest = createTerritoryManifest(20);
+    const counts = new Map<string, number>();
+    for (const cell of manifest.cells) {
+      const biome = territoryVisualBiome(cell, manifest.radius);
+      counts.set(biome, (counts.get(biome) ?? 0) + 1);
+    }
+    const count = (...biomes: string[]): number =>
+      biomes.reduce((sum, biome) => sum + (counts.get(biome) ?? 0), 0);
+
+    expect(count('grassland', 'woodlands')).toBeGreaterThan(manifest.cells.length * 0.55);
+    expect(count('mountain', 'snowMountain')).toBeLessThan(manifest.cells.length * 0.08);
+    expect(count('snowfield', 'snowForest', 'snowMountain')).toBeLessThan(
+      manifest.cells.length * 0.16,
+    );
+    expect(count('desert', 'desertMesa')).toBeLessThan(manifest.cells.length * 0.12);
+    expect(count('forest')).toBeLessThan(manifest.cells.length * 0.08);
+  });
+
   it('is visual-only and leaves the authoritative manifest checksum untouched', () => {
     const before = createTerritoryManifest(20).checksum;
     for (const cell of createTerritoryManifest(20).cells) territoryVisualBiome(cell, 20);

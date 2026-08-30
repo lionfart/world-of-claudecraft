@@ -7,6 +7,7 @@ import {
   territoryFeatureArtRect,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
+  territoryTransitionArtKey,
   territoryTerrainArtRect,
 } from '../src/ui/territory_map_art';
 
@@ -89,5 +90,14 @@ describe('territory map art bundle', () => {
     expect(flat.mirrorX).toBe(false);
     expect(mountain.rotationSteps).toBe(0);
     expect(typeof mountain.mirrorX).toBe('boolean');
+  });
+
+  it('uses low-silhouette material art for every biome transition', () => {
+    expect(territoryTransitionArtKey('mountain', 1, 2, 0)).toMatch(/^highland/);
+    expect(territoryTransitionArtKey('snowMountain', 1, 2, 1)).toMatch(/^snowfield/);
+    expect(territoryTransitionArtKey('forest', 1, 2, 2)).toBe('woodlands');
+    expect(territoryTransitionArtKey('desertMesa', 1, 2, 3)).toMatch(/^desert/);
+    expect(painterSource).toContain('this.biomeTransitions(ctx, cell, art)');
+    expect(painterSource).toContain('this.transitionBand(ctx, cell, side');
   });
 });

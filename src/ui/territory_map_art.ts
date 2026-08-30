@@ -40,6 +40,22 @@ export interface TerritoryMapArtRect {
   height: number;
 }
 
+export type TerritoryTransitionArtKey =
+  | 'grassland'
+  | 'grasslandAlt'
+  | 'woodlands'
+  | 'highland'
+  | 'highlandAlt'
+  | 'marsh'
+  | 'marshAlt'
+  | 'marshBog'
+  | 'snowfield'
+  | 'snowfieldAlt'
+  | 'desert'
+  | 'desertAlt'
+  | 'wastes'
+  | 'wastesAlt';
+
 const HEX_HEIGHT = Math.sqrt(3);
 const SOURCE_HEIGHT = 384;
 const SOURCE_FOOTPRINT_TOP = 123;
@@ -113,6 +129,31 @@ function artHash(q: number, r: number, salt: number): number {
   let value = Math.imul(q ^ salt, 0x45d9f3b) ^ Math.imul(r + salt, 0x119de1f3);
   value = Math.imul(value ^ (value >>> 16), 0x45d9f3b);
   return (value ^ (value >>> 16)) >>> 0;
+}
+
+/**
+ * Returns a low-silhouette material layer for a directional biome seam. Tall
+ * forests, mesas and mountains deliberately collapse to their matching ground
+ * material so transition bands never duplicate upright landmarks.
+ */
+export function territoryTransitionArtKey(
+  biome: TerritoryVisualBiome,
+  q: number,
+  r: number,
+  side: number,
+): TerritoryTransitionArtKey {
+  const variant = artHash(q + side * 17, r - side * 11, 0x5ac4_17e9);
+  if (biome === 'grassland') return variant % 3 === 0 ? 'grasslandAlt' : 'grassland';
+  if (biome === 'woodlands' || biome === 'forest') return 'woodlands';
+  if (biome === 'highland' || biome === 'mountain')
+    return variant % 2 === 0 ? 'highlandAlt' : 'highland';
+  if (biome === 'marsh')
+    return variant % 3 === 0 ? 'marshBog' : variant % 2 === 0 ? 'marshAlt' : 'marsh';
+  if (biome === 'snowfield' || biome === 'snowForest' || biome === 'snowMountain')
+    return variant % 3 === 0 ? 'snowfieldAlt' : 'snowfield';
+  if (biome === 'desert' || biome === 'desertMesa')
+    return variant % 3 === 0 ? 'desertAlt' : 'desert';
+  return variant % 2 === 0 ? 'wastesAlt' : 'wastes';
 }
 
 /** Couples visual density to the resource tier while varying ordinary terrain. */
