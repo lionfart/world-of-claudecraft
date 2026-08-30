@@ -12,22 +12,46 @@ export interface TerritoryMapArtRect {
 
 const SOURCE_ASPECT = 384 / 256;
 const HEX_HEIGHT = Math.sqrt(3);
-const SOURCE_BASE_VISIBLE_FRACTION = 2 / 3;
 const FEATURE_HEIGHT_FRACTION = 0.94;
 
-/** Adapt the supplied point-up base to the exact vertical span of a flat-top hex. */
+export interface TerritoryMapArtSourceRect {
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+}
+
+/** Exact bounding box of the flat-top canvas cell. */
 export function territoryTerrainArtRect(
   mx: number,
   my: number,
   radius: number,
 ): TerritoryMapArtRect {
-  const visibleHeight = radius * HEX_HEIGHT;
-  const height = visibleHeight / SOURCE_BASE_VISIBLE_FRACTION;
+  const height = radius * HEX_HEIGHT;
   return {
     x: mx - radius,
-    y: my + visibleHeight / 2 - height,
+    y: my - height / 2,
     width: radius * 2,
     height,
+  };
+}
+
+/**
+ * The supplied 256x384 illustrations are raised isometric dioramas with a
+ * transparent upper half. Sampling their fully opaque central ground patch as
+ * a cover texture prevents that transparency from exposing wedges inside our
+ * flat-top topology. Fractions keep the crop correct if the atlas is rebuilt at
+ * another lossless resolution.
+ */
+export function territoryTerrainArtSourceRect(
+  naturalWidth: number,
+  naturalHeight: number,
+): TerritoryMapArtSourceRect {
+  return {
+    sx: naturalWidth * 0.25,
+    sy: naturalHeight * (184 / 384),
+    sw: naturalWidth * 0.5,
+    sh: naturalHeight * (72 / 384),
   };
 }
 

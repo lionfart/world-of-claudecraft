@@ -14,6 +14,7 @@ import {
   territorySiegeBandColliders,
   territorySiegeInTowerRange,
   territorySiegeLocalColliders,
+  territorySiegeProjectilePathClear,
   territorySiegeSpawn,
   territorySiegeTowerPositions,
   territorySiegeWallPlacements,
@@ -123,6 +124,22 @@ describe('territory siege instance layout', () => {
         0.5,
       ).z,
     ).toBe(origin.z + 10);
+  });
+
+  it('blocks projectile segments through the gate leaf until it opens', () => {
+    const origin = territorySiegeOrigin(0);
+    const outside = { x: origin.x, z: origin.z + TERRITORY_SIEGE_GATE_Z + 8 };
+    const courtyard = { x: origin.x, z: origin.z + TERRITORY_SIEGE_GATE_Z - 8 };
+    expect(territorySiegeProjectilePathClear(0, false, outside, courtyard)).toBe(false);
+    expect(territorySiegeProjectilePathClear(0, true, outside, courtyard)).toBe(true);
+    expect(
+      territorySiegeProjectilePathClear(
+        0,
+        false,
+        { ...outside, x: origin.x + TERRITORY_SIEGE_GATE_HALF_WIDTH + 4 },
+        { ...courtyard, x: origin.x + TERRITORY_SIEGE_GATE_HALF_WIDTH + 4 },
+      ),
+    ).toBe(true);
   });
 
   it('seals the complete twenty-unit opening between the front wall segments', () => {

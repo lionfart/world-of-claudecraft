@@ -212,6 +212,55 @@ export function clampTerritorySiegeGate(
   return { x, z };
 }
 
+function segmentIntersectsRect(
+  from: Readonly<{ x: number; z: number }>,
+  to: Readonly<{ x: number; z: number }>,
+  minX: number,
+  maxX: number,
+  minZ: number,
+  maxZ: number,
+): boolean {
+  let near = 0;
+  let far = 1;
+  for (const [start, delta, min, max] of [
+    [from.x, to.x - from.x, minX, maxX],
+    [from.z, to.z - from.z, minZ, maxZ],
+  ] as const) {
+    if (Math.abs(delta) <= 1e-9) {
+      if (start < min || start > max) return false;
+      continue;
+    }
+    let entry = (min - start) / delta;
+    let exit = (max - start) / delta;
+    if (entry > exit) [entry, exit] = [exit, entry];
+    near = Math.max(near, entry);
+    far = Math.min(far, exit);
+    if (near > far) return false;
+  }
+  return true;
+}
+
+/** A closed gate leaf is opaque to aimed, homing, and ballistic projectiles. */
+export function territorySiegeProjectilePathClear(
+  slot: number,
+  gateOpen: boolean,
+  from: Readonly<{ x: number; z: number }>,
+  to: Readonly<{ x: number; z: number }>,
+  radius = 0.05,
+): boolean {
+  if (gateOpen) return true;
+  const origin = territorySiegeOrigin(slot);
+  const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
+  return !segmentIntersectsRect(
+    from,
+    to,
+    origin.x - TERRITORY_SIEGE_GATE_HALF_WIDTH - radius,
+    origin.x + TERRITORY_SIEGE_GATE_HALF_WIDTH + radius,
+    gateZ - 1.4 - radius,
+    gateZ + 1.4 + radius,
+  );
+}
+
 /**
  * Side-aware backstop for the authoritative host. It repairs any position that
  * arrived across the closed leaf through reconciliation, forced movement or a

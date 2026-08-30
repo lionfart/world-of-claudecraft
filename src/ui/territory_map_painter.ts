@@ -10,6 +10,7 @@ import {
   territoryFeatureArtRect,
   territoryMapArt,
   territoryTerrainArtRect,
+  territoryTerrainArtSourceRect,
 } from './territory_map_art';
 import {
   buildTerritoryMapModel,
@@ -281,13 +282,13 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    // Every cell first receives its terrain base, clipped to the real flat-top
-    // topology. The source sprites are point-up, so the placement maps their
-    // lower two-thirds base onto this hex rather than covering neighbours.
+    // Every cell first receives an opaque terrain crop in cover mode. The
+    // supplied sprites are raised point-up dioramas; drawing their complete
+    // transparent canvas into a flat-top cell exposes triangular gaps.
     for (const cell of sorted) {
       const image = art[cell.terrain];
       if (!image) continue;
-      this.drawClippedArt(
+      this.drawClippedTerrain(
         ctx,
         cell,
         image,
@@ -308,6 +309,31 @@ export class TerritoryMapPainter {
         territoryFeatureArtRect(cell.mx, cell.my, cell.radiusPx),
       );
     }
+  }
+
+  private drawClippedTerrain(
+    ctx: CanvasRenderingContext2D,
+    cell: TerritoryMapHex,
+    image: HTMLImageElement,
+    rect: { x: number; y: number; width: number; height: number },
+  ): void {
+    const source = territoryTerrainArtSourceRect(image.naturalWidth, image.naturalHeight);
+    ctx.save();
+    ctx.beginPath();
+    this.hexPath(ctx, cell, 0.16);
+    ctx.clip();
+    ctx.drawImage(
+      image,
+      source.sx,
+      source.sy,
+      source.sw,
+      source.sh,
+      rect.x,
+      rect.y,
+      rect.width,
+      rect.height,
+    );
+    ctx.restore();
   }
 
   private drawClippedArt(

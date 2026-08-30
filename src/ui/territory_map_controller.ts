@@ -85,6 +85,10 @@ export class TerritoryMapController {
         this.world.territoryMap?.siege?.coreChanneling ? 'stop_core_channel' : 'start_core_channel',
       ),
     );
+    element('#territory-leave-siege').addEventListener('click', () => {
+      const warId = this.world.territoryMap?.siege?.warId;
+      if (warId) this.world.territoryLeaveWar(warId);
+    });
   }
 
   open(): void {
@@ -240,6 +244,7 @@ export class TerritoryMapController {
       );
     }
     if (!siege || siege.state === 'ended') return;
+    this.writers.setText(element('#territory-leave-siege'), t('hudChrome.territoryMap.leaveWar'));
     this.writers.setText(
       element('#territory-siege-title'),
       t('hudChrome.territoryMap.siegeTitle', {

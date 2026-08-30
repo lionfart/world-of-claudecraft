@@ -6,6 +6,7 @@ import {
   TERRITORY_MAP_ART_SOURCES,
   territoryFeatureArtRect,
   territoryTerrainArtRect,
+  territoryTerrainArtSourceRect,
 } from '../src/ui/territory_map_art';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -30,14 +31,23 @@ describe('territory map art bundle', () => {
     expect(totalBytes).toBeLessThan(800_000);
   });
 
-  it('calibrates point-up source bases to the exact flat-top hex span', () => {
+  it('covers the exact flat-top hex bounds with terrain texture', () => {
     const radius = 20;
     const rect = territoryTerrainArtRect(100, 80, radius);
     const halfHexHeight = (Math.sqrt(3) * radius) / 2;
     expect(rect.x).toBe(80);
     expect(rect.width).toBe(40);
+    expect(rect.y).toBeCloseTo(80 - halfHexHeight, 8);
     expect(rect.y + rect.height).toBeCloseTo(80 + halfHexHeight, 8);
-    expect(rect.y + rect.height / 3).toBeCloseTo(80 - halfHexHeight, 8);
+  });
+
+  it('samples the fully opaque centre patch of the supplied 256x384 terrain art', () => {
+    expect(territoryTerrainArtSourceRect(256, 384)).toEqual({
+      sx: 64,
+      sy: 184,
+      sw: 128,
+      sh: 72,
+    });
   });
 
   it('keeps the full keep and resource silhouette inside one hex', () => {
@@ -51,8 +61,9 @@ describe('territory map art bundle', () => {
     expect(rect.height / rect.width).toBeCloseTo(384 / 256, 8);
   });
 
-  it('clips terrain and feature layers to the actual flat-top canvas path', () => {
+  it('cover-crops terrain and clips both art layers to the flat-top canvas path', () => {
     expect(painterSource).toContain('territoryTerrainArtRect(');
+    expect(painterSource).toContain('territoryTerrainArtSourceRect(');
     expect(painterSource).toContain('territoryFeatureArtRect(');
     expect(painterSource).toContain('this.hexPath(ctx, cell, 0.16);');
     expect(painterSource).toContain('ctx.clip();');

@@ -10986,6 +10986,23 @@
     opacity: 0.4;
     cursor: default;
   }
+  #territory-leave-siege {
+    width: 100%;
+    min-height: 22px;
+    margin-top: 4px;
+    padding: 2px 6px;
+    color: var(--color-text-muted);
+    font-size: 9px;
+    border: 1px solid #6b4a30;
+    background: #1c1510;
+    cursor: var(--cursor-point);
+  }
+  #territory-leave-siege:hover,
+  #territory-leave-siege:focus-visible {
+    color: var(--color-text);
+    border-color: #a76d3b;
+    outline: 1px solid #a76d3b55;
+  }
   body.territory-siege-control-locked #actionbar-stack,
   body.territory-siege-control-locked #mobile-action-page {
     filter: saturate(0.3) brightness(0.65);

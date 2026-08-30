@@ -7060,6 +7060,11 @@ export class Sim {
   }
 
   private hasLineOfSight(source: Entity, target: Entity): boolean {
+    if (
+      !territoryMod.territorySimProjectilePathClear(this, source.id, source.pos, target.pos, 0.05)
+    ) {
+      return false;
+    }
     // The delve-run lookup is O(active runs x mobs per run) and allocates a
     // party key per call, and this method sits on every ranged auto-attack,
     // AoE pulse, and LOS-gated cast. Only a sight line with an endpoint
@@ -7088,6 +7093,8 @@ export class Sim {
     from: Readonly<{ x: number; z: number }>,
     to: Readonly<{ x: number; z: number }>,
   ): boolean {
+    if (!territoryMod.territorySimProjectilePathClear(this, source.id, from, to, 0.05))
+      return false;
     const run = this.delveRunForMob(source.id) ?? this.delveRunForPlayer(source.id);
     return lineOfSightClear(this.cfg.seed, from, to, 0.05, run?.modules, this.riftCollisionToken);
   }

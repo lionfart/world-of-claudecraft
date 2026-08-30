@@ -348,6 +348,13 @@ export function advancePendingProjectiles(ctx: SimContext): void {
       continue;
     }
     const next = stepProjectile(proj.x, proj.z, target.pos.x, target.pos.z, step);
+    if (
+      ctx.projectilePathClear &&
+      !ctx.projectilePathClear(source, proj, { x: next.x, z: next.z })
+    ) {
+      proj.fizzle?.();
+      continue;
+    }
     if (next.hit) {
       proj.resolve(source, target);
       continue;

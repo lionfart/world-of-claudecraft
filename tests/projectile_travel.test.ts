@@ -214,6 +214,26 @@ describe('scheduleProjectile + advancePendingProjectiles', () => {
     expect(landed.n).toBe(0);
   });
 
+  it('fizzles a homing projectile when a closed dynamic gate intersects its next step', () => {
+    const ctx = fakeCtx() as ReturnType<typeof fakeCtx> & {
+      projectilePathClear: (_source: any, _from: any, to: any) => boolean;
+    };
+    const src = ent(1, 0, 0);
+    const tgt = ent(2, 0, 10);
+    ctx.entities.set(src.id, src);
+    ctx.entities.set(tgt.id, tgt);
+    ctx.projectilePathClear = (_source, _from, to) => to.z < STEP;
+    const landed = vi.fn();
+    const fizzled = vi.fn();
+
+    scheduleProjectile(ctx as any, src, tgt, landed, src.pos, fizzled);
+    advancePendingProjectiles(ctx as any);
+
+    expect(landed).not.toHaveBeenCalled();
+    expect(fizzled).toHaveBeenCalledTimes(1);
+    expect(ctx.pendingProjectiles).toHaveLength(0);
+  });
+
   it('lands on a target that outruns the bolt: a released projectile cannot be escaped', () => {
     const ctx = fakeCtx();
     const src = ent(1, 0, 0);
