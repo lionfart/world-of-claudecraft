@@ -6,8 +6,9 @@ import type { TerritoryMapState } from '../world_api';
 import { t } from './i18n';
 import {
   type TerritoryMapArt,
-  type TerritoryMapArtKey,
   territoryMapArt,
+  territoryMapArtKeyForCell,
+  territoryMapArtTransformForCell,
   territoryTerrainArtRect,
 } from './territory_map_art';
 import {
@@ -283,22 +284,32 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    // Each cell draws exactly one authored tile. Resource and keep images
-    // already include their matching forest/hill/plain/dirt footprint, so
-    // compositing them over a second terrain image would double the base and
-    // produce seams. Back-to-front order preserves their upright silhouettes.
+    // Each cell draws exactly one complete authored tile. Flat ground variants
+    // can turn in exact sixth-steps; upright silhouettes only mirror, keeping
+    // their isometric vertical read intact. Back-to-front order preserves the
+    // trees, mountains and buildings that rise above the common footprint.
     for (const cell of sorted) {
-      const image = this.artForCell(cell, art);
+      const key = territoryMapArtKeyForCell(cell);
+      const image = art[key];
       if (!image) continue;
       const rect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
-      ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
+      const transform = territoryMapArtTransformForCell(cell, key);
+      ctx.save();
+      if (transform.rotationSteps) {
+        ctx.beginPath();
+        this.hexPath(ctx, cell, 0.05);
+        ctx.clip();
+      }
+      ctx.translate(cell.mx, cell.my);
+      if (transform.rotationSteps) ctx.rotate((transform.rotationSteps * Math.PI) / 3);
+      if (transform.mirrorX) ctx.scale(-1, 1);
+      ctx.drawImage(image, rect.x - cell.mx, rect.y - cell.my, rect.width, rect.height);
+      ctx.restore();
     }
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {
-    const key: TerritoryMapArtKey =
-      cell.biome === 'ocean' ? 'ocean' : cell.keepRoot ? 'keep' : (cell.resource ?? cell.biome);
-    return art[key];
+    return art[territoryMapArtKeyForCell(cell)];
   }
 
   private territoryBorders(

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
+import { territoryResourceProfile } from '../src/sim/territory_biome';
 import { territoryConstructionDurationMs } from '../src/sim/territory_construction';
 import type { TerritoryDelta } from '../src/sim/territory_delta';
 import {
@@ -453,7 +454,7 @@ export class TerritoryRepository {
               ownerColor: territoryGuildColor(row.guild_id),
               keepRoot: row.keep_root,
               terrain: cell.terrain,
-              resource: cell.resource,
+              resource: territoryResourceProfile(cell, this.manifest.radius)?.kind ?? null,
             },
           ]
         : [];
@@ -571,8 +572,9 @@ export class TerritoryRepository {
       };
       if (ticks > 0) {
         for (const cellId of cellIds) {
-          const resource = this.manifest.byId.get(cellId)?.resource;
-          if (resource) production[resource] += ticks;
+          const cell = this.manifest.byId.get(cellId);
+          const resource = cell ? territoryResourceProfile(cell, this.manifest.radius) : null;
+          if (resource) production[resource.kind] += ticks * resource.yield;
         }
       }
       const level = state.territory_level;
@@ -649,8 +651,9 @@ export class TerritoryRepository {
       labor: 0,
     };
     for (const ownedCell of owned.rows) {
-      const resource = this.manifest.byId.get(ownedCell.cell_id)?.resource;
-      if (resource) production[resource] += ticks;
+      const cell = this.manifest.byId.get(ownedCell.cell_id);
+      const resource = cell ? territoryResourceProfile(cell, this.manifest.radius) : null;
+      if (resource) production[resource.kind] += ticks * resource.yield;
     }
     const capacity = 2_000 + num(storehouses.rows[0]?.total ?? 0) * 500;
     const advancedAt = new Date(accruedMs + ticks * RESOURCE_TICK_MS);
@@ -1396,7 +1399,7 @@ export class TerritoryRepository {
       ownerColor: territoryGuildColor(guildId),
       keepRoot,
       terrain: cell.terrain,
-      resource: cell.resource,
+      resource: territoryResourceProfile(cell, this.manifest.radius)?.kind ?? null,
     };
   }
 

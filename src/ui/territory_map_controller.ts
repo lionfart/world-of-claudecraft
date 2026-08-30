@@ -1,4 +1,5 @@
 import { territorySiegeOriginAt } from '../sim/data';
+import { territoryResourceProfile } from '../sim/territory_biome';
 import { createTerritoryManifest, type TerritoryResourceKind } from '../sim/territory_manifest';
 import { territorySiegeActionPoint } from '../sim/territory_siege_layout';
 import type { IWorld, TerritoryMapState, TerritoryStructureSlot } from '../world_api';
@@ -498,9 +499,12 @@ export class TerritoryMapController {
     const owner = owned
       ? t('hudChrome.territoryMap.owner', { guild: owned.ownerGuildName })
       : t('hudChrome.territoryMap.neutral');
-    const resource = manifestCell?.resource
+    const resourceProfile = manifestCell
+      ? territoryResourceProfile(manifestCell, state.season.radius)
+      : null;
+    const resource = resourceProfile
       ? t('hudChrome.territoryMap.resource', {
-          resource: this.resourceLabel(manifestCell.resource),
+          resource: `${this.resourceLabel(resourceProfile.kind)} ×${resourceProfile.yield}`,
         })
       : t('hudChrome.territoryMap.noResource');
     this.writers.setText(detail, `${owner} · ${resource}`);

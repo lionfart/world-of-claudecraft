@@ -1,15 +1,46 @@
 import { describe, expect, it } from 'vitest';
-import { territoryVisualBiome } from '../src/sim/territory_biome';
-import { axialDistance, createTerritoryManifest } from '../src/sim/territory_manifest';
+import { territoryResourceProfile, territoryVisualBiome } from '../src/sim/territory_biome';
+import { createTerritoryManifest } from '../src/sim/territory_manifest';
 
 describe('territory visual biomes', () => {
-  it('wraps the strategic continent in a complete ocean rim', () => {
+  it('keeps every strategic hex on land with no ocean or coast ring', () => {
     const manifest = createTerritoryManifest(20);
-    const rim = manifest.cells.filter((cell) => axialDistance(cell.q, cell.r) >= 19);
-    expect(rim.length).toBeGreaterThan(0);
-    expect(new Set(rim.map((cell) => territoryVisualBiome(cell, manifest.radius)))).toEqual(
-      new Set(['ocean']),
+    const biomes = new Set<string>(
+      manifest.cells.map((cell) => territoryVisualBiome(cell, manifest.radius)),
     );
+    expect(biomes.has('ocean')).toBe(false);
+    expect(biomes.has('coast')).toBe(false);
+  });
+
+  it('ties resource yield to the depicted biome density', () => {
+    const manifest = createTerritoryManifest(20);
+    const forest = manifest.cells.find(
+      (cell) => territoryVisualBiome(cell, manifest.radius) === 'forest',
+    );
+    const woodland = manifest.cells.find(
+      (cell) => territoryVisualBiome(cell, manifest.radius) === 'woodlands',
+    );
+    const snowForest = manifest.cells.find(
+      (cell) => territoryVisualBiome(cell, manifest.radius) === 'snowForest',
+    );
+    if (!forest || !woodland || !snowForest) throw new Error('expected forest biomes are absent');
+
+    expect(territoryResourceProfile(forest, manifest.radius)).toMatchObject({ kind: 'wood' });
+    expect(territoryResourceProfile(forest, manifest.radius)?.yield).toBeGreaterThan(1);
+    expect(territoryResourceProfile(woodland, manifest.radius)).toEqual({ kind: 'wood', yield: 1 });
+    expect(territoryResourceProfile(snowForest, manifest.radius)).toEqual({
+      kind: 'wood',
+      yield: 2,
+    });
+
+    const grainTiers = new Set(
+      manifest.cells
+        .filter((cell) => territoryVisualBiome(cell, manifest.radius) === 'grassland')
+        .map((cell) => territoryResourceProfile(cell, manifest.radius))
+        .filter((profile) => profile?.kind === 'grain')
+        .map((profile) => profile?.yield),
+    );
+    expect(grainTiers).toEqual(new Set([1, 2]));
   });
 
   it('forms broad cold, desert, and temperate regions instead of a random checkerboard', () => {

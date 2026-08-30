@@ -1,18 +1,15 @@
-import {
-  axialDistance,
-  type TerritoryManifestCell,
-  type TerritoryTerrain,
+import type {
+  TerritoryManifestCell,
+  TerritoryResourceKind,
+  TerritoryTerrain,
 } from './territory_manifest';
 
 /**
- * Visual-only geography for the strategic map. Gameplay terrain, resources,
- * ownership and the persisted manifest checksum remain unchanged; this layer
- * groups the authored tile art into broad, readable regions instead of a
- * per-cell random checkerboard.
+ * Deterministic geography shared by the strategic-map art and territory
+ * production. Persisted topology and the manifest checksum remain unchanged,
+ * so an active season does not need to be reset when the presentation evolves.
  */
 export type TerritoryVisualBiome =
-  | 'ocean'
-  | 'coast'
   | 'grassland'
   | 'woodlands'
   | 'forest'
@@ -25,6 +22,12 @@ export type TerritoryVisualBiome =
   | 'desert'
   | 'desertMesa'
   | 'wastes';
+
+export interface TerritoryResourceProfile {
+  readonly kind: TerritoryResourceKind;
+  /** Units produced by this cell per territory resource tick. */
+  readonly yield: 1 | 2 | 3;
+}
 
 function mix32(x: number, y: number, salt: number): number {
   let value = Math.imul(x ^ salt, 0x45d9f3b) ^ Math.imul(y + salt, 0x119de1f3);
@@ -70,25 +73,19 @@ function inlandTerrain(
 }
 
 /**
- * Builds one coherent continent: ocean rim, a cold north, an eastern desert,
- * a broken mountain spine, and temperate forest/plains between them.
+ * Builds one coherent landmass: a cold north, an eastern desert, a broken
+ * mountain spine, and temperate forest/plains between them. Every manifest
+ * cell remains land; there is no decorative sea ring consuming playable hexes.
  */
 export function territoryVisualBiome(
   cell: Pick<TerritoryManifestCell, 'q' | 'r' | 'terrain'>,
   radius: number,
 ): TerritoryVisualBiome {
   const safeRadius = Math.max(1, radius);
-  const distance = axialDistance(cell.q, cell.r);
-  if (distance >= safeRadius - 1) return 'ocean';
-
   const nx = (cell.q + cell.r / 2) / safeRadius;
   const ny = cell.r / safeRadius;
   const moisture = regionNoise(cell.q, cell.r, 7, 0x2f6e2b1);
   const elevation = regionNoise(cell.q, cell.r, 8, 0x6c8e9cf);
-
-  // A sparse sandy transition makes the ocean rim read as a coast without
-  // drawing a mechanically uniform second ring around the whole continent.
-  if (distance >= safeRadius - 3 && ny > -0.2 && (nx < 0.32 || ny > 0.42)) return 'coast';
 
   // Cold cap. Elevation and moisture select broad sub-regions, not individual
   // random tiles, because both fields are sampled on a seven/eight-cell lattice.
@@ -109,4 +106,48 @@ export function territoryVisualBiome(
   if (ridge < 0.1 && elevation > 0.38) return elevation > 0.55 ? 'mountain' : 'highland';
 
   return inlandTerrain(cell.terrain, moisture, elevation);
+}
+
+/**
+ * Resource identity and strength follow what the tile actually depicts.
+ * Dense forests always produce more wood than sparse woodland; farms use two
+ * grain tiers, while ore-bearing mountain cells vary between natural ridges
+ * and rich mine sites. The old manifest marker is retained only as the sparse
+ * seed for settlement/labour cells.
+ */
+export function territoryResourceProfile(
+  cell: Pick<TerritoryManifestCell, 'q' | 'r' | 'terrain' | 'resource'>,
+  radius: number,
+): TerritoryResourceProfile | null {
+  const biome = territoryVisualBiome(cell, radius);
+  const variation = mix32(cell.q, cell.r, 0x4a61_2f9d);
+
+  if (biome === 'forest') {
+    // Forester clearings contain fewer standing trees than untouched forest.
+    return { kind: 'wood', yield: variation % 5 === 0 ? 2 : 3 };
+  }
+  if (biome === 'snowForest') return { kind: 'wood', yield: 2 };
+  if (biome === 'woodlands') return { kind: 'wood', yield: 1 };
+
+  if (biome === 'grassland') {
+    if (cell.resource === 'labor' && variation % 2 === 0) return { kind: 'labor', yield: 1 };
+    const farmRoll = variation % 10;
+    if (farmRoll < 2) return { kind: 'grain', yield: 2 };
+    if (farmRoll < 4) return { kind: 'grain', yield: 1 };
+    return null;
+  }
+
+  if (biome === 'highland' && variation % 3 === 0)
+    return { kind: 'iron', yield: variation % 9 === 0 ? 3 : 1 };
+  if ((biome === 'mountain' || biome === 'snowMountain') && variation % 2 === 0)
+    return { kind: 'iron', yield: variation % 6 === 0 ? 3 : 2 };
+  if (biome === 'desertMesa' && variation % 4 === 0) return { kind: 'iron', yield: 1 };
+
+  if (
+    cell.resource === 'labor' &&
+    (biome === 'desert' || biome === 'wastes') &&
+    variation % 2 === 0
+  )
+    return { kind: 'labor', yield: 1 };
+  return null;
 }

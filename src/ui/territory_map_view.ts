@@ -1,7 +1,11 @@
 // Pure projection and hit-testing for the seasonal strategic map. The painter
 // receives only visible cells; it never scans the full manifest itself.
 
-import { type TerritoryVisualBiome, territoryVisualBiome } from '../sim/territory_biome';
+import {
+  type TerritoryVisualBiome,
+  territoryResourceProfile,
+  territoryVisualBiome,
+} from '../sim/territory_biome';
 import {
   axialKey,
   axialToWorld,
@@ -38,6 +42,7 @@ export interface TerritoryMapHex {
   terrain: TerritoryTerrain;
   biome: TerritoryVisualBiome;
   resource: TerritoryResourceKind | null;
+  resourceYield: number;
   ownerGuildId: string | null;
   ownerGuildName: string | null;
   ownerColor: string | null;
@@ -132,6 +137,8 @@ export function buildTerritoryMapModel(input: {
       const point = axialToWorld(q, r);
       if (point.x < minX || point.x > maxX || point.y < minY || point.y > maxY) continue;
       const owner = owned.get(cell.id);
+      const biome = territoryVisualBiome(cell, manifest.radius);
+      const resource = territoryResourceProfile(cell, manifest.radius);
       visibleCells.push({
         cellId: cell.id,
         q,
@@ -140,8 +147,9 @@ export function buildTerritoryMapModel(input: {
         my: (point.y - center.y) * pixelsPerUnit + input.canvasSize / 2,
         radiusPx: pixelsPerUnit,
         terrain: cell.terrain,
-        biome: territoryVisualBiome(cell, manifest.radius),
-        resource: cell.resource,
+        biome,
+        resource: resource?.kind ?? null,
+        resourceYield: resource?.yield ?? 0,
         ownerGuildId: owner?.ownerGuildId ?? null,
         ownerGuildName: owner?.ownerGuildName ?? null,
         ownerColor: owner?.ownerColor ?? null,
