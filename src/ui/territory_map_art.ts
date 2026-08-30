@@ -14,7 +14,8 @@ export type TerritoryMapArtKey =
   | 'desertMesaAlt'
   | 'wastesAlt'
   | 'grainLow'
-  | 'keep';
+  | 'keep'
+  | 'transitionAtlas';
 export type TerritoryMapArt = Partial<Record<TerritoryMapArtKey, HTMLImageElement>>;
 
 export interface TerritoryMapArtCell {
@@ -40,21 +41,78 @@ export interface TerritoryMapArtRect {
   height: number;
 }
 
-export type TerritoryTransitionArtKey =
-  | 'grassland'
-  | 'grasslandAlt'
-  | 'woodlands'
-  | 'highland'
-  | 'highlandAlt'
-  | 'marsh'
-  | 'marshAlt'
-  | 'marshBog'
-  | 'snowfield'
-  | 'snowfieldAlt'
-  | 'desert'
-  | 'desertAlt'
-  | 'wastes'
-  | 'wastesAlt';
+export const TERRITORY_TRANSITION_MATERIALS = [
+  'grassland',
+  'grasslandAlt',
+  'woodlands',
+  'highland',
+  'highlandAlt',
+  'marsh',
+  'marshAlt',
+  'marshBog',
+  'snowfield',
+  'snowfieldAlt',
+  'desert',
+  'desertAlt',
+  'wastes',
+  'wastesAlt',
+] as const;
+
+export type TerritoryTransitionArtKey = (typeof TERRITORY_TRANSITION_MATERIALS)[number];
+
+export const TERRITORY_TRANSITION_ATLAS_FRAME_WIDTH = 113;
+export const TERRITORY_TRANSITION_ATLAS_FRAME_HEIGHT = 192;
+export const TERRITORY_TRANSITION_ATLAS_FRAME_GUTTER = 2;
+export const TERRITORY_TRANSITION_ATLAS_CELL_WIDTH =
+  TERRITORY_TRANSITION_ATLAS_FRAME_WIDTH + TERRITORY_TRANSITION_ATLAS_FRAME_GUTTER * 2;
+export const TERRITORY_TRANSITION_ATLAS_CELL_HEIGHT =
+  TERRITORY_TRANSITION_ATLAS_FRAME_HEIGHT + TERRITORY_TRANSITION_ATLAS_FRAME_GUTTER * 2;
+export const TERRITORY_TRANSITION_ATLAS_COLUMNS = 12;
+export const TERRITORY_TRANSITION_ATLAS_ROWS = 7;
+
+export interface TerritoryTransitionAtlasFrame {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+const TRANSITION_MATERIAL_INDEX: Readonly<Record<TerritoryTransitionArtKey, number>> = {
+  grassland: 0,
+  grasslandAlt: 1,
+  woodlands: 2,
+  highland: 3,
+  highlandAlt: 4,
+  marsh: 5,
+  marshAlt: 6,
+  marshBog: 7,
+  snowfield: 8,
+  snowfieldAlt: 9,
+  desert: 10,
+  desertAlt: 11,
+  wastes: 12,
+  wastesAlt: 13,
+};
+
+/** Returns one of the 84 pre-rendered material/direction connection sprites. */
+export function territoryTransitionAtlasFrame(
+  key: TerritoryTransitionArtKey,
+  side: number,
+): TerritoryTransitionAtlasFrame {
+  const normalizedSide = ((side % 6) + 6) % 6;
+  const frameIndex = TRANSITION_MATERIAL_INDEX[key] * 6 + normalizedSide;
+  return {
+    x:
+      (frameIndex % TERRITORY_TRANSITION_ATLAS_COLUMNS) * TERRITORY_TRANSITION_ATLAS_CELL_WIDTH +
+      TERRITORY_TRANSITION_ATLAS_FRAME_GUTTER,
+    y:
+      Math.floor(frameIndex / TERRITORY_TRANSITION_ATLAS_COLUMNS) *
+        TERRITORY_TRANSITION_ATLAS_CELL_HEIGHT +
+      TERRITORY_TRANSITION_ATLAS_FRAME_GUTTER,
+    width: TERRITORY_TRANSITION_ATLAS_FRAME_WIDTH,
+    height: TERRITORY_TRANSITION_ATLAS_FRAME_HEIGHT,
+  };
+}
 
 const HEX_HEIGHT = Math.sqrt(3);
 const SOURCE_HEIGHT = 384;
@@ -92,7 +150,7 @@ export function territoryFeatureArtRect(
 }
 
 /**
- * A deliberately small atlas of reusable, lossless WebP tiles. Keeping the paths
+ * A deliberately small atlas of reusable, optimized WebP tiles. Keeping the paths
  * explicit makes it impossible for a manifest cell to trigger an unbounded asset
  * request while the player pans across the map.
  */
@@ -123,6 +181,7 @@ export const TERRITORY_MAP_ART_SOURCES: Readonly<Record<TerritoryMapArtKey, stri
   grainLow: '/territory_map/grain-low.webp',
   labor: '/territory_map/labor.webp',
   keep: '/territory_map/keep.webp',
+  transitionAtlas: '/territory_map/transition-atlas.webp',
 };
 
 function artHash(q: number, r: number, salt: number): number {

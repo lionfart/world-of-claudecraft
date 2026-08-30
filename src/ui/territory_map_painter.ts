@@ -10,8 +10,9 @@ import {
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryTerrainArtRect,
+  territoryTransitionArtKey,
+  territoryTransitionAtlasFrame,
 } from './territory_map_art';
-import { TerritoryMapTileComposer } from './territory_map_tile_composer';
 import {
   buildTerritoryMapModel,
   type TerritoryMapCenter,
@@ -59,8 +60,6 @@ export interface TerritoryPaintOptions {
 }
 
 export class TerritoryMapPainter {
-  private readonly tileComposer = new TerritoryMapTileComposer();
-
   constructor(private readonly onArtReady: () => void = () => undefined) {}
 
   paint(ctx: CanvasRenderingContext2D, options: TerritoryPaintOptions): TerritoryMapModel | null {
@@ -287,18 +286,13 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    // Every cross-biome neighbor combination resolves to one cached, composed
-    // tile image. No generic overlay bands are painted into the final map.
+    // Transition pixels are authored once in a compact sprite atlas. Runtime
+    // work is limited to image crops: no per-cell canvases, masks or pixel loops.
     for (const cell of sorted) {
       const key = territoryMapArtKeyForCell(cell);
       const image = art[key];
       if (!image) continue;
       const rect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
-      const composite = this.tileComposer.compose(cell, art);
-      if (composite) {
-        ctx.drawImage(composite, rect.x, rect.y, rect.width, rect.height);
-        continue;
-      }
       const transform = territoryMapArtTransformForCell(cell, key);
       ctx.save();
       if (transform.rotationSteps) {
@@ -311,6 +305,34 @@ export class TerritoryMapPainter {
       if (transform.mirrorX) ctx.scale(-1, 1);
       ctx.drawImage(image, rect.x - cell.mx, rect.y - cell.my, rect.width, rect.height);
       ctx.restore();
+      this.transitionSprites(ctx, cell, art, rect);
+    }
+  }
+
+  private transitionSprites(
+    ctx: CanvasRenderingContext2D,
+    cell: TerritoryMapHex,
+    art: TerritoryMapArt,
+    rect: ReturnType<typeof territoryTerrainArtRect>,
+  ): void {
+    const atlas = art.transitionAtlas;
+    if (!atlas) return;
+    for (let side = 0; side < 6; side += 1) {
+      const neighborBiome = cell.neighborBiomes[side];
+      if (!neighborBiome || neighborBiome === cell.biome) continue;
+      const key = territoryTransitionArtKey(neighborBiome, cell.q, cell.r, side);
+      const frame = territoryTransitionAtlasFrame(key, side);
+      ctx.drawImage(
+        atlas,
+        frame.x,
+        frame.y,
+        frame.width,
+        frame.height,
+        rect.x,
+        rect.y,
+        rect.width,
+        rect.height,
+      );
     }
   }
 

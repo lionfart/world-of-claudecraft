@@ -4,27 +4,26 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   TERRITORY_MAP_ART_SOURCES,
+  TERRITORY_TRANSITION_ATLAS_CELL_HEIGHT,
+  TERRITORY_TRANSITION_ATLAS_CELL_WIDTH,
+  TERRITORY_TRANSITION_ATLAS_COLUMNS,
+  TERRITORY_TRANSITION_ATLAS_ROWS,
+  TERRITORY_TRANSITION_MATERIALS,
   territoryFeatureArtRect,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryTerrainArtRect,
   territoryTransitionArtKey,
+  territoryTransitionAtlasFrame,
 } from '../src/ui/territory_map_art';
-import {
-  TERRITORY_COMPOSITE_HEIGHT,
-  TERRITORY_COMPOSITE_PIVOT_X,
-  TERRITORY_COMPOSITE_PIVOT_Y,
-  TERRITORY_COMPOSITE_WIDTH,
-  territoryConnectionAlpha,
-} from '../src/ui/territory_map_tile_composer';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const painterSource = readFileSync(join(repoRoot, 'src', 'ui', 'territory_map_painter.ts'), 'utf8');
 
 describe('territory map art bundle', () => {
-  it('ships one bounded lossless WebP tile for every terrain, resource, and keep key', () => {
+  it('ships a bounded optimized WebP bundle for terrain, resources, keep, and transitions', () => {
     const sources = Object.values(TERRITORY_MAP_ART_SOURCES);
-    expect(sources).toHaveLength(26);
+    expect(sources).toHaveLength(27);
     expect(new Set(sources).size).toBe(sources.length);
 
     let totalBytes = 0;
@@ -35,9 +34,9 @@ describe('territory map art bundle', () => {
       totalBytes += statSync(file).size;
       expect(bytes.subarray(0, 4).toString('ascii')).toBe('RIFF');
       expect(bytes.subarray(8, 12).toString('ascii')).toBe('WEBP');
-      expect(bytes.length).toBeLessThan(120_000);
+      expect(bytes.length).toBeLessThan(source.includes('transition-atlas') ? 250_000 : 120_000);
     }
-    expect(totalBytes).toBeLessThan(2_300_000);
+    expect(totalBytes).toBeLessThan(2_500_000);
   });
 
   it('locks the authored opaque footprint to the exact pointy-top cell', () => {
@@ -104,31 +103,28 @@ describe('territory map art bundle', () => {
     expect(territoryTransitionArtKey('snowMountain', 1, 2, 1)).toMatch(/^snowfield/);
     expect(territoryTransitionArtKey('forest', 1, 2, 2)).toBe('woodlands');
     expect(territoryTransitionArtKey('desertMesa', 1, 2, 3)).toMatch(/^desert/);
-    expect(painterSource).toContain('this.tileComposer.compose(cell, art)');
+    expect(painterSource).toContain('this.transitionSprites(ctx, cell, art, rect)');
+    expect(painterSource).toContain('territoryTransitionAtlasFrame(key, side)');
+    expect(painterSource).not.toContain('createImageData');
+    expect(painterSource).not.toContain("document.createElement('canvas')");
+    expect(painterSource).not.toContain('tileComposer');
     expect(painterSource).not.toContain('transitionBand');
-    expect(painterSource).not.toContain('biomeTransitions');
   });
 
-  it('builds deterministic organic connection masks that preserve tile centres', () => {
-    const centre = territoryConnectionAlpha(
-      3,
-      -2,
-      0,
-      TERRITORY_COMPOSITE_PIVOT_X,
-      TERRITORY_COMPOSITE_PIVOT_Y,
+  it('addresses all 84 material/direction sprites without overlap', () => {
+    const frames = TERRITORY_TRANSITION_MATERIALS.flatMap((key) =>
+      Array.from({ length: 6 }, (_, side) => territoryTransitionAtlasFrame(key, side)),
     );
-    const eastEdge = territoryConnectionAlpha(
-      3,
-      -2,
-      0,
-      TERRITORY_COMPOSITE_WIDTH - 0.5,
-      TERRITORY_COMPOSITE_PIVOT_Y,
-    );
-    const oppositeEdge = territoryConnectionAlpha(3, -2, 0, 0.5, TERRITORY_COMPOSITE_PIVOT_Y);
-    expect(TERRITORY_COMPOSITE_HEIGHT).toBe(384);
-    expect(centre).toBe(0);
-    expect(eastEdge).toBeGreaterThan(0.45);
-    expect(oppositeEdge).toBe(0);
-    expect(territoryConnectionAlpha(3, -2, 0, 225.5, 253.5)).toBe(eastEdge);
+    expect(TERRITORY_TRANSITION_MATERIALS).toHaveLength(14);
+    expect(frames).toHaveLength(84);
+    expect(new Set(frames.map((frame) => `${frame.x},${frame.y}`))).toHaveLength(84);
+    for (const frame of frames) {
+      expect(frame.x + frame.width).toBeLessThanOrEqual(
+        TERRITORY_TRANSITION_ATLAS_COLUMNS * TERRITORY_TRANSITION_ATLAS_CELL_WIDTH,
+      );
+      expect(frame.y + frame.height).toBeLessThanOrEqual(
+        TERRITORY_TRANSITION_ATLAS_ROWS * TERRITORY_TRANSITION_ATLAS_CELL_HEIGHT,
+      );
+    }
   });
 });
