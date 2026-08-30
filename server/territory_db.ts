@@ -97,6 +97,7 @@ export interface TerritoryMutationContext extends TerritoryActor {
 
 export interface TerritorySiegeRuntimeRecord {
   warId: string;
+  targetCellId: number;
   version: number;
   status: TerritoryWarStatus;
   startsAtMs: number;
@@ -1581,6 +1582,7 @@ export class TerritoryRepository {
     const season = await this.activeSeason(this.pool);
     const wars = await this.pool.query<{
       id: string;
+      target_cell_id: number;
       version: number;
       status: TerritoryWarStatus;
       starts_at: Date | string;
@@ -1590,7 +1592,7 @@ export class TerritoryRepository {
       attacker_has_siege_workshop: boolean;
       defense_tower_level: number;
     }>(
-      `SELECT w.id, w.version, w.status, w.starts_at, w.ends_at,
+      `SELECT w.id, w.target_cell_id, w.version, w.status, w.starts_at, w.ends_at,
               COALESCE(
                 CASE WHEN gate.state = 'active' OR gate.target_level > gate.level
                   THEN gate.level ELSE 0 END,
@@ -1662,6 +1664,7 @@ export class TerritoryRepository {
     }
     return wars.rows.map((war) => ({
       warId: war.id,
+      targetCellId: war.target_cell_id,
       version: war.version,
       status: war.status,
       startsAtMs: new Date(war.starts_at).getTime(),

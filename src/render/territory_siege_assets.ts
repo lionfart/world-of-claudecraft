@@ -17,6 +17,11 @@ export const TERRITORY_SIEGE_ASSET_URLS = {
   fern: '/models/foliage/fern.glb',
   naturalPine: '/models/foliage/pine_2.glb',
   naturalOak: '/models/foliage/oak_3.glb',
+  desertTree: '/models/biome/desert_tree.glb',
+  desertBoulderA: '/models/biome/desert_boulder_1.glb',
+  desertBoulderB: '/models/biome/desert_boulder_2.glb',
+  desertCactusA: '/models/biome/desert_cactus_tall_1.glb',
+  desertCactusB: '/models/biome/desert_cactus_small.glb',
   homeA: '/models/biome/hex_home_a.glb',
   homeB: '/models/biome/hex_home_b.glb',
   well: '/models/biome/hex_well.glb',
@@ -33,12 +38,18 @@ export const TERRITORY_SIEGE_TEXTURE_URLS = {
   dirtColor: '/textures/terrain/Ground023_Color.jpg',
   dirtNormal: '/textures/terrain/Ground023_NormalGL.jpg',
   dirtRoughness: '/textures/terrain/Ground023_Roughness.jpg',
+  snowColor: '/textures/terrain/Snow010A_Color.jpg',
+  snowNormal: '/textures/terrain/Snow010A_NormalGL.jpg',
+  snowRoughness: '/textures/terrain/Snow010A_Roughness.jpg',
+  sandColor: '/textures/terrain/Ground093A_Color.jpg',
+  sandNormal: '/textures/terrain/Ground093A_NormalGL.jpg',
 } as const;
 
 export type TerritorySiegeAssetKey = keyof typeof TERRITORY_SIEGE_ASSET_URLS;
 export type TerritorySiegeTextureKey = keyof typeof TERRITORY_SIEGE_TEXTURE_URLS;
 
 const sources = new Map<TerritorySiegeAssetKey, THREE.Group>();
+const sourceHeights = new Map<TerritorySiegeAssetKey, number>();
 const textureSources = new Map<TerritorySiegeTextureKey, THREE.Texture>();
 
 if (typeof window !== 'undefined') {
@@ -48,6 +59,9 @@ if (typeof window !== 'undefined') {
         async ([key, url]) => {
           const gltf = await loadGltf(url);
           sources.set(key, gltf.scene);
+          gltf.scene.updateMatrixWorld(true);
+          const bounds = new THREE.Box3().setFromObject(gltf.scene);
+          sourceHeights.set(key, Math.max(0.001, bounds.max.y - bounds.min.y));
         },
       ),
       ...(Object.entries(TERRITORY_SIEGE_TEXTURE_URLS) as [TerritorySiegeTextureKey, string][]).map(
@@ -78,6 +92,16 @@ export function cloneTerritorySiegeAsset(key: TerritorySiegeAssetKey): THREE.Gro
     mesh.castShadow = true;
     mesh.receiveShadow = true;
   });
+  return clone;
+}
+
+/** Clone a catalogue biome prop at a predictable world-space height. */
+export function cloneTerritorySiegeAssetAtHeight(
+  key: TerritorySiegeAssetKey,
+  height: number,
+): THREE.Group {
+  const clone = cloneTerritorySiegeAsset(key);
+  clone.scale.setScalar(Math.max(0.001, height) / (sourceHeights.get(key) ?? 1));
   return clone;
 }
 

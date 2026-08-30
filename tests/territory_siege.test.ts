@@ -25,6 +25,7 @@ function match(gateLevel = 1) {
   return createTerritorySiege({
     warId: 'war-1',
     warVersion: 1,
+    biome: 'temperate',
     startsAtMs: 1_000,
     endsAtMs: 3_601_000,
     gateLevel,

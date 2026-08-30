@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { TerritorySiegeBiome } from '../sim/territory_siege_biome';
 import {
   TERRITORY_SIEGE_BUSHES,
   TERRITORY_SIEGE_HOMES,
@@ -15,8 +16,10 @@ import {
 import { surfaceMat } from './gfx';
 import {
   cloneTerritorySiegeAsset,
+  cloneTerritorySiegeAssetAtHeight,
   cloneTerritorySiegeTexture,
   type TerritorySiegeAssetKey,
+  type TerritorySiegeTextureKey,
 } from './territory_siege_assets';
 import { grassTuftTexture } from './textures';
 
@@ -38,43 +41,148 @@ function place(
   return asset;
 }
 
-let grassTerrainMaterial: THREE.Material | null = null;
-let dirtRoadMaterial: THREE.Material | null = null;
-let leafLitterMaterial: THREE.Material | null = null;
+type FieldSurface = 'grass' | 'dirt' | 'snow' | 'sand';
+
+interface TerritorySiegeFieldStyle {
+  surface: FieldSurface;
+  terrainBase: number;
+  soil: number;
+  ridge: number;
+  roadSurface: FieldSurface;
+  roadTint: number;
+  patchSurface: FieldSurface;
+  patchTint: number;
+  patchOpacity: number;
+  grassStep: number;
+  grassPatchFloor: number;
+  grassChanceFloor: number;
+  grassColors: readonly [number, number, number];
+  stonePatches: number;
+  stoneScale: number;
+  stoneColors: readonly [number, number];
+}
+
+const FIELD_STYLES: Record<TerritorySiegeBiome, TerritorySiegeFieldStyle> = {
+  temperate: {
+    surface: 'grass',
+    terrainBase: 0xf0f9e5,
+    soil: 0xc2a778,
+    ridge: 0x68685d,
+    roadSurface: 'dirt',
+    roadTint: 0xa89172,
+    patchSurface: 'dirt',
+    patchTint: 0xffffff,
+    patchOpacity: 0.72,
+    grassStep: 2.7,
+    grassPatchFloor: 0.37,
+    grassChanceFloor: 0.43,
+    grassColors: [0x91aa62, 0x6f934f, 0x587842],
+    stonePatches: 42,
+    stoneScale: 1,
+    stoneColors: [0x77766b, 0x5d6258],
+  },
+  rocky: {
+    surface: 'dirt',
+    terrainBase: 0xc8b28c,
+    soil: 0x8e7a5f,
+    ridge: 0x595951,
+    roadSurface: 'dirt',
+    roadTint: 0x786653,
+    patchSurface: 'dirt',
+    patchTint: 0x726452,
+    patchOpacity: 0.46,
+    grassStep: 4.4,
+    grassPatchFloor: 0.48,
+    grassChanceFloor: 0.61,
+    grassColors: [0x9a8c55, 0x7d7945, 0x65653d],
+    stonePatches: 72,
+    stoneScale: 1.32,
+    stoneColors: [0x858078, 0x66635e],
+  },
+  snow: {
+    surface: 'snow',
+    terrainBase: 0xffffff,
+    soil: 0xd7e4eb,
+    ridge: 0x99aab5,
+    roadSurface: 'snow',
+    roadTint: 0xb8c7d1,
+    patchSurface: 'dirt',
+    patchTint: 0x8f9697,
+    patchOpacity: 0.3,
+    grassStep: 5.8,
+    grassPatchFloor: 0.58,
+    grassChanceFloor: 0.72,
+    grassColors: [0xdde7df, 0xadbcae, 0x879b8c],
+    stonePatches: 50,
+    stoneScale: 1.08,
+    stoneColors: [0xd6dde0, 0xa8b2b8],
+  },
+  desert: {
+    surface: 'sand',
+    terrainBase: 0xffe0a0,
+    soil: 0xc69252,
+    ridge: 0x8f6442,
+    roadSurface: 'sand',
+    roadTint: 0xc89a5b,
+    patchSurface: 'dirt',
+    patchTint: 0xb07a43,
+    patchOpacity: 0.3,
+    grassStep: 5.2,
+    grassPatchFloor: 0.54,
+    grassChanceFloor: 0.69,
+    grassColors: [0xc7a154, 0x9a7940, 0x705d37],
+    stonePatches: 58,
+    stoneScale: 1.18,
+    stoneColors: [0xb58b5d, 0x8a6445],
+  },
+};
+
+const surfaceMaterials = new Map<string, THREE.Material>();
+const patchMaterials = new Map<TerritorySiegeBiome, THREE.Material>();
 let siegeGrassMaterial: THREE.MeshStandardMaterial | null = null;
 
-function texturedMaterial(kind: 'grass' | 'dirt'): THREE.Material {
-  if (kind === 'grass' && grassTerrainMaterial) return grassTerrainMaterial;
-  if (kind === 'dirt' && dirtRoadMaterial) return dirtRoadMaterial;
-  const grass = kind === 'grass';
+const SURFACE_TEXTURES: Record<
+  FieldSurface,
+  {
+    color: TerritorySiegeTextureKey;
+    normal: TerritorySiegeTextureKey;
+    roughness: TerritorySiegeTextureKey;
+  }
+> = {
+  grass: { color: 'grassColor', normal: 'grassNormal', roughness: 'grassRoughness' },
+  dirt: { color: 'dirtColor', normal: 'dirtNormal', roughness: 'dirtRoughness' },
+  snow: { color: 'snowColor', normal: 'snowNormal', roughness: 'snowRoughness' },
+  sand: { color: 'sandColor', normal: 'sandNormal', roughness: 'dirtRoughness' },
+};
+
+function texturedMaterial(
+  kind: FieldSurface,
+  tint: number,
+  repeatX: number,
+  repeatY: number,
+  vertexColors: boolean,
+): THREE.Material {
+  const cacheKey = `${kind}:${tint}:${repeatX}:${repeatY}:${vertexColors ? 1 : 0}`;
+  const cached = surfaceMaterials.get(cacheKey);
+  if (cached) return cached;
+  const textures = SURFACE_TEXTURES[kind];
   const material = surfaceMat({
-    color: grass ? 0xffffff : 0xa89172,
-    map: cloneTerritorySiegeTexture(
-      grass ? 'grassColor' : 'dirtColor',
-      grass ? 54 : 2.2,
-      grass ? 74 : 19,
-    ),
-    normalMap: cloneTerritorySiegeTexture(
-      grass ? 'grassNormal' : 'dirtNormal',
-      grass ? 54 : 2.2,
-      grass ? 74 : 19,
-    ),
-    roughnessMap: cloneTerritorySiegeTexture(
-      grass ? 'grassRoughness' : 'dirtRoughness',
-      grass ? 54 : 2.2,
-      grass ? 74 : 19,
-    ),
+    color: tint,
+    map: cloneTerritorySiegeTexture(textures.color, repeatX, repeatY),
+    normalMap: cloneTerritorySiegeTexture(textures.normal, repeatX, repeatY),
+    roughnessMap: cloneTerritorySiegeTexture(textures.roughness, repeatX, repeatY),
     roughness: 1,
-    vertexColors: grass,
+    vertexColors,
   });
   const standard = material as THREE.MeshStandardMaterial;
-  if (standard.isMeshStandardMaterial) standard.normalScale.setScalar(grass ? 0.72 : 0.55);
-  if (grass) grassTerrainMaterial = material;
-  else dirtRoadMaterial = material;
+  if (standard.isMeshStandardMaterial)
+    standard.normalScale.setScalar(kind === 'grass' ? 0.72 : kind === 'snow' ? 0.46 : 0.55);
+  surfaceMaterials.set(cacheKey, material);
   return material;
 }
 
-function buildTerrain(): THREE.Mesh {
+function buildTerrain(biome: TerritorySiegeBiome): THREE.Mesh {
+  const style = FIELD_STYLES[biome];
   const visualHalfX = TERRITORY_SIEGE_FIELD_HALF_X + TERRITORY_SIEGE_VISUAL_MARGIN;
   const visualHalfZ = TERRITORY_SIEGE_FIELD_HALF_Z + TERRITORY_SIEGE_VISUAL_MARGIN;
   const geometry = new THREE.PlaneGeometry(visualHalfX * 2, visualHalfZ * 2, 112, 156);
@@ -82,8 +190,9 @@ function buildTerrain(): THREE.Mesh {
   const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
   const colors = new Float32Array(positions.count * 3);
   const color = new THREE.Color();
-  const soilColor = new THREE.Color(0xc2a778);
-  const mountainColor = new THREE.Color(0x68685d);
+  const baseColor = new THREE.Color(style.terrainBase);
+  const soilColor = new THREE.Color(style.soil);
+  const mountainColor = new THREE.Color(style.ridge);
   for (let index = 0; index < positions.count; index += 1) {
     const x = positions.getX(index);
     const z = positions.getZ(index);
@@ -91,7 +200,7 @@ function buildTerrain(): THREE.Mesh {
     positions.setY(index, height);
     const variation = Math.sin(x * 0.083 + z * 0.047) * 0.5 + Math.sin(z * 0.16 - x * 0.027) * 0.3;
     const soil = Math.max(0, Math.min(1, 0.42 + variation));
-    color.setRGB(0.94, 0.98, 0.9).lerp(soilColor, soil * 0.2);
+    color.copy(baseColor).lerp(soilColor, soil * (biome === 'rocky' ? 0.34 : 0.2));
     const mountain = Math.max(0, Math.min(0.86, (height - 2.2) / 15));
     color.lerp(mountainColor, mountain);
     colors[index * 3] = color.r;
@@ -102,34 +211,28 @@ function buildTerrain(): THREE.Mesh {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  const mesh = new THREE.Mesh(geometry, texturedMaterial('grass'));
-  mesh.name = 'territory-siege-sculpted-ground';
+  const mesh = new THREE.Mesh(geometry, texturedMaterial(style.surface, 0xffffff, 54, 74, true));
+  mesh.name = `territory-siege-sculpted-ground:${biome}`;
   mesh.receiveShadow = true;
   return mesh;
 }
 
-function leafMaterial(): THREE.Material {
-  if (leafLitterMaterial) return leafLitterMaterial;
-  const material = surfaceMat({
-    color: 0xffffff,
-    map: cloneTerritorySiegeTexture('dirtColor', 1, 1),
-    normalMap: cloneTerritorySiegeTexture('dirtNormal', 1, 1),
-    roughnessMap: cloneTerritorySiegeTexture('dirtRoughness', 1, 1),
-    roughness: 1,
-  });
+function patchMaterial(biome: TerritorySiegeBiome): THREE.Material {
+  const cached = patchMaterials.get(biome);
+  if (cached) return cached;
+  const style = FIELD_STYLES[biome];
+  const material = texturedMaterial(style.patchSurface, style.patchTint, 1, 1, false);
   material.transparent = true;
-  material.opacity = 0.72;
+  material.opacity = style.patchOpacity;
   material.depthWrite = false;
   material.polygonOffset = true;
   material.polygonOffsetFactor = -1;
-  const standard = material as THREE.MeshStandardMaterial;
-  if (standard.isMeshStandardMaterial) standard.normalScale.setScalar(0.58);
-  leafLitterMaterial = material;
+  patchMaterials.set(biome, material);
   return material;
 }
 
 /** Leaf-litter clearings break the uniform grass sheet without adding gameplay rings. */
-function buildLeafLitterClearings(): THREE.Mesh {
+function buildLeafLitterClearings(biome: TerritorySiegeBiome): THREE.Mesh {
   const placements = [
     { x: -46, z: 82, rx: 18, rz: 12, yaw: 0.35 },
     { x: 49, z: 67, rx: 16, rz: 10, yaw: -0.25 },
@@ -166,14 +269,15 @@ function buildLeafLitterClearings(): THREE.Mesh {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  const mesh = new THREE.Mesh(geometry, leafMaterial());
-  mesh.name = 'territory-siege-leaf-litter-clearings';
+  const mesh = new THREE.Mesh(geometry, patchMaterial(biome));
+  mesh.name = `territory-siege-surface-patches:${biome}`;
   mesh.receiveShadow = true;
   mesh.renderOrder = 1;
   return mesh;
 }
 
-function buildApproachRoad(): THREE.Mesh {
+function buildApproachRoad(biome: TerritorySiegeBiome): THREE.Mesh {
+  const style = FIELD_STYLES[biome];
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
@@ -199,8 +303,11 @@ function buildApproachRoad(): THREE.Mesh {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  const road = new THREE.Mesh(geometry, texturedMaterial('dirt'));
-  road.name = 'territory-siege-irregular-approach';
+  const road = new THREE.Mesh(
+    geometry,
+    texturedMaterial(style.roadSurface, style.roadTint, 2.2, 19, false),
+  );
+  road.name = `territory-siege-irregular-approach:${biome}`;
   road.receiveShadow = true;
   return road;
 }
@@ -253,9 +360,10 @@ function grassMaterial(): THREE.MeshStandardMaterial {
 }
 
 /** Lush crossed billboard clumps, patch-gated so the field reads naturally. */
-function buildBillboardGrass(): THREE.InstancedMesh {
+function buildBillboardGrass(biome: TerritorySiegeBiome): THREE.InstancedMesh {
+  const style = FIELD_STYLES[biome];
   const placements: { x: number; z: number; scale: number; yaw: number; color: number }[] = [];
-  const step = 2.7;
+  const step = style.grassStep;
   for (
     let z = -TERRITORY_SIEGE_FIELD_HALF_Z + 4;
     z <= TERRITORY_SIEGE_FIELD_HALF_Z - 4;
@@ -267,7 +375,8 @@ function buildBillboardGrass(): THREE.InstancedMesh {
       x += step
     ) {
       const patch = hash01(Math.floor(x / 13) * 4.7, Math.floor(z / 13) * 7.1);
-      if (patch < 0.37 || hash01(x + 5.3, z - 8.9) < 0.43) continue;
+      if (patch < style.grassPatchFloor || hash01(x + 5.3, z - 8.9) < style.grassChanceFloor)
+        continue;
       const px = x + (hash01(x + 19.2, z) - 0.5) * 2.2;
       const pz = z + (hash01(x, z - 12.7) - 0.5) * 2.2;
       const edgeDistance = Math.min(
@@ -284,7 +393,12 @@ function buildBillboardGrass(): THREE.InstancedMesh {
         z: pz,
         scale: 0.72 + hash01(px - 3.1, pz + 11.4) * 0.68,
         yaw: hash01(pz + 2.7, px - 6.3) * Math.PI,
-        color: patch > 0.76 ? 0x91aa62 : patch > 0.55 ? 0x6f934f : 0x587842,
+        color:
+          patch > 0.76
+            ? style.grassColors[0]
+            : patch > 0.55
+              ? style.grassColors[1]
+              : style.grassColors[2],
       });
     }
   }
@@ -311,16 +425,17 @@ function buildBillboardGrass(): THREE.InstancedMesh {
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   mesh.computeBoundingBox();
   mesh.computeBoundingSphere();
-  mesh.name = `territory-siege-billboard-grass:${placements.length}`;
+  mesh.name = `territory-siege-billboard-grass:${biome}:${placements.length}`;
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   return mesh;
 }
 
 /** Low, clustered pebbles break up the soil without reading as repeated spikes. */
-function buildGroundStoneScatter(): THREE.InstancedMesh {
+function buildGroundStoneScatter(biome: TerritorySiegeBiome): THREE.InstancedMesh {
+  const style = FIELD_STYLES[biome];
   const placements: { x: number; z: number; scale: number; yaw: number; color: number }[] = [];
-  for (let patch = 0; patch < 42; patch += 1) {
+  for (let patch = 0; patch < style.stonePatches; patch += 1) {
     const side = patch % 2 === 0 ? -1 : 1;
     const centerX = side * (28 + hash01(patch * 3.7, 2.1) * (TERRITORY_SIEGE_FIELD_HALF_X - 35));
     const centerZ =
@@ -337,9 +452,9 @@ function buildGroundStoneScatter(): THREE.InstancedMesh {
       placements.push({
         x,
         z,
-        scale: 0.32 + hash01(x, z) * 0.72,
+        scale: (0.32 + hash01(x, z) * 0.72) * style.stoneScale,
         yaw: hash01(z, x) * Math.PI,
-        color: hash01(x + 4, z - 9) > 0.45 ? 0x77766b : 0x5d6258,
+        color: hash01(x + 4, z - 9) > 0.45 ? style.stoneColors[0] : style.stoneColors[1],
       });
     }
   }
@@ -362,57 +477,98 @@ function buildGroundStoneScatter(): THREE.InstancedMesh {
   });
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  mesh.name = `territory-siege-ground-stones:${placements.length}`;
+  mesh.name = `territory-siege-ground-stones:${biome}:${placements.length}`;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
 
-/** Natural, textured ground plus foliage for the enlarged outer battlefield. */
-export function buildTerritorySiegeNaturalField(root: THREE.Object3D): void {
-  root.add(
-    buildTerrain(),
-    buildLeafLitterClearings(),
-    buildApproachRoad(),
-    buildBillboardGrass(),
-    buildGroundStoneScatter(),
-  );
+function placeAtHeight(
+  parent: THREE.Object3D,
+  key: TerritorySiegeAssetKey,
+  x: number,
+  y: number,
+  z: number,
+  height: number,
+  yaw: number,
+): THREE.Group {
+  const asset = cloneTerritorySiegeAssetAtHeight(key, height);
+  asset.position.set(x, y, z);
+  asset.rotation.y = yaw;
+  parent.add(asset);
+  return asset;
+}
 
+function buildBiomeTrees(root: THREE.Object3D, biome: TerritorySiegeBiome): void {
   for (let index = 0; index < TERRITORY_SIEGE_TREES.length; index += 1) {
     const tree = TERRITORY_SIEGE_TREES[index];
-    const key: TerritorySiegeAssetKey = index % 4 === 0 ? 'naturalOak' : 'naturalPine';
-    place(
-      root,
-      key,
-      tree.x,
-      territorySiegeGroundLiftLocal(tree.x, tree.z),
-      tree.z,
-      tree.scale * 0.42,
-      tree.yaw,
-    );
+    const y = territorySiegeGroundLiftLocal(tree.x, tree.z);
+    if (biome === 'desert') {
+      placeAtHeight(root, 'desertTree', tree.x, y, tree.z, tree.scale * 0.92, tree.yaw);
+      continue;
+    }
+    const key: TerritorySiegeAssetKey =
+      biome === 'snow' ? 'naturalPine' : index % 4 === 0 ? 'naturalOak' : 'naturalPine';
+    place(root, key, tree.x, y, tree.z, tree.scale * (biome === 'rocky' ? 0.38 : 0.42), tree.yaw);
   }
-  for (const rock of TERRITORY_SIEGE_ROCKS)
+}
+
+function buildBiomeRocks(root: THREE.Object3D, biome: TerritorySiegeBiome): void {
+  for (let index = 0; index < TERRITORY_SIEGE_ROCKS.length; index += 1) {
+    const rock = TERRITORY_SIEGE_ROCKS[index];
+    const y = territorySiegeGroundLiftLocal(rock.x, rock.z);
+    if (biome === 'desert') {
+      placeAtHeight(
+        root,
+        index % 2 === 0 ? 'desertBoulderA' : 'desertBoulderB',
+        rock.x,
+        y,
+        rock.z,
+        rock.scale * 0.62,
+        rock.yaw,
+      );
+      continue;
+    }
     place(
       root,
       'rock',
       rock.x,
-      territorySiegeGroundLiftLocal(rock.x, rock.z),
+      y,
       rock.z,
-      rock.scale * 0.36,
+      rock.scale * (biome === 'rocky' ? 0.46 : 0.36),
       rock.yaw,
     );
+  }
+}
+
+function buildBiomeUndergrowth(root: THREE.Object3D, biome: TerritorySiegeBiome): void {
+  if (biome === 'snow') return;
   for (let index = 0; index < TERRITORY_SIEGE_BUSHES.length; index += 1) {
     const bush = TERRITORY_SIEGE_BUSHES[index];
     const y = territorySiegeGroundLiftLocal(bush.x, bush.z);
+    if (biome === 'desert') {
+      placeAtHeight(
+        root,
+        index % 3 === 0 ? 'desertCactusA' : 'desertCactusB',
+        bush.x,
+        y,
+        bush.z,
+        bush.scale * (index % 3 === 0 ? 1.42 : 0.9),
+        bush.yaw,
+      );
+      continue;
+    }
+    if (biome === 'rocky' && index % 2 !== 0) continue;
     place(
       root,
       index % 3 === 0 ? 'bushFlowers' : 'bush',
       bush.x,
       y,
       bush.z,
-      bush.scale * 0.55,
+      bush.scale * (biome === 'rocky' ? 0.38 : 0.55),
       bush.yaw,
     );
+    if (biome === 'rocky') continue;
     for (const [offset, turn, scale] of [
       [3.1, 1.3, 1.7 + (index % 4) * 0.18],
       [2.25, -1.2, 1.35 + (index % 3) * 0.16],
@@ -431,6 +587,23 @@ export function buildTerritorySiegeNaturalField(root: THREE.Object3D): void {
       );
     }
   }
+}
+
+/** Natural, textured ground plus biome-specific cover dressing for the battlefield. */
+export function buildTerritorySiegeNaturalField(
+  root: THREE.Object3D,
+  biome: TerritorySiegeBiome,
+): void {
+  root.add(
+    buildTerrain(biome),
+    buildLeafLitterClearings(biome),
+    buildApproachRoad(biome),
+    buildBillboardGrass(biome),
+    buildGroundStoneScatter(biome),
+  );
+  buildBiomeTrees(root, biome);
+  buildBiomeRocks(root, biome);
+  buildBiomeUndergrowth(root, biome);
 }
 
 /** Stone lanes, homes and small lived-in details inside the castle walls. */

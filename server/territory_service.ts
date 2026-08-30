@@ -17,6 +17,7 @@ import {
   territorySiegeTowerShot,
   territorySiegeViewFor,
 } from '../src/sim/territory_siege';
+import { territorySiegeBiomeForCell } from '../src/sim/territory_siege_biome';
 import type {
   TerritoryGuildView,
   TerritoryMapState,
@@ -341,6 +342,10 @@ export class TerritoryService {
             createTerritorySiege({
               warId: record.warId,
               warVersion: record.version,
+              biome: territorySiegeBiomeForCell(
+                this.repository.manifest.byId.get(record.targetCellId),
+                this.repository.manifest.radius,
+              ),
               startsAtMs: record.startsAtMs,
               endsAtMs: record.endsAtMs,
               gateLevel: record.gateLevel,

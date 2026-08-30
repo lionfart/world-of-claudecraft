@@ -35,6 +35,9 @@ describe('territory siege asset kit', () => {
     expect(TERRITORY_SIEGE_ASSET_URLS).toMatchObject({
       naturalPine: '/models/foliage/pine_2.glb',
       naturalOak: '/models/foliage/oak_3.glb',
+      desertTree: '/models/biome/desert_tree.glb',
+      desertBoulderA: '/models/biome/desert_boulder_1.glb',
+      desertCactusA: '/models/biome/desert_cactus_tall_1.glb',
       fern: '/models/foliage/fern.glb',
       rock: '/models/foliage/rock_1.glb',
       bush: '/models/foliage/bush.glb',
@@ -45,12 +48,16 @@ describe('territory siege asset kit', () => {
     });
   });
 
-  it('preloads tiled PBR grass and dirt surfaces for the siege field', () => {
+  it('preloads tiled PBR surfaces for every siege biome', () => {
     expect(TERRITORY_SIEGE_TEXTURE_URLS).toMatchObject({
       grassColor: '/textures/terrain/Grass001_Color.jpg',
       grassNormal: '/textures/terrain/Grass001_NormalGL.jpg',
       dirtColor: '/textures/terrain/Ground023_Color.jpg',
       dirtNormal: '/textures/terrain/Ground023_NormalGL.jpg',
+      snowColor: '/textures/terrain/Snow010A_Color.jpg',
+      snowNormal: '/textures/terrain/Snow010A_NormalGL.jpg',
+      sandColor: '/textures/terrain/Ground093A_Color.jpg',
+      sandNormal: '/textures/terrain/Ground093A_NormalGL.jpg',
     });
     for (const url of territorySiegeAssetsInternalsForTest.textureUrls) {
       expect(existsSync(fileURLToPath(new URL(`../public${url}`, import.meta.url))), url).toBe(

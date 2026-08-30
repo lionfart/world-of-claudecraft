@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { territorySiegeOrigin } from '../sim/data';
+import type { TerritorySiegeBiome } from '../sim/territory_siege_biome';
 import { territorySiegeGroundLiftLocal } from '../sim/territory_siege_ground';
 import {
   TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
@@ -446,13 +447,16 @@ function aimCylinder(mesh: THREE.Mesh, from: THREE.Vector3, to: THREE.Vector3): 
 }
 
 /** Asset-backed seasonal siege field using the existing optimized CC0 castle kit. */
-export function buildTerritorySiegePrototype(slot: number): TerritorySiegePrototypeView {
+export function buildTerritorySiegePrototype(
+  slot: number,
+  biome: TerritorySiegeBiome,
+): TerritorySiegePrototypeView {
   const root = new THREE.Group();
-  root.name = `territory-siege-field:${slot}`;
+  root.name = `territory-siege-field:${slot}:${biome}`;
   const origin = territorySiegeOrigin(slot);
   root.position.set(origin.x, TERRITORY_SIEGE_FLOOR_Y, origin.z);
 
-  buildTerritorySiegeNaturalField(root);
+  buildTerritorySiegeNaturalField(root, biome);
 
   buildTerritorySiegeCastleSettlement(root);
 

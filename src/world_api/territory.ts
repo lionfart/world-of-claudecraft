@@ -1,4 +1,5 @@
 import type { TerritoryResourceKind, TerritoryTerrain } from '../sim/territory_manifest';
+import type { TerritorySiegeBiome } from '../sim/territory_siege_biome';
 
 export type TerritoryGuildRank = 'member' | 'officer' | 'leader';
 export type TerritoryStructureSlot =
@@ -93,6 +94,8 @@ export interface TerritoryWarView {
 
 export interface TerritorySiegeView {
   warId: string;
+  /** Visual environment selected from the target strategic hex. */
+  biome: TerritorySiegeBiome;
   state: 'forming' | 'active' | 'ended';
   mySide: TerritoryWarSide;
   attackerCount: number;

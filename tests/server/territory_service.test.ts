@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TerritoryConfig } from '../../server/territory_config';
 import type { TerritoryRepository } from '../../server/territory_db';
 import { TerritoryService } from '../../server/territory_service';
+import { createTerritoryManifest } from '../../src/sim/territory_manifest';
 import type { TerritoryMapState } from '../../src/world_api';
 
 const config: TerritoryConfig = {
@@ -45,6 +46,7 @@ function mapState(wars: TerritoryMapState['wars'] = []): TerritoryMapState {
 
 function repositoryFake(snapshot: TerritoryMapState, dueSieges: unknown[] = []) {
   return {
+    manifest: createTerritoryManifest(),
     ensureActiveSeason: vi.fn().mockResolvedValue(undefined),
     loadPublicSnapshot: vi.fn().mockResolvedValue(snapshot),
     loadGuildViewsSnapshot: vi.fn().mockResolvedValue(
@@ -342,6 +344,7 @@ describe('territory service hot paths', () => {
     const repository = repositoryFake(mapState([war]), [
       {
         warId: war.id,
+        targetCellId: war.targetCellId,
         version: 2,
         status: 'active',
         startsAtMs: nowMs - 1_000,
@@ -393,6 +396,7 @@ describe('territory service hot paths', () => {
     });
 
     expect(joined).toMatchObject({ ok: true, seat: { seatNo: 1 } });
+    expect(service.siegeForCharacter(11, nowMs)?.biome).toBe('snow');
     expect(action).toMatchObject({ ok: true, duplicate: false });
     expect(duplicate).toMatchObject({ ok: true, duplicate: true });
     expect(repository.loadDueSieges).toHaveBeenCalledTimes(1);

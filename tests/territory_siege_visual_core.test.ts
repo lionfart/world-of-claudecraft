@@ -10,6 +10,7 @@ import type { TerritorySiegeView } from '../src/world_api';
 
 const siege: TerritorySiegeView = {
   warId: 'war',
+  biome: 'temperate',
   state: 'active',
   mySide: 'attacker',
   attackerCount: 1,

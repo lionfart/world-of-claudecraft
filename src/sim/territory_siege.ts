@@ -2,6 +2,7 @@
 // Wall-clock values are injected by the host; this leaf never reads Date or timers.
 
 import type { TerritorySiegeAction, TerritorySiegeView, TerritoryWarSide } from '../world_api';
+import type { TerritorySiegeBiome } from './territory_siege_biome';
 
 export interface TerritorySiegeRules {
   teamSize: number;
@@ -14,6 +15,7 @@ export interface TerritorySiegeRules {
 export interface TerritorySiegeDefinition {
   warId: string;
   warVersion: number;
+  biome: TerritorySiegeBiome;
   startsAtMs: number;
   endsAtMs: number;
   gateLevel: number;
@@ -434,6 +436,7 @@ export function territorySiegeViewFor(
   if (!seat) return null;
   return {
     warId: state.definition.warId,
+    biome: state.definition.biome,
     state: state.phase,
     mySide: seat.side,
     attackerCount: countSide(state, 'attacker'),
