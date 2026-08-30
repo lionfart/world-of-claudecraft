@@ -9,9 +9,9 @@ import {
   territoryMapArt,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
-  territoryTransitionArtKey,
   territoryTerrainArtRect,
 } from './territory_map_art';
+import { TerritoryMapTileComposer } from './territory_map_tile_composer';
 import {
   buildTerritoryMapModel,
   type TerritoryMapCenter,
@@ -59,6 +59,8 @@ export interface TerritoryPaintOptions {
 }
 
 export class TerritoryMapPainter {
+  private readonly tileComposer = new TerritoryMapTileComposer();
+
   constructor(private readonly onArtReady: () => void = () => undefined) {}
 
   paint(ctx: CanvasRenderingContext2D, options: TerritoryPaintOptions): TerritoryMapModel | null {
@@ -285,15 +287,18 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    // Each cell draws one complete authored tile, followed by six possible
-    // neighbor-aware material bands. The bands are generated at runtime for
-    // every directional combination, avoiding a brittle transition-sprite
-    // matrix while keeping the exact authored hex footprint and pivot.
+    // Every cross-biome neighbor combination resolves to one cached, composed
+    // tile image. No generic overlay bands are painted into the final map.
     for (const cell of sorted) {
       const key = territoryMapArtKeyForCell(cell);
       const image = art[key];
       if (!image) continue;
       const rect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
+      const composite = this.tileComposer.compose(cell, art);
+      if (composite) {
+        ctx.drawImage(composite, rect.x, rect.y, rect.width, rect.height);
+        continue;
+      }
       const transform = territoryMapArtTransformForCell(cell, key);
       ctx.save();
       if (transform.rotationSteps) {
@@ -306,63 +311,7 @@ export class TerritoryMapPainter {
       if (transform.mirrorX) ctx.scale(-1, 1);
       ctx.drawImage(image, rect.x - cell.mx, rect.y - cell.my, rect.width, rect.height);
       ctx.restore();
-      this.biomeTransitions(ctx, cell, art);
     }
-  }
-
-  private biomeTransitions(
-    ctx: CanvasRenderingContext2D,
-    cell: TerritoryMapHex,
-    art: TerritoryMapArt,
-  ): void {
-    for (let side = 0; side < 6; side += 1) {
-      const neighborBiome = cell.neighborBiomes[side];
-      if (!neighborBiome || neighborBiome === cell.biome) continue;
-      const key = territoryTransitionArtKey(neighborBiome, cell.q, cell.r, side);
-      const image = art[key];
-      if (!image) continue;
-      const rect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
-      const transform = territoryMapArtTransformForCell(
-        { q: cell.q + side * 17, r: cell.r - side * 11 },
-        key,
-      );
-      // Two nested trapezoids feather the neighbor material into this cell.
-      // The opposite cell performs the mirrored operation, giving every shared
-      // edge a soft two-material handoff without hiding either tile's centre.
-      this.transitionBand(ctx, cell, side, 1, 0.72, image, rect, transform, 0.5);
-      this.transitionBand(ctx, cell, side, 0.72, 0.5, image, rect, transform, 0.19);
-    }
-  }
-
-  private transitionBand(
-    ctx: CanvasRenderingContext2D,
-    cell: TerritoryMapHex,
-    side: number,
-    outerScale: number,
-    innerScale: number,
-    image: HTMLImageElement,
-    rect: ReturnType<typeof territoryTerrainArtRect>,
-    transform: ReturnType<typeof territoryMapArtTransformForCell>,
-    alpha: number,
-  ): void {
-    const start = -Math.PI / 6 - (Math.PI / 3) * side;
-    const end = start + Math.PI / 3;
-    const outer = cell.radiusPx * outerScale;
-    const inner = cell.radiusPx * innerScale;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(cell.mx + Math.cos(start) * outer, cell.my + Math.sin(start) * outer);
-    ctx.lineTo(cell.mx + Math.cos(end) * outer, cell.my + Math.sin(end) * outer);
-    ctx.lineTo(cell.mx + Math.cos(end) * inner, cell.my + Math.sin(end) * inner);
-    ctx.lineTo(cell.mx + Math.cos(start) * inner, cell.my + Math.sin(start) * inner);
-    ctx.closePath();
-    ctx.clip();
-    ctx.globalAlpha = alpha;
-    ctx.translate(cell.mx, cell.my);
-    if (transform.rotationSteps) ctx.rotate((transform.rotationSteps * Math.PI) / 3);
-    if (transform.mirrorX) ctx.scale(-1, 1);
-    ctx.drawImage(image, rect.x - cell.mx, rect.y - cell.my, rect.width, rect.height);
-    ctx.restore();
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {

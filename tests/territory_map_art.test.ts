@@ -7,9 +7,16 @@ import {
   territoryFeatureArtRect,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
-  territoryTransitionArtKey,
   territoryTerrainArtRect,
+  territoryTransitionArtKey,
 } from '../src/ui/territory_map_art';
+import {
+  TERRITORY_COMPOSITE_HEIGHT,
+  TERRITORY_COMPOSITE_PIVOT_X,
+  TERRITORY_COMPOSITE_PIVOT_Y,
+  TERRITORY_COMPOSITE_WIDTH,
+  territoryConnectionAlpha,
+} from '../src/ui/territory_map_tile_composer';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const painterSource = readFileSync(join(repoRoot, 'src', 'ui', 'territory_map_painter.ts'), 'utf8');
@@ -97,7 +104,31 @@ describe('territory map art bundle', () => {
     expect(territoryTransitionArtKey('snowMountain', 1, 2, 1)).toMatch(/^snowfield/);
     expect(territoryTransitionArtKey('forest', 1, 2, 2)).toBe('woodlands');
     expect(territoryTransitionArtKey('desertMesa', 1, 2, 3)).toMatch(/^desert/);
-    expect(painterSource).toContain('this.biomeTransitions(ctx, cell, art)');
-    expect(painterSource).toContain('this.transitionBand(ctx, cell, side');
+    expect(painterSource).toContain('this.tileComposer.compose(cell, art)');
+    expect(painterSource).not.toContain('transitionBand');
+    expect(painterSource).not.toContain('biomeTransitions');
+  });
+
+  it('builds deterministic organic connection masks that preserve tile centres', () => {
+    const centre = territoryConnectionAlpha(
+      3,
+      -2,
+      0,
+      TERRITORY_COMPOSITE_PIVOT_X,
+      TERRITORY_COMPOSITE_PIVOT_Y,
+    );
+    const eastEdge = territoryConnectionAlpha(
+      3,
+      -2,
+      0,
+      TERRITORY_COMPOSITE_WIDTH - 0.5,
+      TERRITORY_COMPOSITE_PIVOT_Y,
+    );
+    const oppositeEdge = territoryConnectionAlpha(3, -2, 0, 0.5, TERRITORY_COMPOSITE_PIVOT_Y);
+    expect(TERRITORY_COMPOSITE_HEIGHT).toBe(384);
+    expect(centre).toBe(0);
+    expect(eastEdge).toBeGreaterThan(0.45);
+    expect(oppositeEdge).toBe(0);
+    expect(territoryConnectionAlpha(3, -2, 0, 225.5, 253.5)).toBe(eastEdge);
   });
 });
