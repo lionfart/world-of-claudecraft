@@ -317,10 +317,14 @@ export class TerritoryMapPainter {
   ): void {
     const atlas = art.transitionAtlas;
     if (!atlas) return;
+    ctx.save();
+    ctx.beginPath();
+    this.hexPath(ctx, cell, 0.05);
+    ctx.clip();
     for (let side = 0; side < 6; side += 1) {
       const neighborBiome = cell.neighborBiomes[side];
       if (!neighborBiome || neighborBiome === cell.biome) continue;
-      const key = territoryTransitionArtKey(neighborBiome, cell.q, cell.r, side);
+      const key = territoryTransitionArtKey(cell.biome, neighborBiome, cell.q, cell.r, side);
       const frame = territoryTransitionAtlasFrame(key, side);
       ctx.drawImage(
         atlas,
@@ -334,6 +338,7 @@ export class TerritoryMapPainter {
         rect.height,
       );
     }
+    ctx.restore();
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {

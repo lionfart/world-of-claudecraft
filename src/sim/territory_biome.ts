@@ -66,8 +66,8 @@ function inlandTerrain(
   if (elevation > 0.93) return 'mountain';
   if (elevation > 0.84) return 'highland';
   if (moisture > 0.8 && elevation < 0.39) return 'marsh';
-  if (moisture > 0.82) return 'forest';
-  if (moisture > 0.6) return 'woodlands';
+  if (moisture > 0.88) return 'forest';
+  if (moisture > 0.7) return 'woodlands';
   if (moisture < 0.18 && elevation < 0.36) return 'wastes';
   return 'grassland';
 }
@@ -91,7 +91,7 @@ export function territoryVisualBiome(
   // random tiles, because both fields are sampled on a seven/eight-cell lattice.
   if (ny < -0.67) {
     if (elevation > 0.84 || (Math.abs(nx + 0.06) < 0.04 && elevation > 0.7)) return 'snowMountain';
-    return moisture > 0.7 ? 'snowForest' : 'snowfield';
+    return moisture > 0.82 ? 'snowForest' : 'snowfield';
   }
 
   // Warm continental east/south-east. Tall mesas stay within the desert mass
@@ -111,9 +111,9 @@ export function territoryVisualBiome(
 /**
  * Resource identity and strength follow what the tile actually depicts.
  * Dense forests always produce more wood than sparse woodland; farms use two
- * grain tiers, while ore-bearing mountain cells vary between natural ridges
- * and rich mine sites. The old manifest marker is retained only as the sparse
- * seed for settlement/labour cells.
+ * grain tiers, while ore-bearing highland cells vary between natural ridges
+ * and rich mine sites. Labour settlements use their own sparse deterministic
+ * cadence so the four resource families remain geographically balanced.
  */
 export function territoryResourceProfile(
   cell: Pick<TerritoryManifestCell, 'q' | 'r' | 'terrain' | 'resource'>,
@@ -122,32 +122,52 @@ export function territoryResourceProfile(
   const biome = territoryVisualBiome(cell, radius);
   const variation = mix32(cell.q, cell.r, 0x4a61_2f9d);
 
+  // Mountain ridges are strategic blockers, not economic territory. Keeping
+  // deposits off them also prevents the map from advertising unreachable ore.
+  if (!territoryBiomeClaimable(biome)) return null;
+
+  // Labour sites are distributed independently across otherwise compatible
+  // land so all four economies remain viable even when a guild starts outside
+  // a particular biome. Their sparse cadence keeps settlement art readable.
+  const laborSite =
+    (biome === 'grassland' ||
+      biome === 'woodlands' ||
+      biome === 'marsh' ||
+      biome === 'desert' ||
+      biome === 'wastes') &&
+    variation % 17 === 0;
+  if (laborSite) return { kind: 'labor', yield: variation % 39 === 0 ? 2 : 1 };
+
   if (biome === 'forest') {
-    // Forester clearings contain fewer standing trees than untouched forest.
+    // Some dense woods stay wild rather than turning every forest hex into a
+    // resource marker. Authored forester clearings remain the richest source.
+    if (variation % 4 === 0) return null;
     return { kind: 'wood', yield: variation % 5 === 0 ? 2 : 3 };
   }
-  if (biome === 'snowForest') return { kind: 'wood', yield: 2 };
-  if (biome === 'woodlands') return { kind: 'wood', yield: 1 };
+  if (biome === 'snowForest' && variation % 2 === 0) return { kind: 'wood', yield: 2 };
+  if (biome === 'woodlands' && variation % 3 === 0) return { kind: 'wood', yield: 1 };
 
   if (biome === 'grassland') {
-    if (cell.resource === 'labor' && variation % 2 === 0) return { kind: 'labor', yield: 1 };
-    const farmRoll = variation % 10;
-    if (farmRoll < 2) return { kind: 'grain', yield: 2 };
-    if (farmRoll < 4) return { kind: 'grain', yield: 1 };
+    const farmRoll = variation % 22;
+    if (farmRoll < 1) return { kind: 'grain', yield: 2 };
+    if (farmRoll < 2) return { kind: 'grain', yield: 1 };
     return null;
   }
 
-  if (biome === 'highland' && variation % 3 === 0)
-    return { kind: 'iron', yield: variation % 9 === 0 ? 3 : 1 };
-  if ((biome === 'mountain' || biome === 'snowMountain') && variation % 2 === 0)
-    return { kind: 'iron', yield: variation % 6 === 0 ? 3 : 2 };
-  if (biome === 'desertMesa' && variation % 4 === 0) return { kind: 'iron', yield: 1 };
-
-  if (
-    cell.resource === 'labor' &&
-    (biome === 'desert' || biome === 'wastes') &&
-    variation % 2 === 0
-  )
-    return { kind: 'labor', yield: 1 };
+  if (biome === 'highland' && variation % 5 < 3)
+    return { kind: 'iron', yield: variation % 11 === 0 ? 3 : 1 };
+  if (biome === 'desertMesa' && variation % 2 === 0) return { kind: 'iron', yield: 1 };
   return null;
+}
+
+/** Mountain silhouettes are permanent natural borders and cannot be owned. */
+export function territoryBiomeClaimable(biome: TerritoryVisualBiome): boolean {
+  return biome !== 'mountain' && biome !== 'snowMountain';
+}
+
+export function territoryCellClaimable(
+  cell: Pick<TerritoryManifestCell, 'q' | 'r' | 'terrain'> | null | undefined,
+  radius: number,
+): boolean {
+  return !!cell && territoryBiomeClaimable(territoryVisualBiome(cell, radius));
 }

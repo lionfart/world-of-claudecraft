@@ -1,5 +1,5 @@
 import { territorySiegeOriginAt } from '../sim/data';
-import { territoryResourceProfile } from '../sim/territory_biome';
+import { territoryCellClaimable, territoryResourceProfile } from '../sim/territory_biome';
 import { createTerritoryManifest, type TerritoryResourceKind } from '../sim/territory_manifest';
 import { territorySiegeActionPoint } from '../sim/territory_siege_layout';
 import type { IWorld, TerritoryMapState, TerritoryStructureSlot } from '../world_api';
@@ -420,6 +420,7 @@ export class TerritoryMapController {
     const owned = state.cells.find((entry) => entry.cellId === cellId);
     const manifestCell = createTerritoryManifest(state.season.radius).byId.get(cellId);
     if (!owned) {
+      if (!territoryCellClaimable(manifestCell, state.season.radius)) return null;
       if (state.guild.ownedCellCount === 0) {
         const firstKeepAllowed =
           !!manifestCell && (!state.season.requirementsEnabled || manifestCell.starter);

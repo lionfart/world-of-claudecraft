@@ -5,6 +5,7 @@ import sharp from 'sharp';
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(scriptDir, '..');
 const terrainDir = join(repoRoot, 'public', 'territory_map');
+const authoredDir = join(repoRoot, 'assets', 'territory_map', 'transitions');
 
 const FRAME_WIDTH = 113;
 const FRAME_HEIGHT = 192;
@@ -21,21 +22,41 @@ const RADIUS_Y = (FOOTPRINT_BOTTOM - FOOTPRINT_TOP) / 2;
 const RADIUS_X = FRAME_WIDTH / Math.sqrt(3);
 const HEX_APOTHEM = Math.sqrt(3) / 2;
 
-const materials = [
-  ['grassland', 'grassland.webp'],
-  ['grasslandAlt', 'grassland-alt.webp'],
-  ['woodlands', 'woodlands.webp'],
-  ['highland', 'highland.webp'],
-  ['highlandAlt', 'highland-alt.webp'],
-  ['marsh', 'marsh.webp'],
-  ['marshAlt', 'marsh-alt.webp'],
-  ['marshBog', 'marsh-bog.webp'],
-  ['snowfield', 'snowfield.webp'],
-  ['snowfieldAlt', 'snowfield-alt.webp'],
-  ['desert', 'desert.webp'],
-  ['desertAlt', 'desert-alt.webp'],
-  ['wastes', 'wastes.webp'],
-  ['wastesAlt', 'wastes-alt.webp'],
+const sources = [
+  ['grassland', join(terrainDir, 'grassland.webp')],
+  ['grasslandAlt', join(terrainDir, 'grassland-alt.webp')],
+  ['woodlands', join(terrainDir, 'woodlands.webp')],
+  ['highland', join(terrainDir, 'highland.webp')],
+  ['highlandAlt', join(terrainDir, 'highland-alt.webp')],
+  ['marsh', join(terrainDir, 'marsh.webp')],
+  ['marshAlt', join(terrainDir, 'marsh-alt.webp')],
+  ['marshBog', join(terrainDir, 'marsh-bog.webp')],
+  ['snowfield', join(terrainDir, 'snowfield.webp')],
+  ['snowfieldAlt', join(terrainDir, 'snowfield-alt.webp')],
+  ['desert', join(terrainDir, 'desert.webp')],
+  ['desertAlt', join(terrainDir, 'desert-alt.webp')],
+  ['wastes', join(terrainDir, 'wastes.webp')],
+  ['wastesAlt', join(terrainDir, 'wastes-alt.webp')],
+  ['grasslandWoodlands', join(authoredDir, 'grassland-woodlands.webp'), { authored: true }],
+  [
+    'woodlandsGrassland',
+    join(authoredDir, 'grassland-woodlands.webp'),
+    { authored: true, mirror: true },
+  ],
+  ['grasslandHighland', join(authoredDir, 'grassland-highland.webp'), { authored: true }],
+  [
+    'highlandGrassland',
+    join(authoredDir, 'grassland-highland.webp'),
+    { authored: true, mirror: true },
+  ],
+  ['grasslandDesert', join(authoredDir, 'grassland-desert.webp'), { authored: true }],
+  ['desertGrassland', join(authoredDir, 'grassland-desert.webp'), { authored: true, mirror: true }],
+  ['highlandSnowfield', join(authoredDir, 'highland-snowfield.webp'), { authored: true }],
+  [
+    'snowfieldHighland',
+    join(authoredDir, 'highland-snowfield.webp'),
+    { authored: true, mirror: true },
+  ],
 ];
 
 function clamp01(value) {
@@ -63,21 +84,50 @@ function connectionAlpha(materialIndex, side, x, y) {
   return (1 - smoothstep(0.015, connectionDepth, inwardDistance)) * 0.5;
 }
 
-const frameCount = materials.length * SIDES;
+function rotatedSource(source, side) {
+  if (side === 0) return source;
+  const target = Buffer.alloc(source.length);
+  const angle = -(Math.PI / 3) * side;
+  const cosine = Math.cos(angle);
+  const sine = Math.sin(angle);
+  for (let y = 0; y < FRAME_HEIGHT; y += 1) {
+    for (let x = 0; x < FRAME_WIDTH; x += 1) {
+      const dx = x + 0.5 - PIVOT_X;
+      const dy = y + 0.5 - PIVOT_Y;
+      const sourceX = cosine * dx + sine * dy + PIVOT_X - 0.5;
+      const sourceY = -sine * dx + cosine * dy + PIVOT_Y - 0.5;
+      const sx = Math.round(sourceX);
+      const sy = Math.round(sourceY);
+      if (sx < 0 || sx >= FRAME_WIDTH || sy < 0 || sy >= FRAME_HEIGHT) continue;
+      const sourceOffset = (sy * FRAME_WIDTH + sx) * 4;
+      const targetOffset = (y * FRAME_WIDTH + x) * 4;
+      target[targetOffset] = source[sourceOffset];
+      target[targetOffset + 1] = source[sourceOffset + 1];
+      target[targetOffset + 2] = source[sourceOffset + 2];
+      target[targetOffset + 3] = source[sourceOffset + 3];
+    }
+  }
+  return target;
+}
+
+const frameCount = sources.length * SIDES;
 const atlasRows = Math.ceil(frameCount / ATLAS_COLUMNS);
 const atlasWidth = ATLAS_COLUMNS * FRAME_CELL_WIDTH;
 const atlasHeight = atlasRows * FRAME_CELL_HEIGHT;
 const atlas = Buffer.alloc(atlasWidth * atlasHeight * 4);
 
-for (let materialIndex = 0; materialIndex < materials.length; materialIndex += 1) {
-  const [key, filename] = materials[materialIndex];
-  const { data } = await sharp(join(terrainDir, filename))
+for (let materialIndex = 0; materialIndex < sources.length; materialIndex += 1) {
+  const [key, filename, options = {}] = sources[materialIndex];
+  let pipeline = sharp(filename);
+  if (options.mirror) pipeline = pipeline.flop();
+  const { data } = await pipeline
     .resize(FRAME_WIDTH, FRAME_HEIGHT, { fit: 'fill' })
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
 
   for (let side = 0; side < SIDES; side += 1) {
+    const frameSource = options.authored ? rotatedSource(data, side) : data;
     const frameIndex = materialIndex * SIDES + side;
     const frameX = (frameIndex % ATLAS_COLUMNS) * FRAME_CELL_WIDTH + FRAME_GUTTER;
     const frameY = Math.floor(frameIndex / ATLAS_COLUMNS) * FRAME_CELL_HEIGHT + FRAME_GUTTER;
@@ -85,11 +135,16 @@ for (let materialIndex = 0; materialIndex < materials.length; materialIndex += 1
       for (let x = 0; x < FRAME_WIDTH; x += 1) {
         const sourceOffset = (y * FRAME_WIDTH + x) * 4;
         const targetOffset = ((frameY + y) * atlasWidth + frameX + x) * 4;
-        atlas[targetOffset] = data[sourceOffset];
-        atlas[targetOffset + 1] = data[sourceOffset + 1];
-        atlas[targetOffset + 2] = data[sourceOffset + 2];
-        atlas[targetOffset + 3] = Math.round(
-          data[sourceOffset + 3] * connectionAlpha(materialIndex, side, x + 0.5, y + 0.5),
+        atlas[targetOffset] = frameSource[sourceOffset];
+        atlas[targetOffset + 1] = frameSource[sourceOffset + 1];
+        atlas[targetOffset + 2] = frameSource[sourceOffset + 2];
+        atlas[targetOffset + 3] = Math.min(
+          255,
+          Math.round(
+            frameSource[sourceOffset + 3] *
+              connectionAlpha(materialIndex, side, x + 0.5, y + 0.5) *
+              (options.authored ? 1.55 : 1),
+          ),
         );
       }
     }

@@ -56,6 +56,14 @@ export const TERRITORY_TRANSITION_MATERIALS = [
   'desertAlt',
   'wastes',
   'wastesAlt',
+  'grasslandWoodlands',
+  'woodlandsGrassland',
+  'grasslandHighland',
+  'highlandGrassland',
+  'grasslandDesert',
+  'desertGrassland',
+  'highlandSnowfield',
+  'snowfieldHighland',
 ] as const;
 
 export type TerritoryTransitionArtKey = (typeof TERRITORY_TRANSITION_MATERIALS)[number];
@@ -68,7 +76,9 @@ export const TERRITORY_TRANSITION_ATLAS_CELL_WIDTH =
 export const TERRITORY_TRANSITION_ATLAS_CELL_HEIGHT =
   TERRITORY_TRANSITION_ATLAS_FRAME_HEIGHT + TERRITORY_TRANSITION_ATLAS_FRAME_GUTTER * 2;
 export const TERRITORY_TRANSITION_ATLAS_COLUMNS = 12;
-export const TERRITORY_TRANSITION_ATLAS_ROWS = 7;
+export const TERRITORY_TRANSITION_ATLAS_ROWS = Math.ceil(
+  (TERRITORY_TRANSITION_MATERIALS.length * 6) / TERRITORY_TRANSITION_ATLAS_COLUMNS,
+);
 
 export interface TerritoryTransitionAtlasFrame {
   readonly x: number;
@@ -92,9 +102,17 @@ const TRANSITION_MATERIAL_INDEX: Readonly<Record<TerritoryTransitionArtKey, numb
   desertAlt: 11,
   wastes: 12,
   wastesAlt: 13,
+  grasslandWoodlands: 14,
+  woodlandsGrassland: 15,
+  grasslandHighland: 16,
+  highlandGrassland: 17,
+  grasslandDesert: 18,
+  desertGrassland: 19,
+  highlandSnowfield: 20,
+  snowfieldHighland: 21,
 };
 
-/** Returns one of the 84 pre-rendered material/direction connection sprites. */
+/** Returns one pre-rendered material/direction connection sprite. */
 export function territoryTransitionAtlasFrame(
   key: TerritoryTransitionArtKey,
   side: number,
@@ -196,23 +214,55 @@ function artHash(q: number, r: number, salt: number): number {
  * material so transition bands never duplicate upright landmarks.
  */
 export function territoryTransitionArtKey(
-  biome: TerritoryVisualBiome,
+  baseBiome: TerritoryVisualBiome,
+  neighborBiome: TerritoryVisualBiome,
   q: number,
   r: number,
   side: number,
 ): TerritoryTransitionArtKey {
   const variant = artHash(q + side * 17, r - side * 11, 0x5ac4_17e9);
-  if (biome === 'grassland') return variant % 3 === 0 ? 'grasslandAlt' : 'grassland';
-  if (biome === 'woodlands' || biome === 'forest') return 'woodlands';
-  if (biome === 'highland' || biome === 'mountain')
-    return variant % 2 === 0 ? 'highlandAlt' : 'highland';
-  if (biome === 'marsh')
+  const base = transitionBiomeGroup(baseBiome);
+  const neighbor = transitionBiomeGroup(neighborBiome);
+  const authored = AUTHORED_TRANSITION_KEYS[`${base}:${neighbor}`];
+  if (authored) return authored;
+
+  if (neighbor === 'grassland') return variant % 3 === 0 ? 'grasslandAlt' : 'grassland';
+  if (neighbor === 'woodlands') return 'woodlands';
+  if (neighbor === 'highland') return variant % 2 === 0 ? 'highlandAlt' : 'highland';
+  if (neighbor === 'marsh')
     return variant % 3 === 0 ? 'marshBog' : variant % 2 === 0 ? 'marshAlt' : 'marsh';
-  if (biome === 'snowfield' || biome === 'snowForest' || biome === 'snowMountain')
-    return variant % 3 === 0 ? 'snowfieldAlt' : 'snowfield';
-  if (biome === 'desert' || biome === 'desertMesa')
-    return variant % 3 === 0 ? 'desertAlt' : 'desert';
+  if (neighbor === 'snowfield') return variant % 3 === 0 ? 'snowfieldAlt' : 'snowfield';
+  if (neighbor === 'desert') return variant % 3 === 0 ? 'desertAlt' : 'desert';
   return variant % 2 === 0 ? 'wastesAlt' : 'wastes';
+}
+
+type TransitionBiomeGroup =
+  | 'grassland'
+  | 'woodlands'
+  | 'highland'
+  | 'marsh'
+  | 'snowfield'
+  | 'desert'
+  | 'wastes';
+
+const AUTHORED_TRANSITION_KEYS: Readonly<Partial<Record<string, TerritoryTransitionArtKey>>> = {
+  'grassland:woodlands': 'grasslandWoodlands',
+  'woodlands:grassland': 'woodlandsGrassland',
+  'grassland:highland': 'grasslandHighland',
+  'highland:grassland': 'highlandGrassland',
+  'grassland:desert': 'grasslandDesert',
+  'desert:grassland': 'desertGrassland',
+  'highland:snowfield': 'highlandSnowfield',
+  'snowfield:highland': 'snowfieldHighland',
+};
+
+function transitionBiomeGroup(biome: TerritoryVisualBiome): TransitionBiomeGroup {
+  if (biome === 'woodlands' || biome === 'forest') return 'woodlands';
+  if (biome === 'highland' || biome === 'mountain') return 'highland';
+  if (biome === 'snowfield' || biome === 'snowForest' || biome === 'snowMountain')
+    return 'snowfield';
+  if (biome === 'desert' || biome === 'desertMesa') return 'desert';
+  return biome;
 }
 
 /** Couples visual density to the resource tier while varying ordinary terrain. */

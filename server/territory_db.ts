@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { territoryResourceProfile } from '../src/sim/territory_biome';
+import { territoryCellClaimable, territoryResourceProfile } from '../src/sim/territory_biome';
 import { territoryConstructionDurationMs } from '../src/sim/territory_construction';
 import type { TerritoryDelta } from '../src/sim/territory_delta';
 import {
@@ -912,6 +912,7 @@ export class TerritoryRepository {
     return this.mutate(ctx, 'place_keep', cellId, async (client, season) => {
       if (ctx.rank !== 'leader') return 'forbidden';
       const cell = this.manifest.byId.get(cellId);
+      if (!territoryCellClaimable(cell, this.manifest.radius)) return 'invalid_cell';
       if (!territoryFirstKeepAllowed(cell, this.config.requirementsEnabled)) {
         return 'invalid_cell';
       }
@@ -941,7 +942,7 @@ export class TerritoryRepository {
     return this.mutate(ctx, 'claim', cellId, async (client, season) => {
       if (!validRankForManage(ctx.rank)) return 'forbidden';
       const cell = this.manifest.byId.get(cellId);
-      if (!cell) return 'invalid_cell';
+      if (!territoryCellClaimable(cell, this.manifest.radius)) return 'invalid_cell';
       const owner = await client.query(
         `SELECT 1 FROM territory_cells WHERE season_id = $1 AND cell_id = $2`,
         [season.id, cellId],

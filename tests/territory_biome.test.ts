@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { territoryResourceProfile, territoryVisualBiome } from '../src/sim/territory_biome';
+import {
+  territoryCellClaimable,
+  territoryResourceProfile,
+  territoryVisualBiome,
+} from '../src/sim/territory_biome';
 import { createTerritoryManifest } from '../src/sim/territory_manifest';
 
 describe('territory visual biomes', () => {
@@ -14,15 +18,22 @@ describe('territory visual biomes', () => {
 
   it('ties resource yield to the depicted biome density', () => {
     const manifest = createTerritoryManifest(20);
-    const forest = manifest.cells.find(
-      (cell) => territoryVisualBiome(cell, manifest.radius) === 'forest',
-    );
-    const woodland = manifest.cells.find(
-      (cell) => territoryVisualBiome(cell, manifest.radius) === 'woodlands',
-    );
-    const snowForest = manifest.cells.find(
-      (cell) => territoryVisualBiome(cell, manifest.radius) === 'snowForest',
-    );
+    const forest = manifest.cells.find((cell) => {
+      const profile = territoryResourceProfile(cell, manifest.radius);
+      return territoryVisualBiome(cell, manifest.radius) === 'forest' && profile?.kind === 'wood';
+    });
+    const woodland = manifest.cells.find((cell) => {
+      const profile = territoryResourceProfile(cell, manifest.radius);
+      return (
+        territoryVisualBiome(cell, manifest.radius) === 'woodlands' && profile?.kind === 'wood'
+      );
+    });
+    const snowForest = manifest.cells.find((cell) => {
+      const profile = territoryResourceProfile(cell, manifest.radius);
+      return (
+        territoryVisualBiome(cell, manifest.radius) === 'snowForest' && profile?.kind === 'wood'
+      );
+    });
     if (!forest || !woodland || !snowForest) throw new Error('expected forest biomes are absent');
 
     expect(territoryResourceProfile(forest, manifest.radius)).toMatchObject({ kind: 'wood' });
@@ -73,6 +84,33 @@ describe('territory visual biomes', () => {
     );
     expect(count('desert', 'desertMesa')).toBeLessThan(manifest.cells.length * 0.12);
     expect(count('forest')).toBeLessThan(manifest.cells.length * 0.08);
+    expect(count('woodlands', 'forest', 'snowForest')).toBeLessThan(manifest.cells.length * 0.18);
+  });
+
+  it('makes every mountain ridge unclaimable and non-producing', () => {
+    const manifest = createTerritoryManifest(20);
+    const mountains = manifest.cells.filter((cell) =>
+      ['mountain', 'snowMountain'].includes(territoryVisualBiome(cell, manifest.radius)),
+    );
+    expect(mountains.length).toBeGreaterThan(0);
+    for (const cell of mountains) {
+      expect(territoryCellClaimable(cell, manifest.radius)).toBe(false);
+      expect(territoryResourceProfile(cell, manifest.radius)).toBeNull();
+    }
+  });
+
+  it('keeps wood, iron, grain, and labour deposit counts in the same economy band', () => {
+    for (const radius of [20, 44]) {
+      const manifest = createTerritoryManifest(radius);
+      const counts = new Map<string, number>();
+      for (const cell of manifest.cells) {
+        const resource = territoryResourceProfile(cell, manifest.radius);
+        if (resource) counts.set(resource.kind, (counts.get(resource.kind) ?? 0) + 1);
+      }
+      const values = ['wood', 'iron', 'grain', 'labor'].map((kind) => counts.get(kind) ?? 0);
+      expect(Math.min(...values)).toBeGreaterThan(50);
+      expect(Math.max(...values) / Math.min(...values)).toBeLessThan(1.5);
+    }
   });
 
   it('is visual-only and leaves the authoritative manifest checksum untouched', () => {

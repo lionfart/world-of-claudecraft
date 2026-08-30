@@ -99,10 +99,13 @@ describe('territory map art bundle', () => {
   });
 
   it('uses low-silhouette material art for every biome transition', () => {
-    expect(territoryTransitionArtKey('mountain', 1, 2, 0)).toMatch(/^highland/);
-    expect(territoryTransitionArtKey('snowMountain', 1, 2, 1)).toMatch(/^snowfield/);
-    expect(territoryTransitionArtKey('forest', 1, 2, 2)).toBe('woodlands');
-    expect(territoryTransitionArtKey('desertMesa', 1, 2, 3)).toMatch(/^desert/);
+    expect(territoryTransitionArtKey('marsh', 'mountain', 1, 2, 0)).toMatch(/^highland/);
+    expect(territoryTransitionArtKey('marsh', 'snowMountain', 1, 2, 1)).toMatch(/^snowfield/);
+    expect(territoryTransitionArtKey('marsh', 'forest', 1, 2, 2)).toBe('woodlands');
+    expect(territoryTransitionArtKey('marsh', 'desertMesa', 1, 2, 3)).toMatch(/^desert/);
+    expect(territoryTransitionArtKey('grassland', 'forest', 1, 2, 0)).toBe('grasslandWoodlands');
+    expect(territoryTransitionArtKey('forest', 'grassland', 1, 2, 0)).toBe('woodlandsGrassland');
+    expect(territoryTransitionArtKey('highland', 'snowfield', 1, 2, 0)).toBe('highlandSnowfield');
     expect(painterSource).toContain('this.transitionSprites(ctx, cell, art, rect)');
     expect(painterSource).toContain('territoryTransitionAtlasFrame(key, side)');
     expect(painterSource).not.toContain('createImageData');
@@ -111,13 +114,13 @@ describe('territory map art bundle', () => {
     expect(painterSource).not.toContain('transitionBand');
   });
 
-  it('addresses all 84 material/direction sprites without overlap', () => {
+  it('addresses every material/direction sprite without overlap', () => {
     const frames = TERRITORY_TRANSITION_MATERIALS.flatMap((key) =>
       Array.from({ length: 6 }, (_, side) => territoryTransitionAtlasFrame(key, side)),
     );
-    expect(TERRITORY_TRANSITION_MATERIALS).toHaveLength(14);
-    expect(frames).toHaveLength(84);
-    expect(new Set(frames.map((frame) => `${frame.x},${frame.y}`))).toHaveLength(84);
+    expect(TERRITORY_TRANSITION_MATERIALS).toHaveLength(22);
+    expect(frames).toHaveLength(132);
+    expect(new Set(frames.map((frame) => `${frame.x},${frame.y}`))).toHaveLength(132);
     for (const frame of frames) {
       expect(frame.x + frame.width).toBeLessThanOrEqual(
         TERRITORY_TRANSITION_ATLAS_COLUMNS * TERRITORY_TRANSITION_ATLAS_CELL_WIDTH,
