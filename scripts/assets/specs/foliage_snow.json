@@ -1,0 +1,38 @@
+{
+  "note": "Quaternius Stylized Nature MegaKit snowy pine and rock variants. CC0 source OBJ files are normalized to GLB under tmp/asset_src before this meshopt build.",
+  "items": [
+    {
+      "src": "tmp/asset_src/quaternius_nature_snow/PineTree_Snow_1.glb",
+      "out": "models/foliage/snow_pine_1.glb",
+      "type": "static",
+      "simplify": 0.65
+    },
+    {
+      "src": "tmp/asset_src/quaternius_nature_snow/PineTree_Snow_3.glb",
+      "out": "models/foliage/snow_pine_2.glb",
+      "type": "static",
+      "simplify": 0.65
+    },
+    {
+      "src": "tmp/asset_src/quaternius_nature_snow/PineTree_Snow_5.glb",
+      "out": "models/foliage/snow_pine_3.glb",
+      "type": "static",
+      "simplify": 0.65
+    },
+    {
+      "src": "tmp/asset_src/quaternius_nature_snow/Rock_Snow_1.glb",
+      "out": "models/foliage/snow_rock_1.glb",
+      "type": "static"
+    },
+    {
+      "src": "tmp/asset_src/quaternius_nature_snow/Rock_Snow_4.glb",
+      "out": "models/foliage/snow_rock_2.glb",
+      "type": "static"
+    },
+    {
+      "src": "tmp/asset_src/quaternius_nature_snow/Rock_Snow_7.glb",
+      "out": "models/foliage/snow_rock_3.glb",
+      "type": "static"
+    }
+  ]
+}

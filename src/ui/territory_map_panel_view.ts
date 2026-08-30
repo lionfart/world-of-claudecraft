@@ -1,9 +1,27 @@
+import type { TerritorySiegeBiome } from '../sim/territory_siege_biome';
 import type {
   TerritoryMapState,
   TerritoryStructureKind,
   TerritoryStructureSlot,
   TerritoryWarView,
 } from '../world_api';
+
+export type TerritorySiegeMapLabelKey =
+  | 'siegeBiomeTemperate'
+  | 'siegeBiomeRocky'
+  | 'siegeBiomeSnow'
+  | 'siegeBiomeDesert';
+
+/** Stable catalogue key for the battlefield selected by a strategic hex. */
+export function territorySiegeMapLabelKey(biome: TerritorySiegeBiome): TerritorySiegeMapLabelKey {
+  const labels: Record<TerritorySiegeBiome, TerritorySiegeMapLabelKey> = {
+    temperate: 'siegeBiomeTemperate',
+    rocky: 'siegeBiomeRocky',
+    snow: 'siegeBiomeSnow',
+    desert: 'siegeBiomeDesert',
+  };
+  return labels[biome];
+}
 
 export interface TerritorySlotDescriptor {
   slot: TerritoryStructureSlot;

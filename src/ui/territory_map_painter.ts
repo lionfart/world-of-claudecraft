@@ -8,9 +8,10 @@ import {
   type TerritoryMapArt,
   territoryMapArt,
   territoryMapArtIsGround,
-  territoryMapAuthoredTransitionForCell,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
+  territoryMapAuthoredTransitionForCell,
+  territoryMapHasAuthoredFullTransition,
   territoryTerrainArtRect,
   territoryTransitionArtKey,
   territoryTransitionAtlasFrame,
@@ -345,6 +346,10 @@ export class TerritoryMapPainter {
     for (let side = 0; side < 6; side += 1) {
       const neighborBiome = cell.neighborBiomes[side];
       if (!neighborBiome || neighborBiome === cell.biome) continue;
+      // Full authored connections are placed on exactly one side of the
+      // border. Do not add atlas edge sprites on either adjacent row: doing so
+      // muddies the hand-painted connection and recreates a double-width seam.
+      if (territoryMapHasAuthoredFullTransition(cell.biome, neighborBiome)) continue;
       const key = territoryTransitionArtKey(cell.biome, neighborBiome, cell.q, cell.r, side);
       const frame = territoryTransitionAtlasFrame(key, side);
       ctx.drawImage(

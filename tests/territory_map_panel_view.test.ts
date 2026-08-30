@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   territoryCellPanelMode,
+  territorySiegeMapLabelKey,
   territorySlotModels,
   territoryWarCountdown,
   territoryWarNoticeModel,
@@ -67,6 +68,13 @@ function state(rank: 'member' | 'officer' | 'leader' = 'leader'): TerritoryMapSt
 }
 
 describe('territory structure slot cards', () => {
+  it('labels every biome with its actual siege map set', () => {
+    expect(territorySiegeMapLabelKey('temperate')).toBe('siegeBiomeTemperate');
+    expect(territorySiegeMapLabelKey('rocky')).toBe('siegeBiomeRocky');
+    expect(territorySiegeMapLabelKey('snow')).toBe('siegeBiomeSnow');
+    expect(territorySiegeMapLabelKey('desert')).toBe('siegeBiomeDesert');
+  });
+
   it('shows development only for owned land and reduces mountains to a notice', () => {
     expect(territoryCellPanelMode({ claimable: false, owned: false })).toBe('mountain');
     expect(territoryCellPanelMode({ claimable: true, owned: false })).toBe('neutral');

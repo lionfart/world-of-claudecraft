@@ -35,6 +35,12 @@ describe('territory siege asset kit', () => {
     expect(TERRITORY_SIEGE_ASSET_URLS).toMatchObject({
       naturalPine: '/models/foliage/pine_2.glb',
       naturalOak: '/models/foliage/oak_3.glb',
+      snowPineA: '/models/foliage/snow_pine_1.glb',
+      snowPineB: '/models/foliage/snow_pine_2.glb',
+      snowPineC: '/models/foliage/snow_pine_3.glb',
+      snowRockA: '/models/foliage/snow_rock_1.glb',
+      snowRockB: '/models/foliage/snow_rock_2.glb',
+      snowRockC: '/models/foliage/snow_rock_3.glb',
       desertTree: '/models/biome/desert_tree.glb',
       desertBoulderA: '/models/biome/desert_boulder_1.glb',
       desertCactusA: '/models/biome/desert_cactus_tall_1.glb',

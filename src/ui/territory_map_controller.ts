@@ -1,6 +1,7 @@
 import { territorySiegeOriginAt } from '../sim/data';
 import { territoryCellClaimable, territoryResourceProfile } from '../sim/territory_biome';
 import { createTerritoryManifest, type TerritoryResourceKind } from '../sim/territory_manifest';
+import { territorySiegeBiomeForCell } from '../sim/territory_siege_biome';
 import { territorySiegeActionPoint } from '../sim/territory_siege_layout';
 import type { IWorld, TerritoryMapState, TerritoryStructureSlot } from '../world_api';
 import { formatDateTime, t } from './i18n';
@@ -9,6 +10,7 @@ import { TerritoryMapPainter } from './territory_map_painter';
 import {
   TERRITORY_SLOT_DESCRIPTORS,
   territoryCellPanelMode,
+  territorySiegeMapLabelKey,
   territorySlotModels,
   territoryWarCountdown,
   territoryWarNoticeModel,
@@ -485,6 +487,7 @@ export class TerritoryMapController {
     this.writers.setDisplay(panel, visible ? 'block' : 'none');
     const title = element('#territory-cell-title');
     const detail = element('#territory-cell-detail');
+    const battlefield = element('#territory-cell-battlefield');
     const economy = element('#territory-economy');
     const primary = element<HTMLButtonElement>('#territory-primary-action');
     const actions = element<HTMLElement>('#territory-panel .territory-actions');
@@ -493,6 +496,8 @@ export class TerritoryMapController {
       panel.dataset.mode = 'loading';
       this.writers.setText(title, t('hudChrome.territoryMap.loading'));
       this.writers.setText(detail, '');
+      this.writers.setText(battlefield, '');
+      this.writers.setDisplay(battlefield, 'none');
       this.writers.setText(economy, '');
       this.writers.setDisplay(economy, 'none');
       this.writers.setDisplay(actions, 'none');
@@ -509,6 +514,8 @@ export class TerritoryMapController {
     if (mode === 'mountain') {
       this.writers.setText(title, t('hudChrome.territoryMap.impassableMountain'));
       this.writers.setText(detail, t('hudChrome.territoryMap.mountainNotice'));
+      this.writers.setText(battlefield, '');
+      this.writers.setDisplay(battlefield, 'none');
       this.writers.setText(economy, '');
       this.writers.setDisplay(economy, 'none');
       this.writers.setDisplay(actions, 'none');
@@ -531,6 +538,14 @@ export class TerritoryMapController {
         })
       : t('hudChrome.territoryMap.noResource');
     this.writers.setText(detail, resource);
+    const siegeBiome = territorySiegeBiomeForCell(manifestCell, state.season.radius);
+    this.writers.setText(
+      battlefield,
+      t('hudChrome.territoryMap.siegeMap', {
+        biome: t(`hudChrome.territoryMap.${territorySiegeMapLabelKey(siegeBiome)}`),
+      }),
+    );
+    this.writers.setDisplay(battlefield, 'block');
     this.writers.setText(
       economy,
       state.guild

@@ -109,11 +109,11 @@ const FIELD_STYLES: Record<TerritorySiegeBiome, TerritorySiegeFieldStyle> = {
     patchSurface: 'dirt',
     patchTint: 0x8f9697,
     patchOpacity: 0.3,
-    grassStep: 5.8,
-    grassPatchFloor: 0.58,
-    grassChanceFloor: 0.72,
+    grassStep: 7.8,
+    grassPatchFloor: 0.68,
+    grassChanceFloor: 0.82,
     grassColors: [0xdde7df, 0xadbcae, 0x879b8c],
-    stonePatches: 50,
+    stonePatches: 36,
     stoneScale: 1.08,
     stoneColors: [0xd6dde0, 0xa8b2b8],
   },
@@ -140,6 +140,7 @@ const FIELD_STYLES: Record<TerritorySiegeBiome, TerritorySiegeFieldStyle> = {
 const surfaceMaterials = new Map<string, THREE.Material>();
 const patchMaterials = new Map<TerritorySiegeBiome, THREE.Material>();
 let siegeGrassMaterial: THREE.MeshStandardMaterial | null = null;
+let siegeSnowGrassMaterial: THREE.MeshStandardMaterial | null = null;
 
 const SURFACE_TEXTURES: Record<
   FieldSurface,
@@ -345,8 +346,9 @@ function siegeGrassCardGeometry(): THREE.BufferGeometry {
   return geometry;
 }
 
-function grassMaterial(): THREE.MeshStandardMaterial {
-  if (siegeGrassMaterial) return siegeGrassMaterial;
+function grassMaterial(biome: TerritorySiegeBiome): THREE.MeshStandardMaterial {
+  if (biome === 'snow' && siegeSnowGrassMaterial) return siegeSnowGrassMaterial;
+  if (biome !== 'snow' && siegeGrassMaterial) return siegeGrassMaterial;
   const material = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     map: grassTuftTexture(30),
@@ -355,7 +357,22 @@ function grassMaterial(): THREE.MeshStandardMaterial {
     side: THREE.DoubleSide,
   });
   material.alphaToCoverage = true;
-  siegeGrassMaterial = material;
+  if (biome === 'snow') {
+    const previousCompile = material.onBeforeCompile;
+    const previousCacheKey = material.customProgramCacheKey.bind(material);
+    material.onBeforeCompile = (shader, renderer) => {
+      previousCompile.call(material, shader, renderer);
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <color_fragment>',
+        '#include <color_fragment>\nfloat territoryGrassSnow = smoothstep(0.38, 0.92, vMapUv.y);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78, 0.88, 0.94), territoryGrassSnow * 0.92);',
+      );
+    };
+    material.customProgramCacheKey = () => `${previousCacheKey()}|territory-siege-snow-grass-v1`;
+    material.needsUpdate = true;
+    siegeSnowGrassMaterial = material;
+  } else {
+    siegeGrassMaterial = material;
+  }
   return material;
 }
 
@@ -404,7 +421,7 @@ function buildBillboardGrass(biome: TerritorySiegeBiome): THREE.InstancedMesh {
   }
   const mesh = new THREE.InstancedMesh(
     siegeGrassCardGeometry(),
-    grassMaterial(),
+    grassMaterial(biome),
     placements.length,
   );
   const transform = new THREE.Object3D();
@@ -500,6 +517,7 @@ function placeAtHeight(
 }
 
 function buildBiomeTrees(root: THREE.Object3D, biome: TerritorySiegeBiome): void {
+  const snowPines: readonly TerritorySiegeAssetKey[] = ['snowPineA', 'snowPineB', 'snowPineC'];
   for (let index = 0; index < TERRITORY_SIEGE_TREES.length; index += 1) {
     const tree = TERRITORY_SIEGE_TREES[index];
     const y = territorySiegeGroundLiftLocal(tree.x, tree.z);
@@ -507,13 +525,27 @@ function buildBiomeTrees(root: THREE.Object3D, biome: TerritorySiegeBiome): void
       placeAtHeight(root, 'desertTree', tree.x, y, tree.z, tree.scale * 0.92, tree.yaw);
       continue;
     }
-    const key: TerritorySiegeAssetKey =
-      biome === 'snow' ? 'naturalPine' : index % 4 === 0 ? 'naturalOak' : 'naturalPine';
+    if (biome === 'snow') {
+      // Frostveil keeps broad snow clearings between sparse hardy pines.
+      if (index % 5 === 2 || index % 5 === 4) continue;
+      placeAtHeight(
+        root,
+        snowPines[index % snowPines.length],
+        tree.x,
+        y,
+        tree.z,
+        tree.scale * 2.05,
+        tree.yaw,
+      );
+      continue;
+    }
+    const key: TerritorySiegeAssetKey = index % 4 === 0 ? 'naturalOak' : 'naturalPine';
     place(root, key, tree.x, y, tree.z, tree.scale * (biome === 'rocky' ? 0.38 : 0.42), tree.yaw);
   }
 }
 
 function buildBiomeRocks(root: THREE.Object3D, biome: TerritorySiegeBiome): void {
+  const snowRocks: readonly TerritorySiegeAssetKey[] = ['snowRockA', 'snowRockB', 'snowRockC'];
   for (let index = 0; index < TERRITORY_SIEGE_ROCKS.length; index += 1) {
     const rock = TERRITORY_SIEGE_ROCKS[index];
     const y = territorySiegeGroundLiftLocal(rock.x, rock.z);
@@ -525,6 +557,18 @@ function buildBiomeRocks(root: THREE.Object3D, biome: TerritorySiegeBiome): void
         y,
         rock.z,
         rock.scale * 0.62,
+        rock.yaw,
+      );
+      continue;
+    }
+    if (biome === 'snow') {
+      placeAtHeight(
+        root,
+        snowRocks[index % snowRocks.length],
+        rock.x,
+        y,
+        rock.z,
+        rock.scale * 0.82,
         rock.yaw,
       );
       continue;

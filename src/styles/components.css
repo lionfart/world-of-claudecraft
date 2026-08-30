@@ -10907,10 +10907,10 @@
       0 5px 16px #000b;
     pointer-events: auto;
   }
-  #territory-panel[data-mode='owned'] {
+  #territory-panel[data-mode="owned"] {
     width: min(316px, calc(100% - 78px));
   }
-  #territory-panel[data-mode='mountain'] {
+  #territory-panel[data-mode="mountain"] {
     width: min(258px, calc(100% - 78px));
     border-left-color: #8e9a9d;
     background:
@@ -10934,10 +10934,14 @@
     font-weight: bold;
   }
   #territory-cell-detail,
+  #territory-cell-battlefield,
   #territory-economy {
     margin-top: 3px;
     font-size: 11px;
     color: var(--color-text-muted);
+  }
+  #territory-cell-battlefield {
+    color: var(--gold);
   }
   .territory-actions {
     display: flex;

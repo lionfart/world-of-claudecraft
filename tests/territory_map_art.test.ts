@@ -11,9 +11,10 @@ import {
   TERRITORY_TRANSITION_MATERIALS,
   territoryFeatureArtRect,
   territoryMapArtIsGround,
-  territoryMapAuthoredTransitionForCell,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
+  territoryMapAuthoredTransitionForCell,
+  territoryMapHasAuthoredFullTransition,
   territoryTerrainArtRect,
   territoryTransitionArtKey,
   territoryTransitionAtlasFrame,
@@ -137,10 +138,23 @@ describe('territory map art bundle', () => {
         biome: 'highland',
         neighborBiomes: [null, null, 'snowfield', null, null, null],
       }),
-    ).toEqual({ key: 'highlandSnowfield', rotationSteps: 2, mirrorX: false });
+    ).toEqual({ key: 'highlandSnowfield', rotationSteps: 4, mirrorX: false });
+    expect(
+      territoryMapAuthoredTransitionForCell({
+        ...base,
+        biome: 'forest',
+        neighborBiomes: ['grassland', null, null, null, null, null],
+      }),
+    ).toBeNull();
+    expect(territoryMapHasAuthoredFullTransition('grassland', 'forest')).toBe(true);
+    expect(territoryMapHasAuthoredFullTransition('forest', 'grassland')).toBe(true);
+    expect(territoryMapHasAuthoredFullTransition('marsh', 'grassland')).toBe(false);
     expect(territoryMapArtIsGround('grasslandWoodlands')).toBe(true);
     expect(territoryMapArtIsGround('mountain')).toBe(false);
     expect(painterSource).toContain('const groundScale = 1.16');
+    expect(painterSource).toContain(
+      'territoryMapHasAuthoredFullTransition(cell.biome, neighborBiome)',
+    );
   });
 
   it('addresses every material/direction sprite without overlap', () => {

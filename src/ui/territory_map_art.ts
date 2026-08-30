@@ -315,11 +315,33 @@ export function territoryMapAuthoredTransitionForCell(
     const neighbor = transitionBiomeGroup(neighborBiome);
     if (base === neighbor) continue;
     const forward = AUTHORED_FULL_TILE_TRANSITIONS[`${base}:${neighbor}`];
-    if (forward) return { key: forward, rotationSteps: side, mirrorX: false };
-    const reverse = AUTHORED_FULL_TILE_TRANSITIONS[`${neighbor}:${base}`];
-    if (reverse) return { key: reverse, rotationSteps: side, mirrorX: true };
+    // Only the first material named by the authored pair owns the transition
+    // cell. Letting the reverse side mirror the same painting produced two
+    // consecutive rows of transition hexes along every border.
+    if (forward)
+      return {
+        key: forward,
+        // Axial sides advance counter-clockwise in screen space while Canvas
+        // positive rotation is clockwise. Side 0 already points right, so the
+        // remaining directions must rotate by the complementary sixth-turn.
+        rotationSteps: (6 - side) % 6,
+        mirrorX: false,
+      };
   }
   return null;
+}
+
+/** True when a biome pair is already represented by one full authored hex row. */
+export function territoryMapHasAuthoredFullTransition(
+  firstBiome: TerritoryVisualBiome,
+  secondBiome: TerritoryVisualBiome,
+): boolean {
+  const first = transitionBiomeGroup(firstBiome);
+  const second = transitionBiomeGroup(secondBiome);
+  return (
+    AUTHORED_FULL_TILE_TRANSITIONS[`${first}:${second}`] !== undefined ||
+    AUTHORED_FULL_TILE_TRANSITIONS[`${second}:${first}`] !== undefined
+  );
 }
 
 /** Couples visual density to the resource tier while varying ordinary terrain. */
