@@ -11,10 +11,7 @@ import {
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryMapAuthoredTransitionForCell,
-  territoryMapHasAuthoredFullTransition,
   territoryTerrainArtRect,
-  territoryTransitionArtKey,
-  territoryTransitionAtlasFrame,
 } from './territory_map_art';
 import {
   buildTerritoryMapModel,
@@ -284,9 +281,8 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    // Base terrain first, connection artwork second. Drawing a seam immediately
-    // after its cell let the following neighbour paint over it, making the
-    // authored transitions effectively invisible despite being loaded.
+    // Every cell owns one complete painting. Transition cells use one of the
+    // full two-biome hexes, so there are no runtime edge overlays to double up.
     for (const cell of sorted) {
       const authoredTransition = territoryMapAuthoredTransitionForCell(cell);
       const key = authoredTransition?.key ?? territoryMapArtKeyForCell(cell);
@@ -319,52 +315,6 @@ export class TerritoryMapPainter {
       ctx.drawImage(image, rect.x - cell.mx, rect.y - cell.my, rect.width, rect.height);
       ctx.restore();
     }
-    // Transition pixels are authored once in a compact sprite atlas. Runtime
-    // work is limited to image crops: no per-cell canvases, masks or pixel loops.
-    for (const cell of sorted) {
-      this.transitionSprites(
-        ctx,
-        cell,
-        art,
-        territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx),
-      );
-    }
-  }
-
-  private transitionSprites(
-    ctx: CanvasRenderingContext2D,
-    cell: TerritoryMapHex,
-    art: TerritoryMapArt,
-    rect: ReturnType<typeof territoryTerrainArtRect>,
-  ): void {
-    const atlas = art.transitionAtlas;
-    if (!atlas) return;
-    ctx.save();
-    ctx.beginPath();
-    this.hexPath(ctx, cell, 0.05);
-    ctx.clip();
-    for (let side = 0; side < 6; side += 1) {
-      const neighborBiome = cell.neighborBiomes[side];
-      if (!neighborBiome || neighborBiome === cell.biome) continue;
-      // Full authored connections are placed on exactly one side of the
-      // border. Do not add atlas edge sprites on either adjacent row: doing so
-      // muddies the hand-painted connection and recreates a double-width seam.
-      if (territoryMapHasAuthoredFullTransition(cell.biome, neighborBiome)) continue;
-      const key = territoryTransitionArtKey(cell.biome, neighborBiome, cell.q, cell.r, side);
-      const frame = territoryTransitionAtlasFrame(key, side);
-      ctx.drawImage(
-        atlas,
-        frame.x,
-        frame.y,
-        frame.width,
-        frame.height,
-        rect.x,
-        rect.y,
-        rect.width,
-        rect.height,
-      );
-    }
-    ctx.restore();
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {

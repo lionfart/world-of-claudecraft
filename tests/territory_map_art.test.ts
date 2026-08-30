@@ -3,12 +3,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  TERRITORY_KEEP_ART_KEYS,
   TERRITORY_MAP_ART_SOURCES,
-  TERRITORY_TRANSITION_ATLAS_CELL_HEIGHT,
-  TERRITORY_TRANSITION_ATLAS_CELL_WIDTH,
-  TERRITORY_TRANSITION_ATLAS_COLUMNS,
-  TERRITORY_TRANSITION_ATLAS_ROWS,
-  TERRITORY_TRANSITION_MATERIALS,
+  TERRITORY_MAP_TRANSITION_KEYS,
+  TERRITORY_RESOURCE_ART_KEYS,
   territoryFeatureArtRect,
   territoryMapArtIsGround,
   territoryMapArtKeyForCell,
@@ -16,30 +14,52 @@ import {
   territoryMapAuthoredTransitionForCell,
   territoryMapHasAuthoredFullTransition,
   territoryTerrainArtRect,
-  territoryTransitionArtKey,
-  territoryTransitionAtlasFrame,
 } from '../src/ui/territory_map_art';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const painterSource = readFileSync(join(repoRoot, 'src', 'ui', 'territory_map_painter.ts'), 'utf8');
 
+const TRANSITION_PAIRS = [
+  ['grassland', 'woodlands', 'grasslandWoodlands'],
+  ['grassland', 'highland', 'grasslandHighland'],
+  ['grassland', 'marsh', 'grasslandMarsh'],
+  ['grassland', 'snowfield', 'grasslandSnowfield'],
+  ['grassland', 'desert', 'grasslandDesert'],
+  ['grassland', 'wastes', 'grasslandWastes'],
+  ['woodlands', 'highland', 'woodlandsHighland'],
+  ['woodlands', 'marsh', 'woodlandsMarsh'],
+  ['woodlands', 'snowfield', 'woodlandsSnowfield'],
+  ['woodlands', 'desert', 'woodlandsDesert'],
+  ['woodlands', 'wastes', 'woodlandsWastes'],
+  ['highland', 'marsh', 'highlandMarsh'],
+  ['highland', 'snowfield', 'highlandSnowfield'],
+  ['highland', 'desert', 'highlandDesert'],
+  ['highland', 'wastes', 'highlandWastes'],
+  ['marsh', 'snowfield', 'marshSnowfield'],
+  ['marsh', 'desert', 'marshDesert'],
+  ['marsh', 'wastes', 'marshWastes'],
+  ['snowfield', 'desert', 'snowfieldDesert'],
+  ['snowfield', 'wastes', 'snowfieldWastes'],
+  ['desert', 'wastes', 'desertWastes'],
+] as const;
+
 describe('territory map art bundle', () => {
-  it('ships a bounded optimized WebP bundle for terrain, resources, keep, and transitions', () => {
+  it('ships a bounded optimized WebP bundle for terrain, every resource tier, and transitions', () => {
     const sources = Object.values(TERRITORY_MAP_ART_SOURCES);
-    expect(sources).toHaveLength(31);
+    expect(sources).toHaveLength(80);
     expect(new Set(sources).size).toBe(sources.length);
 
     let totalBytes = 0;
     for (const source of sources) {
-      expect(source).toMatch(/^\/territory_map\/[a-z-]+\.webp$/);
+      expect(source).toMatch(/^\/territory_map\/[a-z0-9-]+\.webp$/);
       const file = join(repoRoot, 'public', source.slice(1));
       const bytes = readFileSync(file);
       totalBytes += statSync(file).size;
       expect(bytes.subarray(0, 4).toString('ascii')).toBe('RIFF');
       expect(bytes.subarray(8, 12).toString('ascii')).toBe('WEBP');
-      expect(bytes.length).toBeLessThan(source.includes('transition-atlas') ? 250_000 : 120_000);
+      expect(bytes.length).toBeLessThan(120_000);
     }
-    expect(totalBytes).toBeLessThan(2_500_000);
+    expect(totalBytes).toBeLessThan(4_000_000);
   });
 
   it('locks the authored opaque footprint to the exact pointy-top cell', () => {
@@ -65,112 +85,148 @@ describe('territory map art bundle', () => {
     expect(painterSource).not.toContain('territoryTerrainArtSourceRect(');
   });
 
-  it('uses distinct low/high farm art and density-matched forest art', () => {
-    const base = { q: 2, r: -3, biome: 'grassland' as const, keepRoot: false };
-    expect(territoryMapArtKeyForCell({ ...base, resource: 'grain', resourceYield: 1 })).toBe(
-      'grainLow',
-    );
-    expect(territoryMapArtKeyForCell({ ...base, resource: 'grain', resourceYield: 2 })).toBe(
-      'grain',
-    );
+  it('maps every resource and yield level to biome-specific authored tiles', () => {
+    const resources = ['wood', 'iron', 'grain', 'labor'] as const;
+    const variants = [
+      { biome: 'grassland' as const, keyPrefix: '', filePrefix: '' },
+      { biome: 'snowfield' as const, keyPrefix: 'snow', filePrefix: 'snow-' },
+      { biome: 'desert' as const, keyPrefix: 'desert', filePrefix: 'desert-' },
+    ] as const;
+    for (const variant of variants) {
+      for (const resource of resources) {
+        for (const tier of [1, 2, 3] as const) {
+          const titleCaseResource = `${resource[0].toUpperCase()}${resource.slice(1)}`;
+          const expected = `${variant.keyPrefix}${variant.keyPrefix ? titleCaseResource : resource}Tier${tier}`;
+          expect(
+            territoryMapArtKeyForCell({
+              q: 2,
+              r: -3,
+              biome: variant.biome,
+              keepRoot: false,
+              resource,
+              resourceYield: tier,
+            }),
+          ).toBe(expected);
+          expect(
+            TERRITORY_MAP_ART_SOURCES[expected as keyof typeof TERRITORY_MAP_ART_SOURCES],
+          ).toBe(`/territory_map/resource-${variant.filePrefix}${resource}-${tier}.webp`);
+        }
+      }
+    }
+    expect(TERRITORY_RESOURCE_ART_KEYS).toHaveLength(36);
+    expect(new Set(TERRITORY_RESOURCE_ART_KEYS)).toHaveLength(36);
     expect(
       territoryMapArtKeyForCell({
-        ...base,
-        biome: 'forest',
-        resource: 'wood',
-        resourceYield: 2,
+        q: 2,
+        r: -3,
+        biome: 'highland',
+        keepRoot: false,
+        resource: 'iron',
+        resourceYield: 1,
       }),
-    ).toBe('wood');
-    expect(
-      territoryMapArtKeyForCell({
-        ...base,
-        biome: 'forest',
-        resource: 'wood',
-        resourceYield: 3,
-      }),
-    ).toBe('forest');
+    ).toBe('ironTier1');
+  });
+
+  it('shows the claimed city at its highest structure development tier', () => {
+    const base = {
+      q: 4,
+      r: 8,
+      biome: 'grassland' as const,
+      keepRoot: true,
+      resource: null,
+      resourceYield: 0,
+    };
+    expect(TERRITORY_KEEP_ART_KEYS).toEqual(['keepTier1', 'keepTier2', 'keepTier3']);
+    expect(territoryMapArtKeyForCell({ ...base, structureLevel: 0 })).toBe('keepTier1');
+    expect(territoryMapArtKeyForCell({ ...base, structureLevel: 2 })).toBe('keepTier2');
+    expect(territoryMapArtKeyForCell({ ...base, structureLevel: 99 })).toBe('keepTier3');
+    for (const tier of [1, 2, 3] as const) {
+      expect(TERRITORY_MAP_ART_SOURCES[`keepTier${tier}`]).toBe(`/territory_map/keep-${tier}.webp`);
+    }
+  });
+
+  it('clamps out-of-range resource yields to the nearest authored tier', () => {
+    const base = {
+      q: 2,
+      r: -3,
+      biome: 'grassland' as const,
+      keepRoot: false,
+      resource: 'grain' as const,
+    };
+    expect(territoryMapArtKeyForCell({ ...base, resourceYield: 0 })).toBe('grainTier1');
+    expect(territoryMapArtKeyForCell({ ...base, resourceYield: 99 })).toBe('grainTier3');
   });
 
   it('rotates only flat ground and keeps upright silhouettes vertical', () => {
     const flat = territoryMapArtTransformForCell({ q: 7, r: -4 }, 'grassland');
     const mountain = territoryMapArtTransformForCell({ q: 7, r: -4 }, 'mountain');
+    const keep = territoryMapArtTransformForCell({ q: 7, r: -4 }, 'keepTier3');
     expect(flat.rotationSteps).toBeGreaterThanOrEqual(0);
     expect(flat.rotationSteps).toBeLessThan(6);
     expect(flat.mirrorX).toBe(false);
     expect(mountain.rotationSteps).toBe(0);
     expect(typeof mountain.mirrorX).toBe('boolean');
+    expect(keep).toEqual({ rotationSteps: 0, mirrorX: false });
   });
 
-  it('uses low-silhouette material art for every biome transition', () => {
-    expect(territoryTransitionArtKey('marsh', 'mountain', 1, 2, 0)).toMatch(/^highland/);
-    expect(territoryTransitionArtKey('marsh', 'snowMountain', 1, 2, 1)).toMatch(/^snowfield/);
-    expect(territoryTransitionArtKey('marsh', 'forest', 1, 2, 2)).toBe('woodlands');
-    expect(territoryTransitionArtKey('marsh', 'desertMesa', 1, 2, 3)).toMatch(/^desert/);
-    expect(territoryTransitionArtKey('grassland', 'forest', 1, 2, 0)).toBe('grasslandWoodlands');
-    expect(territoryTransitionArtKey('forest', 'grassland', 1, 2, 0)).toBe('woodlandsGrassland');
-    expect(territoryTransitionArtKey('highland', 'snowfield', 1, 2, 0)).toBe('highlandSnowfield');
-    expect(painterSource).toContain('for (const cell of sorted) {\n      this.transitionSprites(');
-    expect(painterSource).toContain('territoryTransitionAtlasFrame(key, side)');
+  it('provides a full authored transition for every unordered biome pair', () => {
+    expect(TERRITORY_MAP_TRANSITION_KEYS).toHaveLength(21);
+    expect(new Set(TERRITORY_MAP_TRANSITION_KEYS)).toHaveLength(21);
+
+    for (const [first, second, key] of TRANSITION_PAIRS) {
+      expect(territoryMapHasAuthoredFullTransition(first, second)).toBe(true);
+      expect(territoryMapHasAuthoredFullTransition(second, first)).toBe(true);
+      expect(TERRITORY_MAP_ART_SOURCES[key]).toBe(
+        `/territory_map/transition-${first}-${second}.webp`,
+      );
+      expect(
+        territoryMapAuthoredTransitionForCell({
+          q: 1,
+          r: 2,
+          biome: first,
+          resource: null,
+          resourceYield: 0,
+          keepRoot: false,
+          neighborBiomes: [second, null, null, null, null, null],
+        }),
+      ).toEqual({ key, rotationSteps: 0, mirrorX: false });
+      expect(
+        territoryMapAuthoredTransitionForCell({
+          q: 1,
+          r: 2,
+          biome: second,
+          resource: null,
+          resourceYield: 0,
+          keepRoot: false,
+          neighborBiomes: [first, null, null, null, null, null],
+        }),
+      ).toBeNull();
+      expect(territoryMapArtIsGround(key)).toBe(true);
+    }
+  });
+
+  it('rotates the full transition tile toward its neighboring biome', () => {
+    expect(
+      territoryMapAuthoredTransitionForCell({
+        q: 1,
+        r: 2,
+        biome: 'highland',
+        resource: null,
+        resourceYield: 0,
+        keepRoot: false,
+        neighborBiomes: [null, null, 'snowfield', null, null, null],
+      }),
+    ).toEqual({ key: 'highlandSnowfield', rotationSteps: 4, mirrorX: false });
+  });
+
+  it('uses static full-cell transitions without the old per-edge atlas pass', () => {
+    expect(painterSource).toContain('territoryMapAuthoredTransitionForCell(cell)');
+    expect(painterSource).not.toContain('transitionSprites');
+    expect(painterSource).not.toContain('transitionAtlas');
+    expect(painterSource).not.toContain('territoryTransitionAtlasFrame');
     expect(painterSource).not.toContain('createImageData');
     expect(painterSource).not.toContain("document.createElement('canvas')");
     expect(painterSource).not.toContain('tileComposer');
     expect(painterSource).not.toContain('transitionBand');
-  });
-
-  it('uses the generated full-cell transition paintings on matching biome borders', () => {
-    const base = {
-      q: 1,
-      r: 2,
-      biome: 'grassland' as const,
-      resource: null,
-      resourceYield: 0,
-      keepRoot: false,
-      neighborBiomes: ['forest', null, null, null, null, null] as const,
-    };
-    expect(territoryMapAuthoredTransitionForCell(base)).toEqual({
-      key: 'grasslandWoodlands',
-      rotationSteps: 0,
-      mirrorX: false,
-    });
-    expect(
-      territoryMapAuthoredTransitionForCell({
-        ...base,
-        biome: 'highland',
-        neighborBiomes: [null, null, 'snowfield', null, null, null],
-      }),
-    ).toEqual({ key: 'highlandSnowfield', rotationSteps: 4, mirrorX: false });
-    expect(
-      territoryMapAuthoredTransitionForCell({
-        ...base,
-        biome: 'forest',
-        neighborBiomes: ['grassland', null, null, null, null, null],
-      }),
-    ).toBeNull();
-    expect(territoryMapHasAuthoredFullTransition('grassland', 'forest')).toBe(true);
-    expect(territoryMapHasAuthoredFullTransition('forest', 'grassland')).toBe(true);
-    expect(territoryMapHasAuthoredFullTransition('marsh', 'grassland')).toBe(false);
-    expect(territoryMapArtIsGround('grasslandWoodlands')).toBe(true);
-    expect(territoryMapArtIsGround('mountain')).toBe(false);
-    expect(painterSource).toContain('const groundScale = 1.16');
-    expect(painterSource).toContain(
-      'territoryMapHasAuthoredFullTransition(cell.biome, neighborBiome)',
-    );
-  });
-
-  it('addresses every material/direction sprite without overlap', () => {
-    const frames = TERRITORY_TRANSITION_MATERIALS.flatMap((key) =>
-      Array.from({ length: 6 }, (_, side) => territoryTransitionAtlasFrame(key, side)),
-    );
-    expect(TERRITORY_TRANSITION_MATERIALS).toHaveLength(22);
-    expect(frames).toHaveLength(132);
-    expect(new Set(frames.map((frame) => `${frame.x},${frame.y}`))).toHaveLength(132);
-    for (const frame of frames) {
-      expect(frame.x + frame.width).toBeLessThanOrEqual(
-        TERRITORY_TRANSITION_ATLAS_COLUMNS * TERRITORY_TRANSITION_ATLAS_CELL_WIDTH,
-      );
-      expect(frame.y + frame.height).toBeLessThanOrEqual(
-        TERRITORY_TRANSITION_ATLAS_ROWS * TERRITORY_TRANSITION_ATLAS_CELL_HEIGHT,
-      );
-    }
   });
 });
