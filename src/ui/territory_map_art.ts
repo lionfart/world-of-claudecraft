@@ -441,6 +441,10 @@ export function territoryMapArtTransformForCell(
 
 type ArtLoadState = 'idle' | 'loading' | 'ready';
 
+// Public assets keep readable names; invalidate pre-fix resource/keep bitmaps
+// already cached by browsers when this bundle is deployed.
+const ART_REVISION = 'hex-fit-2';
+
 let loadState: ArtLoadState = 'idle';
 const images: TerritoryMapArt = {};
 const readyListeners = new Set<() => void>();
@@ -476,7 +480,7 @@ export function territoryMapArt(onReady: () => void): TerritoryMapArt {
       settled();
     };
     image.onerror = settled;
-    image.src = src;
+    image.src = `${src}?v=${ART_REVISION}`;
   }
   return images;
 }

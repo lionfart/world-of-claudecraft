@@ -1,7 +1,8 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import sharp from 'sharp';
+import { describe, expect, it, vi } from 'vitest';
 import {
   TERRITORY_KEEP_ART_KEYS,
   TERRITORY_MAP_ART_SOURCES,
@@ -71,11 +72,67 @@ describe('territory map art bundle', () => {
     expect(rect.y + rect.height).toBeCloseTo(80 + radius, 8);
   });
 
+  it('fills the actual hex pixels, including the bottom tip, for every resource and keep tier', async () => {
+    for (const key of [...TERRITORY_RESOURCE_ART_KEYS, ...TERRITORY_KEEP_ART_KEYS]) {
+      const source = TERRITORY_MAP_ART_SOURCES[key];
+      const { data, info } = await sharp(join(repoRoot, 'public', source.slice(1)))
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      expect([info.width, info.height], key).toEqual([256, 384]);
+      let missing = 0;
+      let sampled = 0;
+      // Sample the six-sided footprint, not the transparent headroom. Ignore
+      // only the 2px antialiased edge; a 384px file can still have a 62px hole.
+      for (let y = 125; y < 382; y += 1) {
+        const distanceY = Math.abs((y + 0.5 - 123) / 261 - 0.5);
+        const halfWidth = 128 * Math.min(1, 2 - 4 * distanceY) - 2;
+        for (let x = 0; x < 256; x += 1) {
+          if (Math.abs(x + 0.5 - 128) >= halfWidth) continue;
+          sampled += 1;
+          if (data[(y * 256 + x) * 4 + 3] < 250) missing += 1;
+        }
+      }
+      expect(sampled, key).toBeGreaterThan(48_000);
+      expect(missing / sampled, `${key}: transparent pixels inside the hex`).toBeLessThan(0.001);
+    }
+  });
+
   it('uses one identical footprint and pivot for terrain, resource, and keep art', () => {
     const radius = 20;
     expect(territoryFeatureArtRect(100, 80, radius)).toEqual(
       territoryTerrainArtRect(100, 80, radius),
     );
+  });
+
+  it('refreshes cached bitmaps and still loads only one shared batch', async () => {
+    vi.resetModules();
+    const requested: Array<{ src: string; onload: () => void }> = [];
+    class FakeImage {
+      src = '';
+      onload = () => undefined;
+      constructor() {
+        requested.push(this);
+      }
+    }
+    vi.stubGlobal('Image', FakeImage);
+    try {
+      const { territoryMapArt } = await import('../src/ui/territory_map_art');
+      const ready = vi.fn();
+      const art = territoryMapArt(ready);
+      expect(territoryMapArt(ready)).toBe(art);
+      expect(requested).toHaveLength(80);
+      expect(new Set(requested.map((image) => image.src))).toEqual(
+        new Set(Object.values(TERRITORY_MAP_ART_SOURCES).map((src) => `${src}?v=hex-fit-2`)),
+      );
+      for (const image of requested) image.onload();
+      expect(ready).toHaveBeenCalledTimes(1);
+      expect(Object.keys(art)).toHaveLength(80);
+      expect(territoryMapArt(ready)).toBe(art);
+      expect(requested).toHaveLength(80);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('draws one complete material-correct source tile per cell without crop distortion', () => {
