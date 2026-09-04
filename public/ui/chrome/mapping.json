@@ -25,6 +25,11 @@
     { "icon": "questlog", "motif": "Unrolled scroll with a wax seal and a quill" },
     { "icon": "social", "motif": "Two figures shoulder to shoulder before a banner" },
     { "icon": "spellbook", "motif": "Open spellbook with an arcane glow" },
-    { "icon": "talents", "motif": "Talent tree, three gems joined by branches" }
+    { "icon": "talents", "motif": "Talent tree, three gems joined by branches" },
+    {
+      "icon": "territory",
+      "motif": "Unfurled battle map with a stone keep and opposing red and teal pennants",
+      "source": "OpenAI built-in image generation, background keyed and normalized locally by scripts/assets/territory_war_icon/process_generated.mjs"
+    }
   ]
 }

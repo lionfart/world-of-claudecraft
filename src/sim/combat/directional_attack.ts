@@ -65,6 +65,13 @@ export function combatAimAngle(player: Entity, meta: PlayerMeta): number {
     : Math.atan2(Math.sin(player.facing), Math.cos(player.facing));
 }
 
+export function combatAimPitch(meta: PlayerMeta): number {
+  const pitch = meta.combatAimPitch;
+  return typeof pitch === 'number' && Number.isFinite(pitch) && Math.abs(pitch) < Math.PI / 2
+    ? pitch
+    : 0;
+}
+
 export function entityCombatRadius(entity: Pick<Entity, 'scale'>): number {
   return Math.min(2, Math.max(0.5, entity.scale * 0.5));
 }

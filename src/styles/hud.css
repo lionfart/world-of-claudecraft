@@ -1325,6 +1325,16 @@
     display: none;
     z-index: 6;
   }
+  /* Siege gates use the normal selected-unit frame for health. Objective-only
+     subrails stay out of the way while preserving the familiar portrait + HP read. */
+  #target-frame.territory-objective #tf-resource,
+  #target-frame.territory-objective #tf-discord,
+  #target-frame.territory-objective #tf-castbar,
+  #target-frame.territory-objective > #tf-debuffs,
+  #target-frame.territory-objective > #totarget-frame,
+  #target-frame.territory-objective #tf-elite-tag {
+    display: none !important;
+  }
   /* Target Frame Scale (--target-frame-scale, targetFrameScale setting): the
      player frame's twin. Children only, never the drag-positioned frame itself
      (zoom there would multiply its used left/top and break the MovableFrame
@@ -3375,6 +3385,35 @@
     color: #fff;
   }
   /* talent button glows while unspent talent points are available */
+  .territory-war-launcher.active {
+    border-color: var(--gold);
+  }
+  .territory-war-launcher.has-war-alert,
+  #mobile-more.has-war-alert {
+    border-color: var(--color-territory-war);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--color-territory-war) 55%, transparent);
+  }
+  .territory-war-launcher.has-guild-war::after,
+  #mobile-more.has-guild-war::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 9px;
+    height: 9px;
+    border: 2px solid #f2d47a;
+    border-radius: 50%;
+    background: var(--color-territory-war);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--color-territory-war) 75%, transparent);
+    pointer-events: none;
+  }
+  @media (forced-colors: active) {
+    .territory-war-launcher.has-guild-war::after,
+    #mobile-more.has-guild-war::after {
+      background: Highlight;
+      border-color: CanvasText;
+    }
+  }
   .micro-btn.has-points,
   .mobile-btn.has-points {
     border-color: var(--gold);
@@ -3399,24 +3438,6 @@
     right: 2px;
     font-size: 9px;
     color: #998;
-  }
-  /* music button: a bigger note with a small diagonal slash when audio is off */
-  #mm-music .ui-icon {
-    width: 22px;
-    height: 22px;
-  }
-  .micro-btn.mm-muted::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 17px;
-    height: 2px;
-    border-radius: 2px;
-    background: #f0e8d2;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
-    transform: translate(-50%, -50%) rotate(-45deg);
-    pointer-events: none;
   }
   /* Short-viewport rescue: #side-buttons is bottom-anchored and grows upward,
      so on a very short viewport the topmost button in the taller column (the

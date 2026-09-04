@@ -1328,6 +1328,7 @@ export interface PlayerMeta {
   // Directional-combat input, runtime only. Old clients leave it absent and
   // every resolver safely falls back to the entity's current facing.
   combatAimAngle?: number;
+  combatAimPitch?: number;
   basicAttackHeld?: boolean;
   // Monotonic counter bumped when a bulky, rarely-changing wire field (the
   // inventory, and the collection-quest progress derived from it) mutates, so a
@@ -7107,17 +7108,21 @@ export class Sim {
     pushbackCastImpl(p);
   }
 
-  castAbilityBySlot(slot: number, pid?: number, aim?: { x: number; z: number }): void {
+  castAbilityBySlot(slot: number, pid?: number, aim?: { x: number; z: number; pitch?: number }): void {
     castAbilityBySlotImpl(this.ctx, slot, pid, aim);
   }
 
-  castAbility(abilityId: string, pid?: number, aim?: { x: number; z: number }): void {
+  castAbility(
+    abilityId: string,
+    pid?: number,
+    aim?: { x: number; z: number; pitch?: number },
+  ): void {
     castAbilityImpl(this.ctx, abilityId, pid, aim);
   }
 
   // IWorld action-combat cast: offline, select an authoritative hostile from
   // the local player's world-space aim ray instead of requiring a hard target.
-  castAbilityToward(abilityId: string, aim: { x: number; z: number }): void {
+  castAbilityToward(abilityId: string, aim: { x: number; z: number; pitch?: number }): void {
     castAbilityImpl(this.ctx, abilityId, undefined, aim);
   }
 
@@ -7407,6 +7412,88 @@ export class Sim {
   // so a wall (an arena side wall in particular) stops the shove instead of letting
   // it tunnel through in one coarse hop. Returns the yards actually moved (0 if
   // blocked immediately).
+  /** Server-authoritative siege impact bridge; normal ability callers stay private. */
+  applyTerritorySiegeKnockback(source: Entity, target: Entity, distance: number): number {
+    return this.applyKnockback(source, target, distance);
+  }
+
+  /** Applies the player-only secondary payload of a server-authoritative mortar hit. */
+  applyTerritorySiegeMortarEffect(
+    source: Entity,
+    target: Entity,
+    effect: {
+      kind: 'normal' | 'frost' | 'venom';
+      slow?: { multiplier: number; duration: number };
+      poison?: { damagePerTick: number; duration: number; interval: number };
+      stun?: { duration: number };
+    },
+  ): void {
+    if (effect.slow) {
+      this.applyAura(target, {
+        id: 'territory_mortar_frost_slow',
+        name: 'Chilling Mortar Shell',
+        kind: 'slow',
+        remaining: effect.slow.duration,
+        duration: effect.slow.duration,
+        value: effect.slow.multiplier,
+        sourceId: source.id,
+        school: 'frost',
+      });
+    }
+    if (effect.poison) {
+      this.applyAura(target, {
+        id: `territory_mortar_venom_${source.id}`,
+        name: 'Venom Mortar Shell',
+        kind: 'dot',
+        remaining: effect.poison.duration,
+        duration: effect.poison.duration,
+        value: effect.poison.damagePerTick,
+        tickInterval: effect.poison.interval,
+        tickTimer: effect.poison.interval,
+        sourceId: source.id,
+        school: 'nature',
+      });
+    }
+    if (effect.stun) {
+      const duration = this.diminishedCrowdControlDuration(
+        source,
+        target,
+        'controlledStun',
+        effect.stun.duration,
+      );
+      if (duration !== null) {
+        this.applyAura(target, {
+          id: 'territory_mortar_venom_stun',
+          name: 'Venom Mortar Shell',
+          kind: 'stun',
+          remaining: duration,
+          duration,
+          value: 0,
+          sourceId: source.id,
+          school: 'nature',
+        });
+      }
+    }
+  }
+
+  /** Broadcasts a familiar ground-spell burst at the delayed impact point. */
+  emitTerritorySiegeMortarImpact(
+    x: number,
+    z: number,
+    radius: number,
+    kind: 'normal' | 'frost' | 'venom',
+  ): void {
+    this.emit({
+      type: 'spellfxAt',
+      x,
+      z,
+      radius,
+      school: kind === 'frost' ? 'frost' : kind === 'venom' ? 'nature' : 'physical',
+      fx: kind === 'normal' ? 'burst' : 'nova',
+      ability: `territory_mortar_${kind}`,
+    });
+  }
+
   private applyKnockback(source: Entity, target: Entity, distance: number): number {
     if (source.id !== target.id && this.isIceBlocked(target)) return 0;
     if (source.id !== target.id && isVeilboundMarchActive(target)) return 0;
@@ -11844,7 +11931,14 @@ export class Sim {
       mover,
       this.riftCollisionToken,
     );
-    const territoryResolved = territoryMod.territorySimResolveGate(this, e.id, fromZ, res, r);
+    const territoryResolved = territoryMod.territorySimResolveGate(
+      this,
+      e.id,
+      fromX,
+      fromZ,
+      res,
+      r,
+    );
     if (!run) return territoryResolved;
     const clamped = this.clampDelveModuleBounds(run, territoryResolved.x, territoryResolved.z, r);
     return this.clampDelveDoors(run, clamped.x, clamped.z, r);

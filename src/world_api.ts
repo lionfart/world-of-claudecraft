@@ -275,13 +275,24 @@ export type {
   SocialInfo,
 } from './world_api/social_graph';
 export type {
+  TerritoryCatapultShotKind,
+  TerritoryCatapultShotView,
   TerritoryGuildRank,
   TerritoryGuildView,
   TerritoryMapState,
+  TerritoryMortarShotKind,
+  TerritoryMortarZoneView,
   TerritoryOwnedCellView,
   TerritorySeasonView,
   TerritorySiegeAction,
+  TerritorySiegeCatapultView,
+  TerritorySiegeMortarView,
+  TerritorySiegeObjectiveTarget,
+  TerritorySiegeStructureHealthView,
+  TerritorySiegeTowerId,
   TerritorySiegeView,
+  TerritorySiegeWallId,
+  TerritorySiegeWallRun,
   TerritoryStructureKind,
   TerritoryStructureSlot,
   TerritoryStructureView,
@@ -652,6 +663,8 @@ export const COMMAND_NAMES = [
   'territory_siege_action',
   // Officer-plus may withdraw an outgoing declaration until its start instant.
   'territory_cancel_war',
+  // Keep-workshop crafting. Appended because wire command names are append-only.
+  'territory_craft_siege',
 ] as const;
 
 // The union both the send path (`online.ts`) and the dispatch switch
@@ -983,4 +996,5 @@ export const COMMAND_FACETS = {
   territory_leave_war: 'IWorldTerritory',
   territory_siege_action: 'IWorldTerritory',
   territory_cancel_war: 'IWorldTerritory',
+  territory_craft_siege: 'IWorldTerritory',
 } as const satisfies Partial<Record<ClientCommand, WorldFacet>>;

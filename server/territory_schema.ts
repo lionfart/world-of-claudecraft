@@ -64,12 +64,14 @@ CREATE TABLE IF NOT EXISTS territory_structures (
   season_id BIGINT NOT NULL,
   cell_id INT NOT NULL,
   slot TEXT NOT NULL CHECK (slot IN (
-    'keep_core', 'gate', 'wall', 'tower_north', 'tower_south', 'storehouse',
-    'construction_workshop', 'siege_workshop'
+    'keep_core', 'walls', 'towers', 'granary', 'forester', 'mine', 'house',
+    'siege_workshop', 'gate', 'wall', 'tower_north', 'tower_south', 'storehouse',
+    'construction_workshop'
   )),
   kind TEXT NOT NULL CHECK (kind IN (
-    'keep', 'gate', 'wall', 'defense_tower', 'storehouse',
-    'construction_workshop', 'siege_workshop'
+    'keep', 'walls', 'towers', 'granary', 'forester', 'mine', 'house',
+    'siege_workshop', 'gate', 'wall', 'defense_tower', 'storehouse',
+    'construction_workshop'
   )),
   level SMALLINT NOT NULL CHECK (level BETWEEN 1 AND 5),
   target_level SMALLINT CHECK (target_level BETWEEN 1 AND 5),
@@ -83,6 +85,21 @@ CREATE TABLE IF NOT EXISTS territory_structures (
 );
 ALTER TABLE territory_structures
   ADD COLUMN IF NOT EXISTS target_level SMALLINT CHECK (target_level BETWEEN 1 AND 5);
+-- Older deployments created generated-name checks containing only the legacy
+-- building set. Replace them idempotently while keeping those values readable
+-- until their seasonal rows naturally expire.
+ALTER TABLE territory_structures DROP CONSTRAINT IF EXISTS territory_structures_slot_check;
+ALTER TABLE territory_structures DROP CONSTRAINT IF EXISTS territory_structures_kind_check;
+ALTER TABLE territory_structures ADD CONSTRAINT territory_structures_slot_check CHECK (slot IN (
+  'keep_core', 'walls', 'towers', 'granary', 'forester', 'mine', 'house',
+  'siege_workshop', 'gate', 'wall', 'tower_north', 'tower_south', 'storehouse',
+  'construction_workshop'
+));
+ALTER TABLE territory_structures ADD CONSTRAINT territory_structures_kind_check CHECK (kind IN (
+  'keep', 'walls', 'towers', 'granary', 'forester', 'mine', 'house',
+  'siege_workshop', 'gate', 'wall', 'defense_tower', 'storehouse',
+  'construction_workshop'
+));
 CREATE INDEX IF NOT EXISTS territory_structures_due
   ON territory_structures(completes_at) WHERE state = 'building';
 

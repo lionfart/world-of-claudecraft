@@ -660,6 +660,7 @@ export class AbilityVfxFx implements SequencerHost {
   finishBallisticSequence(
     trajectoryId: string,
     x: number,
+    y: number | undefined,
     z: number,
     targetId: number | undefined,
     reason: 'entity' | 'wall' | 'range' | 'sourceDespawn',
@@ -672,7 +673,8 @@ export class AbilityVfxFx implements SequencerHost {
       return;
     }
     slot.targetId = targetId ?? -1;
-    this.sequencer.triggerImpact(this, slot, x, this.groundY(x, z) + 0.7, z);
+    const impactY = typeof y === 'number' && Number.isFinite(y) ? y : this.groundY(x, z) + 0.7;
+    this.sequencer.triggerImpact(this, slot, x, impactY, z);
   }
 
   // Traveling bolt carrying the full spec's bolt DNA. Without a bolt block

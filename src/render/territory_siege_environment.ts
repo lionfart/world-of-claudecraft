@@ -21,6 +21,7 @@ import {
   type TerritorySiegeAssetKey,
   type TerritorySiegeTextureKey,
 } from './territory_siege_assets';
+import { territorySiegeGrassPlacements } from './territory_siege_grass_core';
 import { grassTuftTexture } from './textures';
 
 function place(
@@ -53,10 +54,6 @@ interface TerritorySiegeFieldStyle {
   patchSurface: FieldSurface;
   patchTint: number;
   patchOpacity: number;
-  grassStep: number;
-  grassPatchFloor: number;
-  grassChanceFloor: number;
-  grassColors: readonly [number, number, number];
   stonePatches: number;
   stoneScale: number;
   stoneColors: readonly [number, number];
@@ -73,10 +70,6 @@ const FIELD_STYLES: Record<TerritorySiegeBiome, TerritorySiegeFieldStyle> = {
     patchSurface: 'dirt',
     patchTint: 0xffffff,
     patchOpacity: 0.72,
-    grassStep: 2.7,
-    grassPatchFloor: 0.37,
-    grassChanceFloor: 0.43,
-    grassColors: [0x91aa62, 0x6f934f, 0x587842],
     stonePatches: 42,
     stoneScale: 1,
     stoneColors: [0x77766b, 0x5d6258],
@@ -91,10 +84,6 @@ const FIELD_STYLES: Record<TerritorySiegeBiome, TerritorySiegeFieldStyle> = {
     patchSurface: 'dirt',
     patchTint: 0x726452,
     patchOpacity: 0.46,
-    grassStep: 4.4,
-    grassPatchFloor: 0.48,
-    grassChanceFloor: 0.61,
-    grassColors: [0x9a8c55, 0x7d7945, 0x65653d],
     stonePatches: 72,
     stoneScale: 1.32,
     stoneColors: [0x858078, 0x66635e],
@@ -109,10 +98,6 @@ const FIELD_STYLES: Record<TerritorySiegeBiome, TerritorySiegeFieldStyle> = {
     patchSurface: 'dirt',
     patchTint: 0x8f9697,
     patchOpacity: 0.3,
-    grassStep: 7.8,
-    grassPatchFloor: 0.68,
-    grassChanceFloor: 0.82,
-    grassColors: [0xdde7df, 0xadbcae, 0x879b8c],
     stonePatches: 36,
     stoneScale: 1.08,
     stoneColors: [0xd6dde0, 0xa8b2b8],
@@ -127,10 +112,6 @@ const FIELD_STYLES: Record<TerritorySiegeBiome, TerritorySiegeFieldStyle> = {
     patchSurface: 'dirt',
     patchTint: 0xb07a43,
     patchOpacity: 0.3,
-    grassStep: 5.2,
-    grassPatchFloor: 0.54,
-    grassChanceFloor: 0.69,
-    grassColors: [0xc7a154, 0x9a7940, 0x705d37],
     stonePatches: 58,
     stoneScale: 1.18,
     stoneColors: [0xb58b5d, 0x8a6445],
@@ -378,47 +359,7 @@ function grassMaterial(biome: TerritorySiegeBiome): THREE.MeshStandardMaterial {
 
 /** Lush crossed billboard clumps, patch-gated so the field reads naturally. */
 function buildBillboardGrass(biome: TerritorySiegeBiome): THREE.InstancedMesh {
-  const style = FIELD_STYLES[biome];
-  const placements: { x: number; z: number; scale: number; yaw: number; color: number }[] = [];
-  const step = style.grassStep;
-  for (
-    let z = -TERRITORY_SIEGE_FIELD_HALF_Z + 4;
-    z <= TERRITORY_SIEGE_FIELD_HALF_Z - 4;
-    z += step
-  ) {
-    for (
-      let x = -TERRITORY_SIEGE_FIELD_HALF_X + 4;
-      x <= TERRITORY_SIEGE_FIELD_HALF_X - 4;
-      x += step
-    ) {
-      const patch = hash01(Math.floor(x / 13) * 4.7, Math.floor(z / 13) * 7.1);
-      if (patch < style.grassPatchFloor || hash01(x + 5.3, z - 8.9) < style.grassChanceFloor)
-        continue;
-      const px = x + (hash01(x + 19.2, z) - 0.5) * 2.2;
-      const pz = z + (hash01(x, z - 12.7) - 0.5) * 2.2;
-      const edgeDistance = Math.min(
-        TERRITORY_SIEGE_FIELD_HALF_X - Math.abs(px),
-        TERRITORY_SIEGE_FIELD_HALF_Z - Math.abs(pz),
-      );
-      if (edgeDistance < 38) continue;
-      const insideCastle = pz > -78 && pz < 23 && Math.abs(px) < 50;
-      const onCastleLane = insideCastle && (Math.abs(px) < 6 || Math.abs(pz + 24) < 6);
-      const onApproach = pz >= 16 && Math.abs(px) < 9.5;
-      if (onCastleLane || onApproach) continue;
-      placements.push({
-        x: px,
-        z: pz,
-        scale: 0.72 + hash01(px - 3.1, pz + 11.4) * 0.68,
-        yaw: hash01(pz + 2.7, px - 6.3) * Math.PI,
-        color:
-          patch > 0.76
-            ? style.grassColors[0]
-            : patch > 0.55
-              ? style.grassColors[1]
-              : style.grassColors[2],
-      });
-    }
-  }
+  const placements = territorySiegeGrassPlacements(biome);
   const mesh = new THREE.InstancedMesh(
     siegeGrassCardGeometry(),
     grassMaterial(biome),
@@ -427,11 +368,7 @@ function buildBillboardGrass(biome: TerritorySiegeBiome): THREE.InstancedMesh {
   const transform = new THREE.Object3D();
   const color = new THREE.Color();
   placements.forEach((grass, index) => {
-    transform.position.set(
-      grass.x,
-      territorySiegeTerrainLiftLocal(grass.x, grass.z) + 0.015,
-      grass.z,
-    );
+    transform.position.set(grass.x, grass.y, grass.z);
     transform.rotation.set(0, grass.yaw, 0);
     transform.scale.set(grass.scale, grass.scale, grass.scale);
     transform.updateMatrix();

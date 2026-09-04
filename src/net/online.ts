@@ -40,7 +40,11 @@ import { DEEDS_RECENT_CAP, freshDeedStats } from '../sim/deeds';
 import { LEADERBOARD_PAGE_SIZE } from '../sim/leaderboard_page';
 import type { Ante, PickAction } from '../sim/lockpick';
 import type { MarketQuery } from '../sim/market_query';
-import { normalizeMoveFacing, sanitizeMoveInput } from '../sim/move_input';
+import {
+  normalizeMoveFacing,
+  sanitizeCombatAimPitch,
+  sanitizeMoveInput,
+} from '../sim/move_input';
 import { isPersistentEngineAura } from '../sim/persistent_aura';
 import { isPrimaryOwnedPetEntity } from '../sim/pet/pet_selection';
 import { DODGE_ENDURANCE_MAX } from '../sim/player_dodge';
@@ -1965,6 +1969,7 @@ export class ClientWorld implements IWorld {
   >();
   private mouselookFacing: number | null = null;
   private combatAimAngle: number | null = null;
+  private combatAimPitch: number | null = null;
   private sendTimer: number | undefined;
   private lastInputSentAt = 0;
   private lastInputSig = '';
@@ -2224,6 +2229,10 @@ export class ClientWorld implements IWorld {
     this.combatAimAngle = normalizeMoveFacing(angle);
   }
 
+  setCombatAimPitch(pitch: unknown): void {
+    this.combatAimPitch = sanitizeCombatAimPitch(pitch);
+  }
+
   flushInput(now = performance.now()): boolean {
     return this.sendInput(now, 'changed');
   }
@@ -2238,6 +2247,7 @@ export class ClientWorld implements IWorld {
     Object.assign(this.moveInput, emptyMoveInput());
     this.mouselookFacing = null;
     this.combatAimAngle = null;
+    this.combatAimPitch = null;
     // On an open socket the forced path admits exactly one neutral frame
     // despite a saturated browser buffer. The accepted neutral frame consumes
     // any pre-pause engagement intent without putting it on the wire.
@@ -2266,6 +2276,8 @@ export class ClientWorld implements IWorld {
       this.mouselookFacing === null ? '' : Math.round(this.mouselookFacing * 10000).toString();
     const combatAim =
       this.combatAimAngle === null ? '' : Math.round(this.combatAimAngle * 10000).toString();
+    const combatAimPitch =
+      this.combatAimPitch === null ? '' : Math.round(this.combatAimPitch * 10000).toString();
     return [
       mi.forward ? 1 : 0,
       mi.back ? 1 : 0,
@@ -2282,6 +2294,7 @@ export class ClientWorld implements IWorld {
       mi.swimSteer ?? 1,
       facing,
       combatAim,
+      combatAimPitch,
     ].join(',');
   }
 
@@ -2367,6 +2380,7 @@ export class ClientWorld implements IWorld {
     }
     if (this.mouselookFacing !== null) msg.facing = this.mouselookFacing;
     if (this.combatAimAngle !== null) msg.aim = this.combatAimAngle;
+    if (this.combatAimPitch !== null) msg.aimPitch = this.combatAimPitch;
     this.ws.send(JSON.stringify(msg));
     // WebSocket.send accepted the real frame. Pending edges are transport-local
     // and are consumed exactly once, including when the forced-neutral mode
@@ -3989,11 +4003,17 @@ export class ClientWorld implements IWorld {
     }
     this.cmd({ cmd: 'cast', ability: abilityId });
   }
-  castAbilityToward(abilityId: string, aim: { x: number; z: number }): void {
+  castAbilityToward(abilityId: string, aim: { x: number; z: number; pitch?: number }): void {
     // Aim replaces the selected hostile, so a stale selected corpse must not
     // trip the classic dead-target pre-validation. The server validates both
     // coordinates and performs the real target/range/LoS selection.
-    this.cmd({ cmd: 'cast', ability: abilityId, x: aim.x, z: aim.z });
+    this.cmd({
+      cmd: 'cast',
+      ability: abilityId,
+      x: aim.x,
+      z: aim.z,
+      ...(typeof aim.pitch === 'number' ? { pitch: aim.pitch } : {}),
+    });
   }
   castAbilityBySlot(slot: number): void {
     if (this.deadTargetCast(this.known[slot]?.def)) {

@@ -1,13 +1,22 @@
 import { applyTerritoryDelta, type TerritoryDelta } from '../src/sim/territory_delta';
 import {
   createTerritorySiege,
+  TERRITORY_SIEGE_CATAPULT_ITEM_ID,
+  TERRITORY_SIEGE_MORTAR_ITEM_ID,
+  TERRITORY_SIEGE_RAM_ITEM_ID,
+  type TerritorySiegeCatapultImpact,
   type TerritorySiegeControl,
+  type TerritorySiegeMortarImpact,
+  type TerritorySiegeRamImpact,
   type TerritorySiegeRules,
   type TerritorySiegeState,
   territorySiegeApplyAction,
+  territorySiegeApplyCatapultStructureImpact,
   territorySiegeConsumeRespawn,
   territorySiegeControlFor,
   territorySiegeDisconnect,
+  territorySiegeDrainLaunchedCatapultImpacts,
+  territorySiegeDrainLaunchedMortarImpacts,
   territorySiegeJoin,
   territorySiegeLeave,
   territorySiegeMarkResolved,
@@ -17,6 +26,10 @@ import {
   territorySiegeTowerShot,
   territorySiegeViewFor,
 } from '../src/sim/territory_siege';
+import {
+  TERRITORY_SIEGE_RECIPES,
+  type TerritorySiegeCraftKind,
+} from '../src/sim/territory_economy';
 import { territorySiegeBiomeForCell } from '../src/sim/territory_siege_biome';
 import type {
   TerritoryGuildView,
@@ -55,7 +68,17 @@ export type TerritoryCommand =
   | { kind: 'cancel_war'; warId: string }
   | { kind: 'join_war'; warId: string }
   | { kind: 'leave_war'; warId: string }
-  | { kind: 'siege_action'; action: TerritorySiegeAction };
+  | { kind: 'craft_siege'; siegeKind: TerritorySiegeCraftKind }
+  | {
+      kind: 'siege_action';
+      action: TerritorySiegeAction;
+      /** Actor position relative to the current siege origin; never trusted from the client. */
+      position?: { x: number; z: number };
+      /** Server-normalized siege-local mortar target. */
+      aim?: { x: number; z: number };
+      /** Server-owned actor facing at deployment time. */
+      facing?: number;
+    };
 
 export interface TerritoryPublishedChange {
   delta: TerritoryDelta | null;
@@ -66,6 +89,22 @@ export interface TerritoryPublishedChange {
 export type TerritoryActorResolver = (
   characterId: number,
 ) => TerritoryActor | null | Promise<TerritoryActor | null>;
+
+export interface TerritorySiegeInventoryAuthority {
+  count(characterId: number, itemId: string): number;
+  consume(characterId: number, itemId: string): boolean;
+  copper?(characterId: number): number;
+  spendCopper?(characterId: number, amount: number): boolean;
+  grant?(characterId: number, itemId: string): void;
+}
+
+const EMPTY_SIEGE_INVENTORY: TerritorySiegeInventoryAuthority = {
+  count: () => 0,
+  consume: () => false,
+  copper: () => 0,
+  spendCopper: () => false,
+  grant: () => undefined,
+};
 
 export class TerritoryService {
   private publicSnapshot: TerritoryMapState | null = null;
@@ -78,7 +117,17 @@ export class TerritoryService {
     warId: string;
     characterId: number;
     damage: number;
+    towerId: 'left' | 'right';
   }> = [];
+  private readonly pendingRamImpacts: Array<
+    TerritorySiegeRamImpact & { warId: string; sourceCharacterId: number }
+  > = [];
+  private readonly pendingMortarImpacts: Array<
+    TerritorySiegeMortarImpact & { warId: string; sourceCharacterId: number }
+  > = [];
+  private readonly pendingCatapultImpacts: Array<
+    TerritorySiegeCatapultImpact & { warId: string; sourceCharacterId: number }
+  > = [];
   private siegePollFlight: Promise<void> | null = null;
   private lastSiegePollAt = 0;
   private lastSiegePublishSecond = -1;
@@ -101,6 +150,7 @@ export class TerritoryService {
     private readonly publishSieges: () => void = () => undefined,
     private readonly publishWarNotice: (warId: string | null) => void = () => undefined,
     config: TerritoryConfig = TERRITORY_CONFIG,
+    private readonly siegeInventory: TerritorySiegeInventoryAuthority = EMPTY_SIEGE_INVENTORY,
   ) {
     this.siegeRules = {
       teamSize: config.teamSize,
@@ -208,9 +258,7 @@ export class TerritoryService {
           (war.status === 'declared' || war.status === 'forming'
             ? Number(war.attackerGuildId) === guildId || Number(war.defenderGuildId) === guildId
             : war.status === 'active' &&
-              (Number(war.defenderGuildId) === guildId ||
-                (Number(war.attackerGuildId) === guildId &&
-                  (this.registrations.get(war.id)?.has(characterId) ?? false)))),
+              (Number(war.defenderGuildId) === guildId || Number(war.attackerGuildId) === guildId)),
       )
       .sort((a, b) => {
         const activeOrder = Number(b.status === 'active') - Number(a.status === 'active');
@@ -241,7 +289,16 @@ export class TerritoryService {
   siegeForCharacter(characterId: number, nowMs = Date.now()) {
     for (const state of this.sieges.values()) {
       const view = territorySiegeViewFor(state, characterId, nowMs);
-      if (view) return view;
+      if (view)
+        return {
+          ...view,
+          ramItemCount: this.siegeInventory.count(characterId, TERRITORY_SIEGE_RAM_ITEM_ID),
+          mortarItemCount: this.siegeInventory.count(characterId, TERRITORY_SIEGE_MORTAR_ITEM_ID),
+          catapultItemCount: this.siegeInventory.count(
+            characterId,
+            TERRITORY_SIEGE_CATAPULT_ITEM_ID,
+          ),
+        };
     }
     return null;
   }
@@ -289,8 +346,37 @@ export class TerritoryService {
     return this.sieges.size;
   }
 
-  drainTowerShots(): Array<{ warId: string; characterId: number; damage: number }> {
+  drainTowerShots(): Array<{
+    warId: string;
+    characterId: number;
+    damage: number;
+    towerId: 'left' | 'right';
+  }> {
     return this.pendingTowerShots.splice(0, this.pendingTowerShots.length);
+  }
+
+  drainRamImpacts(): Array<TerritorySiegeRamImpact & { warId: string; sourceCharacterId: number }> {
+    return this.pendingRamImpacts.splice(0, this.pendingRamImpacts.length);
+  }
+
+  drainMortarImpacts(): Array<
+    TerritorySiegeMortarImpact & { warId: string; sourceCharacterId: number }
+  > {
+    return this.pendingMortarImpacts.splice(0, this.pendingMortarImpacts.length);
+  }
+
+  drainCatapultImpacts(): Array<
+    TerritorySiegeCatapultImpact & { warId: string; sourceCharacterId: number }
+  > {
+    return this.pendingCatapultImpacts.splice(0, this.pendingCatapultImpacts.length);
+  }
+
+  applyCatapultStructureImpact(
+    warId: string,
+    impact: Pick<TerritorySiegeCatapultImpact, 'side' | 'x' | 'z' | 'radius' | 'structureDamage'>,
+  ): boolean {
+    const state = this.sieges.get(warId);
+    return state ? territorySiegeApplyCatapultStructureImpact(state, impact) : false;
   }
 
   private async pollSieges(nowMs: number, force = false): Promise<void> {
@@ -457,6 +543,22 @@ export class TerritoryService {
     for (const [warId, state] of this.sieges) {
       const previousPhase = state.phase;
       territorySiegeTick(state, nowMs, this.siegeRules);
+      for (const launched of territorySiegeDrainLaunchedMortarImpacts(state)) {
+        this.pendingMortarImpacts.push({
+          ...launched.impact,
+          warId,
+          sourceCharacterId: launched.sourceCharacterId,
+        });
+        changed = true;
+      }
+      for (const launched of territorySiegeDrainLaunchedCatapultImpacts(state)) {
+        this.pendingCatapultImpacts.push({
+          ...launched.impact,
+          warId,
+          sourceCharacterId: launched.sourceCharacterId,
+        });
+        changed = true;
+      }
       const towerShot = territorySiegeTowerShot(state, nowMs, (characterId) =>
         towerEligible(warId, characterId),
       );
@@ -549,8 +651,67 @@ export class TerritoryService {
           command.action,
           nowMs,
           this.siegeRules,
+          {
+            ...command.position,
+            facing: command.facing,
+            aimX: command.aim?.x,
+            aimZ: command.aim?.z,
+            hasRamItem:
+              command.action === 'deploy_ram'
+                ? this.siegeInventory.count(characterId, TERRITORY_SIEGE_RAM_ITEM_ID) > 0
+                : undefined,
+            hasMortarItem:
+              command.action === 'deploy_mortar'
+                ? this.siegeInventory.count(characterId, TERRITORY_SIEGE_MORTAR_ITEM_ID) > 0
+                : undefined,
+            hasCatapultItem:
+              command.action === 'deploy_catapult'
+                ? this.siegeInventory.count(characterId, TERRITORY_SIEGE_CATAPULT_ITEM_ID) > 0
+                : undefined,
+          },
         );
         if (!action.ok) return { ok: false, error: 'not_participant' };
+        // The inventory callback is synchronous. No other command can interleave
+        // between the authoritative count, placement mutation, and this consume.
+        if (
+          action.consumeRam &&
+          !this.siegeInventory.consume(characterId, TERRITORY_SIEGE_RAM_ITEM_ID)
+        ) {
+          return { ok: false, error: 'not_participant' };
+        }
+        if (
+          action.consumeMortar &&
+          !this.siegeInventory.consume(characterId, TERRITORY_SIEGE_MORTAR_ITEM_ID)
+        ) {
+          return { ok: false, error: 'not_participant' };
+        }
+        if (
+          action.consumeCatapult &&
+          !this.siegeInventory.consume(characterId, TERRITORY_SIEGE_CATAPULT_ITEM_ID)
+        ) {
+          return { ok: false, error: 'not_participant' };
+        }
+        if (action.ramImpact) {
+          this.pendingRamImpacts.push({
+            ...action.ramImpact,
+            warId: state.definition.warId,
+            sourceCharacterId: characterId,
+          });
+        }
+        if (action.mortarImpact) {
+          this.pendingMortarImpacts.push({
+            ...action.mortarImpact,
+            warId: state.definition.warId,
+            sourceCharacterId: characterId,
+          });
+        }
+        if (action.catapultImpact) {
+          this.pendingCatapultImpacts.push({
+            ...action.catapultImpact,
+            warId: state.definition.warId,
+            sourceCharacterId: characterId,
+          });
+        }
         this.siegeCommandIds.set(commandId, { characterId, atMs: nowMs });
         if (this.siegeCommandIds.size > 4_096) {
           const cutoff = nowMs - 10 * 60_000;
@@ -574,6 +735,13 @@ export class TerritoryService {
       return { ok: false, error: 'forbidden' };
     }
     const ctx: TerritoryMutationContext = { ...actor, commandId, expectedRevision };
+    if (
+      command.kind === 'craft_siege' &&
+      (this.siegeInventory.copper?.(characterId) ?? 0) <
+        TERRITORY_SIEGE_RECIPES[command.siegeKind].copper
+    ) {
+      return { ok: false, error: 'insufficient_currency' };
+    }
     let result: TerritoryMutationResult;
     switch (command.kind) {
       case 'place_keep':
@@ -595,6 +763,16 @@ export class TerritoryService {
         break;
       case 'repair':
         result = await this.repository.repair(ctx);
+        break;
+      case 'craft_siege':
+        result = await this.repository.craftSiege(ctx, command.siegeKind);
+        if (result.ok && !result.duplicate) {
+          const recipe = TERRITORY_SIEGE_RECIPES[command.siegeKind];
+          if (!this.siegeInventory.spendCopper?.(characterId, recipe.copper)) {
+            return { ok: false, error: 'insufficient_currency' };
+          }
+          this.siegeInventory.grant?.(characterId, recipe.itemId);
+        }
         break;
       case 'declare_war':
         result = await this.repository.declareWar(ctx, command.cellId);
@@ -646,7 +824,10 @@ export class TerritoryService {
       case 'leave_war':
         result = await this.repository.leaveWar(ctx, command.warId);
         if (result.ok) {
-          this.registrations.get(command.warId)?.delete(characterId);
+          // Active pre-registered attackers leave the battlefield without
+          // surrendering their locked roster seat. The repository returns that
+          // durable seat so reconnect/re-entry survives this process too.
+          if (!result.seat) this.registrations.get(command.warId)?.delete(characterId);
           const updatedWar = result.war;
           if (updatedWar && this.publicSnapshot) {
             this.publicSnapshot = {

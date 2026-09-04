@@ -3665,6 +3665,8 @@ export class GameServer {
         console.error('pbe boost kit top-up failed:', err);
       }
     }
+    // Local territory-war playtest grant. Keep every registered character at
+    // fifty itemized rams on login until the production acquisition loop ships.
     const accountCosmetics = reconcileWornMechChromaForJoin({
       accountCosmetics: meta.accountCosmetics ?? EMPTY_ACCOUNT_COSMETICS,
       catalog: player?.skinCatalog,
@@ -6453,6 +6455,7 @@ export class GameServer {
       // Older clients and malformed/non-finite aim fields safely fall back to
       // the current facing instead of retaining a stale previous cursor ray.
       meta.combatAimAngle = frame.combatAimAngle ?? frame.facing ?? e.facing;
+      meta.combatAimPitch = frame.combatAimPitch ?? 0;
       session.lastInputAt = sim.time;
       if (typeof msg.seq === 'number' && Number.isFinite(msg.seq) && msg.seq > 0) {
         const seq = Math.floor(msg.seq);
@@ -6622,9 +6625,17 @@ export class GameServer {
               typeof msg.x === 'number' &&
               typeof msg.z === 'number' &&
               Number.isFinite(msg.x) &&
-              Number.isFinite(msg.z)
+              Number.isFinite(msg.z) &&
+              (msg.pitch === undefined ||
+                (typeof msg.pitch === 'number' &&
+                  Number.isFinite(msg.pitch) &&
+                  Math.abs(msg.pitch) < Math.PI / 2))
             ) {
-              sim.castAbility(msg.ability, pid, { x: msg.x, z: msg.z });
+              sim.castAbility(msg.ability, pid, {
+                x: msg.x,
+                z: msg.z,
+                ...(typeof msg.pitch === 'number' ? { pitch: msg.pitch } : {}),
+              });
             }
           } else {
             sim.castAbility(msg.ability, pid);

@@ -6062,6 +6062,41 @@
         "ps_briny_lure",
         "ps_lustrous_pearl"
       ]
+    },
+    {
+      "batchId": "territory-battering-ram-2026-09-01",
+      "source": "OpenAI built-in image generation",
+      "owner": "World of ClaudeCraft",
+      "license": "World of ClaudeCraft project-generated art, project asset, rights reserved",
+      "styleReference": "existing painted WebP catalog in public/ui/items/",
+      "commonPrompt": "Premium hand-painted classic dark-fantasy MMORPG inventory icon of one complete portable medieval battering ram cart, centered on an opaque blue-black charcoal vignette with warm top-left light, safe margins, no border, text, watermark, character, crop, or transparency.",
+      "itemIds": [
+        "territory_battering_ram"
+      ]
+    },
+    {
+      "batchId": "territory-field-mortar-2026-09-02",
+      "source": "OpenAI built-in image generation",
+      "owner": "World of ClaudeCraft",
+      "license": "World of ClaudeCraft project-generated art, project asset, rights reserved",
+      "styleReference": "existing painted WebP catalog in public/ui/items/",
+      "acceptedSourcePath": "C:/Users/Bahri/.codex/generated_images/01a043ff-fb4e-7220-a3a3-d6afad52f234/exec-cde96213-aca9-427f-925e-8953c02eae73.png",
+      "commonPrompt": "Use case: stylized-concept. Asset type: square MMORPG inventory item icon, displayed at 28–48 pixels. Primary request: create a premium hand-painted classic dark-fantasy inventory icon for a portable medieval field mortar siege weapon. Scene/backdrop: opaque blue-black charcoal atmospheric vignette. Subject: one compact heavy iron mortar cannon on a sturdy low wooden siege carriage, with two small round iron shells beside it; unmistakably a mortar, not a long naval cannon. Composition/framing: one centered complete object, strong readable silhouette, safe margins on every side, square composition. Lighting/mood: warm top-left key light, restrained amber rim light, deep shadows. Materials/textures: hammered iron, aged wood, subtle soot around the short barrel. Constraints: opaque background; no UI frame or border; no text, letters, numbers, watermark, character, hands, cropping, transparency, modern weapon parts, or extra scenery.",
+      "itemIds": [
+        "territory_field_mortar"
+      ]
+    },
+    {
+      "batchId": "territory-field-catapult-2026-09-03",
+      "source": "User-provided Catapult.obj rendered locally in Blender",
+      "owner": "World of ClaudeCraft project owner",
+      "license": "Owner-provided source used with permission; derived project asset",
+      "styleReference": "existing painted WebP catalog in public/ui/items/",
+      "acceptedSourcePath": "scripts/assets/territory_catapult/territory_catapult_icon.png",
+      "commonPrompt": "Deterministic three-quarter Blender render of the supplied medieval wooden field catapult on an opaque blue-black inventory vignette, warm key and amber rim light, no border or text; normalized locally to 128px WebP.",
+      "itemIds": [
+        "territory_catapult"
+      ]
     }
   ]
 }

@@ -16,6 +16,30 @@ export function territoryWarJoinAllowed(
   return side === 'defender' || registeredBeforeStart;
 }
 
+/**
+ * Leaving the battlefield is not the same as withdrawing from an active
+ * attacking roster. The locked pre-start seat remains durable so a voluntary
+ * exit, link loss, or process restart can all re-enter through the same policy.
+ */
+export function territoryWarLeaveKeepsRegistration(
+  status: TerritoryWarStatus,
+  side: TerritoryWarSide,
+  registeredBeforeStart: boolean,
+): boolean {
+  return status === 'active' && side === 'attacker' && registeredBeforeStart;
+}
+
+/**
+ * A roster seat can remain reserved without placing its owner in the live arena.
+ * `disconnectedAt` is set by an explicit Leave siege and cleared by Join siege.
+ */
+export function territoryWarParticipantBattleActive(
+  leftAt: Date | string | null,
+  disconnectedAt: Date | string | null,
+): boolean {
+  return leftAt === null && disconnectedAt === null;
+}
+
 export function territoryFirstKeepAllowed(
   cell: { starter: boolean } | null | undefined,
   requirementsEnabled: boolean,

@@ -28,5 +28,22 @@ describe('GroundPointProjector', () => {
       new THREE.PerspectiveCamera(),
     );
     expect(projector.project(0, 0, 0)).toBeNull();
+    expect(projector.direction(0, 0)).toBeNull();
+  });
+
+  it('preserves the vertical component of the canvas ray for combat aim', () => {
+    const camera = new THREE.PerspectiveCamera(60, 2, 0.1, 100);
+    camera.position.set(0, 2, 10);
+    camera.lookAt(0, 2, 0);
+    camera.updateMatrixWorld(true);
+    const projector = new GroundPointProjector(
+      {
+        getBoundingClientRect: () => ({ left: 100, top: 50, width: 200, height: 100 }) as DOMRect,
+      },
+      camera,
+    );
+
+    expect(projector.direction(200, 60)?.y).toBeGreaterThan(0);
+    expect(projector.direction(200, 140)?.y).toBeLessThan(0);
   });
 });

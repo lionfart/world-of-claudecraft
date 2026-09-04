@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   TERRITORY_SIEGE_ASSET_URLS,
   TERRITORY_SIEGE_TEXTURE_URLS,
+  territorySiegeAssetObjectVisible,
   territorySiegeAssetsInternalsForTest,
 } from '../src/render/territory_siege_assets';
 
@@ -44,6 +45,7 @@ describe('territory siege asset kit', () => {
       desertTree: '/models/biome/desert_tree.glb',
       desertBoulderA: '/models/biome/desert_boulder_1.glb',
       desertCactusA: '/models/biome/desert_cactus_tall_1.glb',
+      catapult: '/models/siege/territory_catapult.glb',
       fern: '/models/foliage/fern.glb',
       rock: '/models/foliage/rock_1.glb',
       bush: '/models/foliage/bush.glb',
@@ -52,6 +54,12 @@ describe('territory siege asset kit', () => {
       roadA: '/models/dungeon/path_a.glb',
       well: '/models/biome/hex_well.glb',
     });
+  });
+
+  it('does not render material-less collision helpers shipped inside cactus GLBs', () => {
+    expect(territorySiegeAssetObjectVisible('Cactus_Tall_1-colonly')).toBe(false);
+    expect(territorySiegeAssetObjectVisible('Cactus_Small_1-colonly')).toBe(false);
+    expect(territorySiegeAssetObjectVisible('Cactus_Tall_1')).toBe(true);
   });
 
   it('preloads tiled PBR surfaces for every siege biome', () => {
@@ -80,6 +88,53 @@ describe('territory siege asset kit', () => {
     expect(source).not.toContain('objectiveBeacon(0xd06035');
     expect(source).toContain("ring.name = 'territory-siege-tower-range'");
     expect(source).toContain('territorySiegeGroundLiftLocal(x, z)');
+    expect(source).toContain('fittedGate.root.userData.territorySiegeObjective = {');
+    expect(source).toContain("kind: 'wall'");
+    expect(source).toContain("kind: 'tower'");
+    expect(source).toContain("kind: 'ram'");
+    expect(source).toContain("kind: 'mortar'");
+    expect(source).toContain("kind: 'catapult'");
+    expect(source).toContain("selection.root.name = 'territory-siege-objective-selection'");
+    expect(source).not.toContain('const gateHealth = buildStructureHealthPlate()');
+    expect(source).toContain('coreHealth.sprite.position.set(0, 7.15');
+    expect(source).toContain('const mortarProjectiles = Array.from');
+    expect(source).toContain('if (Math.min(view.launchesIn, locallyLaunchRemaining) > 0) continue');
+    expect(source).toContain('turnTowardYaw(');
+    expect(source).toContain('root.name = `territory-siege-${key}-yaw-pivot`');
+    expect(source).toContain('mortarRecoilStartedAt.set(shot.mortarId, timeSeconds)');
+    expect(source).toContain('catapultRecoilStartedAt.set(shot.catapultId, timeSeconds)');
+    expect(source).not.toContain('const normalRecoilAge = 7 - view.cooldown');
+    expect(source).toContain('new THREE.DodecahedronGeometry(1.32, 1)');
+    expect(source).toContain('Math.sin(progress * Math.PI) * 15');
+    expect(source).toContain('shell.trail.quaternion.setFromUnitVectors');
+    expect(source).toContain('const towerProjectiles = Array.from');
+    expect(source).not.toContain('const towerWarnings = Array.from');
+    expect(source).not.toContain('const mortarWarnings = Array.from');
+  });
+
+  it('uses the generated painted siege ability set in every temporary hotbar', () => {
+    const css = readFileSync(
+      fileURLToPath(new URL('../src/styles/components.css', import.meta.url)),
+      'utf8',
+    );
+    const mappingPath = fileURLToPath(
+      new URL('../public/ui/skills/territory/mapping.json', import.meta.url),
+    );
+    const mapping = JSON.parse(readFileSync(mappingPath, 'utf8')) as {
+      source: string;
+      entries: Array<{ ability: string; file: string }>;
+    };
+    expect(mapping.source).toBe('OpenAI built-in image generation');
+    expect(mapping.entries).toHaveLength(7);
+    for (const entry of mapping.entries) {
+      expect(
+        existsSync(
+          fileURLToPath(new URL(`../public/ui/skills/territory/${entry.file}`, import.meta.url)),
+        ),
+        entry.ability,
+      ).toBe(true);
+      expect(css).toContain(`/ui/skills/territory/${entry.file}`);
+    }
   });
 
   it('uses instanced billboard grass and clustered dressing instead of the old spike carpet', () => {

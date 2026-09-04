@@ -281,6 +281,7 @@ interface BallisticProjectileVisual {
   trajectoryId: string;
   pos: THREE.Vector3;
   dirX: number;
+  dirY: number;
   dirZ: number;
   speed: number;
   remaining: number;
@@ -818,13 +819,14 @@ export class Vfx {
     y: number,
     z: number,
     dirX: number,
+    dirY: number,
     dirZ: number,
     speed: number,
     maxDistance: number,
     school: string,
     appearance?: BallisticProjectileAppearance,
   ): void {
-    const length = Math.hypot(dirX, dirZ);
+    const length = Math.hypot(dirX, dirY, dirZ);
     if (!Number.isFinite(length) || length <= 1e-6) return;
     const colors = projectileSchoolColors(school, appearance?.color);
     const sprites = ballisticProjectileSprites(school, appearance?.style);
@@ -837,6 +839,7 @@ export class Vfx {
       trajectoryId,
       pos: new THREE.Vector3(x, y, z),
       dirX: dirX / length,
+      dirY: dirY / length,
       dirZ: dirZ / length,
       speed,
       remaining: Math.max(0, maxDistance),
@@ -2309,6 +2312,7 @@ export class Vfx {
       const projectile = this.ballisticProjectiles[i];
       const step = Math.min(Math.max(0, projectile.remaining), projectile.speed * dt);
       projectile.pos.x += projectile.dirX * step;
+      projectile.pos.y += projectile.dirY * step;
       projectile.pos.z += projectile.dirZ * step;
       projectile.remaining -= step;
       if (projectile.jagged) {
@@ -2321,7 +2325,8 @@ export class Vfx {
           vertical = vertical * 0.45 + (Math.random() - 0.5) * 0.55;
           const back = segment * 0.55 * projectile.scale;
           const x = projectile.pos.x - projectile.dirX * back + perpX * lateral * projectile.scale;
-          const y = projectile.pos.y + vertical * projectile.scale;
+          const y =
+            projectile.pos.y - projectile.dirY * back + vertical * projectile.scale;
           const z = projectile.pos.z - projectile.dirZ * back + perpZ * lateral * projectile.scale;
           const head = segment === 0;
           this.spawn(
@@ -2379,7 +2384,7 @@ export class Vfx {
             projectile.dirZ * (0.15 + Math.random() * 0.65) +
             projectile.dirX * coil,
           -projectile.dirX * (0.8 + Math.random()),
-          (Math.random() - 0.35) * 0.6,
+          -projectile.dirY * (0.8 + Math.random()) + (Math.random() - 0.35) * 0.6,
           -projectile.dirZ * (0.8 + Math.random()),
           projectile.trailColor,
           0.24 * projectile.scale,
@@ -2394,7 +2399,7 @@ export class Vfx {
           projectile.pos.y,
           projectile.pos.z - projectile.dirZ * 0.45,
           -projectile.dirX * 1.4,
-          0,
+          -projectile.dirY * 1.4,
           -projectile.dirZ * 1.4,
           projectile.trailColor,
           0.35 * projectile.scale,

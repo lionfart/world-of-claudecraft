@@ -1,8 +1,15 @@
-import { territorySiegeOriginAt } from '../sim/data';
+import { territorySiegeOrigin, territorySiegeOriginAt } from '../sim/data';
 import { territoryCellClaimable, territoryResourceProfile } from '../sim/territory_biome';
 import { createTerritoryManifest, type TerritoryResourceKind } from '../sim/territory_manifest';
 import { territorySiegeBiomeForCell } from '../sim/territory_siege_biome';
-import { territorySiegeActionPoint } from '../sim/territory_siege_layout';
+import { TERRITORY_SIEGE_RECIPES, type TerritorySiegeCraftKind } from '../sim/territory_economy';
+import {
+  territorySiegeActionPoint,
+  territorySiegeDefenderPortalDestination,
+  territorySiegeNearestCatapult,
+  territorySiegeNearestMortar,
+  territorySiegeNearestRam,
+} from '../sim/territory_siege_layout';
 import type { IWorld, TerritoryMapState, TerritoryStructureSlot } from '../world_api';
 import { formatDateTime, t } from './i18n';
 import type { PainterHostWriters } from './painter_host';
@@ -23,6 +30,11 @@ import {
   type TerritoryMapView,
   territoryCellAt,
 } from './territory_map_view';
+import {
+  createTerritoryWarAccess,
+  territoryRelatedWar,
+  updateTerritoryWarAccess,
+} from './territory_war_access_view';
 
 type PrimaryAction =
   | { kind: 'place'; cellId: number }
@@ -51,9 +63,20 @@ export class TerritoryMapController {
   private view: TerritoryMapView | null = null;
   private hoverCell: number | null = null;
   private selectedCell: number | null = null;
+  private warNoticeExpanded = true;
   private paintKey: string | null = null;
   private paintModel: TerritoryMapModel | null = null;
   private drag: TerritoryDrag | null = null;
+  private readonly access = createTerritoryWarAccess();
+  private readonly launchers = [
+    ...document.querySelectorAll<HTMLElement>('.territory-war-launcher'),
+  ];
+  private readonly mobileMore = document.getElementById('mobile-more');
+  private readonly warDock = element('#territory-war-dock');
+
+  get isOpen(): boolean {
+    return this.access.open;
+  }
 
   constructor(
     private readonly world: IWorld,
@@ -61,6 +84,8 @@ export class TerritoryMapController {
     private readonly writers: PainterHostWriters,
     private readonly repaint: () => void,
     private readonly exitToContinent: () => void,
+    private readonly beginSiegeAim: (weapon: 'mortar' | 'catapult', slot: number) => void = () =>
+      undefined,
   ) {
     this.painter = new TerritoryMapPainter(() => {
       this.paintKey = null;
@@ -73,22 +98,34 @@ export class TerritoryMapController {
         this.performSlot(descriptor.slot),
       );
     }
+    for (const kind of ['ram', 'mortar', 'catapult'] as const) {
+      element(`#territory-craft-${kind}`).addEventListener('click', () =>
+        this.performSiegeCraft(kind),
+      );
+    }
     element('#territory-war-action').addEventListener('click', () => this.performWarNoticeAction());
-    element('#territory-deploy-ram').addEventListener('click', () =>
-      this.world.territorySiegeAction('deploy_ram'),
+    element('#territory-war-notice-toggle').addEventListener('click', () => {
+      this.warNoticeExpanded = !this.warNoticeExpanded;
+      this.updateWarNotice(false);
+    });
+    element('#territory-ram-strike').addEventListener('click', () => this.handleRamActionSlot(0));
+    element('#territory-ram-power-strike').addEventListener('click', () =>
+      this.handleRamActionSlot(1),
     );
-    element('#territory-enter-ram').addEventListener('click', () =>
-      this.world.territorySiegeAction(
-        this.world.territoryMap?.siege?.ramJoined ? 'leave_ram' : 'enter_ram',
-      ),
+    element('#territory-mortar-fire').addEventListener('click', () =>
+      this.handleMortarActionSlot(0),
     );
-    element('#territory-ram-gate').addEventListener('click', () =>
-      this.world.territorySiegeAction('ram_gate'),
+    element('#territory-mortar-frost').addEventListener('click', () =>
+      this.handleMortarActionSlot(1),
     );
-    element('#territory-channel-core').addEventListener('click', () =>
-      this.world.territorySiegeAction(
-        this.world.territoryMap?.siege?.coreChanneling ? 'stop_core_channel' : 'start_core_channel',
-      ),
+    element('#territory-mortar-venom').addEventListener('click', () =>
+      this.handleMortarActionSlot(2),
+    );
+    element('#territory-catapult-fire').addEventListener('click', () =>
+      this.handleCatapultActionSlot(0),
+    );
+    element('#territory-catapult-cluster').addEventListener('click', () =>
+      this.handleCatapultActionSlot(1),
     );
     element('#territory-leave-siege').addEventListener('click', () => {
       const warId = this.world.territoryMap?.siege?.warId;
@@ -96,18 +133,144 @@ export class TerritoryMapController {
     });
   }
 
+  /** Shared keyboard/mobile Interact route for siege-weapon use/exit and the core switch. */
+  handleSiegeInteract(): boolean {
+    const siege = this.world.territoryMap?.siege;
+    if (!siege) return false;
+    const catapultAction = this.catapultInteractAction(siege);
+    if (catapultAction) {
+      this.world.territorySiegeAction(
+        catapultAction === 'exit' ? 'leave_catapult' : 'enter_catapult',
+      );
+      return true;
+    }
+    const mortarAction = this.mortarInteractAction(siege);
+    if (mortarAction) {
+      this.world.territorySiegeAction(mortarAction === 'exit' ? 'leave_mortar' : 'enter_mortar');
+      return true;
+    }
+    const ramAction = this.ramInteractAction(siege);
+    if (ramAction) {
+      this.world.territorySiegeAction(ramAction === 'exit' ? 'leave_ram' : 'enter_ram');
+      return true;
+    }
+    if (this.defenderPortalInteractAvailable(siege)) {
+      this.world.territorySiegeAction('defender_portal');
+      return true;
+    }
+    if (!this.coreInteractAvailable(siege)) return false;
+    this.world.territorySiegeAction(
+      siege.coreChanneling ? 'stop_core_channel' : 'start_core_channel',
+    );
+    return true;
+  }
+
+  isRamOperating(): boolean {
+    return !!this.world.territoryMap?.siege?.ramJoined;
+  }
+
+  isMortarOperating(): boolean {
+    return !!this.world.territoryMap?.siege?.mortarJoined;
+  }
+
+  isRangedSiegeOperating(): boolean {
+    const siege = this.world.territoryMap?.siege;
+    return !!siege && (siege.mortarJoined || siege.controlledCatapultId != null);
+  }
+
+  isSiegeWeaponOperating(): boolean {
+    const siege = this.world.territoryMap?.siege;
+    return !!siege && (siege.ramJoined || siege.mortarJoined || siege.controlledCatapultId != null);
+  }
+
+  /** Slots 1/2/3 prepare the mortar's three delayed ground-targeted shells. */
+  handleMortarActionSlot(slot: number): boolean {
+    const siege = this.world.territoryMap?.siege;
+    if (!siege?.mortarJoined) return false;
+    const cooldown =
+      slot === 0
+        ? siege.mortarCooldown
+        : slot === 1
+          ? siege.mortarFrostCooldown
+          : siege.mortarVenomCooldown;
+    if (
+      siege.state === 'active' &&
+      siege.respawnIn === 0 &&
+      slot >= 0 &&
+      slot <= 2 &&
+      cooldown <= 0
+    ) {
+      this.beginSiegeAim('mortar', slot);
+    }
+    return true;
+  }
+
+  handleCatapultActionSlot(slot: number): boolean {
+    const siege = this.world.territoryMap?.siege;
+    const controlled = siege?.controlledCatapultId != null;
+    if (!siege || !controlled) return false;
+    const catapult = siege.catapults?.find(
+      (candidate) => candidate.id === siege.controlledCatapultId,
+    );
+    const cooldown = slot === 0 ? (catapult?.cooldown ?? 0) : (catapult?.clusterCooldown ?? 0);
+    if (
+      siege.state === 'active' &&
+      siege.respawnIn === 0 &&
+      slot >= 0 &&
+      slot <= 1 &&
+      cooldown <= 0
+    ) {
+      this.beginSiegeAim('catapult', slot);
+    }
+    return true;
+  }
+
+  /** Slots 1/2 replace the ordinary bar while the player operates a ram. */
+  handleRamActionSlot(slot: number): boolean {
+    const siege = this.world.territoryMap?.siege;
+    if (!siege?.ramJoined) return false;
+    if (
+      siege.state !== 'active' ||
+      siege.respawnIn > 0 ||
+      siege.gateOpen ||
+      (slot === 0 && siege.ramCooldown > 0) ||
+      (slot === 1 && siege.ramEmpoweredCooldown > 0)
+    ) {
+      return true;
+    }
+    if (slot === 0) this.world.territorySiegeAction('ram_gate');
+    else if (slot === 1) this.world.territorySiegeAction('ram_power_slam');
+    return true;
+  }
+
+  /** Window/focus ownership stays in Hud; both rails share this cold input path. */
+  bindLaunchers(openMap: () => void, closeMap: () => void): void {
+    for (const launcher of this.launchers) {
+      // The More tray proxies the desktop action through MobileControls.bindButton.
+      if (launcher.closest('#mobile-extra-controls')) continue;
+      launcher.addEventListener('click', () => {
+        if (this.isOpen) closeMap();
+        else openMap();
+      });
+    }
+  }
+
   open(): void {
+    this.access.open = true;
     this.zoom = TERRITORY_MAP_OPEN_ZOOM;
     this.center = { x: 0, y: 0 };
     this.selectedCell = null;
     this.writers.setDisplay(element('#territory-panel'), 'none');
     this.world.territoryOpen();
+    this.updateSiegeHud();
   }
 
   close(): void {
+    this.access.open = false;
     this.selectedCell = null;
     this.writers.setDisplay(element('#territory-panel'), 'none');
     this.world.territoryClose();
+    this.updateSiegeHud();
   }
   invalidate(): void {
     this.paintKey = null;
@@ -215,18 +378,101 @@ export class TerritoryMapController {
 
   updateSiegeHud(): void {
     const siege = this.world.territoryMap?.siege ?? null;
+    const war = territoryRelatedWar(this.world.territoryWarNotice, this.world.territoryMap);
+    updateTerritoryWarAccess(
+      this.access,
+      siege && siege.state !== 'ended' ? { id: siege.warId, status: siege.state } : war,
+    );
+    const phase = siege?.state ?? war?.status;
+    const hasGuildWar =
+      (!!siege && siege.state !== 'ended') ||
+      (!!war && ['declared', 'forming', 'active'].includes(war.status));
+    const label = this.access.unread
+      ? `${t('hudChrome.territoryMap.title')} · ${t(phase === 'active' ? 'hudChrome.territoryMap.warOngoing' : 'hudChrome.territoryMap.warStarting')}`
+      : t('hudChrome.territoryMap.title');
+    for (const launcher of this.launchers) {
+      this.writers.toggleClass(launcher, 'has-war-alert', this.access.unread);
+      this.writers.toggleClass(launcher, 'has-guild-war', hasGuildWar);
+      this.writers.toggleClass(launcher, 'active', this.access.open);
+      this.writers.setAttr(launcher, 'aria-expanded', String(this.access.open));
+      this.writers.setAttr(launcher, 'aria-label', label);
+      this.writers.setAttr(launcher, 'title', label);
+    }
+    if (this.mobileMore) {
+      this.writers.toggleClass(this.mobileMore, 'has-war-alert', this.access.unread);
+      this.writers.toggleClass(this.mobileMore, 'has-guild-war', hasGuildWar);
+    }
     const result = element('#territory-siege-result');
     const resultVisible = !!siege && siege.state === 'ended' && siege.winner !== null;
+    const liveSiege = !!siege && siege.state !== 'ended';
+    this.writers.setDisplay(this.warDock, this.access.open && !liveSiege ? 'block' : 'none');
     this.updateWarNotice(siege !== null);
-    this.writers.setDisplay(
-      element('#territory-siege-hud'),
-      siege && siege.state !== 'ended' ? 'block' : 'none',
-    );
+    this.writers.setDisplay(element('#territory-siege-hud'), liveSiege ? 'block' : 'none');
+    const interact = element('#territory-siege-interact');
+    const catapultInteractAction = siege ? this.catapultInteractAction(siege) : null;
+    const mortarInteractAction =
+      siege && !catapultInteractAction ? this.mortarInteractAction(siege) : null;
+    const ramInteractAction =
+      siege && !catapultInteractAction && !mortarInteractAction
+        ? this.ramInteractAction(siege)
+        : null;
+    const coreInteractVisible =
+      !!siege &&
+      !catapultInteractAction &&
+      !mortarInteractAction &&
+      !ramInteractAction &&
+      !this.defenderPortalInteractAvailable(siege) &&
+      this.coreInteractAvailable(siege);
+    const defenderPortalVisible =
+      !!siege &&
+      !catapultInteractAction &&
+      !mortarInteractAction &&
+      !ramInteractAction &&
+      this.defenderPortalInteractAvailable(siege);
+    const interactVisible =
+      !!catapultInteractAction ||
+      !!mortarInteractAction ||
+      !!ramInteractAction ||
+      defenderPortalVisible ||
+      coreInteractVisible;
+    this.writers.setDisplay(interact, interactVisible ? 'flex' : 'none');
+    if (interactVisible && siege) {
+      this.writers.setText(
+        element('#territory-siege-interact-label'),
+        t(
+          catapultInteractAction === 'exit'
+            ? 'hudChrome.territoryMap.catapultInteractExit'
+            : catapultInteractAction === 'enter'
+              ? 'hudChrome.territoryMap.catapultInteractUse'
+              : mortarInteractAction === 'exit'
+                ? 'hudChrome.territoryMap.mortarInteractExit'
+                : mortarInteractAction === 'enter'
+                  ? 'hudChrome.territoryMap.mortarInteractUse'
+                  : ramInteractAction === 'exit'
+                    ? 'hudChrome.territoryMap.ramInteractExit'
+                    : ramInteractAction === 'enter'
+                      ? 'hudChrome.territoryMap.ramInteractUse'
+                      : defenderPortalVisible
+                        ? this.siegeLocalPlayerPosition().z > 18
+                          ? 'hudChrome.territoryMap.defenderPortalEnter'
+                          : 'hudChrome.territoryMap.defenderPortalExit'
+                        : siege.coreChanneling
+                          ? 'hudChrome.territoryMap.coreLaserStop'
+                          : 'hudChrome.territoryMap.coreLaserStart',
+        ),
+      );
+    }
     this.writers.setDisplay(result, resultVisible ? 'flex' : 'none');
+    document.body.classList.toggle('territory-siege-control-locked', !!siege?.coreChanneling);
+    document.body.classList.toggle('territory-ram-operating', !!siege?.ramJoined);
+    document.body.classList.toggle('territory-mortar-operating', !!siege?.mortarJoined);
     document.body.classList.toggle(
-      'territory-siege-control-locked',
-      !!siege && (siege.ramJoined || siege.coreChanneling),
+      'territory-catapult-operating',
+      siege?.controlledCatapultId != null,
     );
+    this.updateRamActionbar(siege);
+    this.updateMortarActionbar(siege);
+    this.updateCatapultActionbar(siege);
     if (resultVisible && siege) {
       const victory = siege.mySide === siege.winner;
       result.classList.toggle('is-victory', victory);
@@ -263,79 +509,256 @@ export class TerritoryMapController {
         ? t('hudChrome.territoryMap.siegeRespawn', { seconds: siege.respawnIn })
         : t('hudChrome.territoryMap.siegeTimer', { seconds: siege.timeLeft }),
     );
-    const gatePercent = Math.round(siege.gateProgress * 100);
-    const corePercent = Math.round(siege.coreProgress * 100);
-    const gate = element('#territory-gate-progress');
-    const core = element('#territory-core-progress');
-    this.writers.setText(gate, t('hudChrome.territoryMap.siegeGate', { percent: gatePercent }));
-    this.writers.setText(core, t('hudChrome.territoryMap.siegeCore', { percent: corePercent }));
-    this.writers.setStyleProp(gate, 'width', `${gatePercent}%`);
-    this.writers.setStyleProp(core, 'width', `${corePercent}%`);
-    const canAct = siege.mySide === 'attacker' && siege.state === 'active' && siege.respawnIn === 0;
-    this.writers.setDisplay(
-      element('.territory-siege-actions'),
-      siege.mySide === 'attacker' ? 'grid' : 'none',
-    );
-    const controlLocked = siege.ramJoined || siege.coreChanneling;
+  }
+
+  private ramInteractAction(
+    siege: NonNullable<TerritoryMapState['siege']>,
+  ): 'enter' | 'exit' | null {
+    if (siege.ramJoined) return 'exit';
+    if (
+      siege.state !== 'active' ||
+      siege.mySide !== 'attacker' ||
+      siege.respawnIn > 0 ||
+      siege.gateOpen ||
+      siege.coreChanneling
+    ) {
+      return null;
+    }
     const siegeSlot = territorySiegeOriginAt(this.world.player.pos.z).slot;
-    const inActionRange = (action: 'deploy_ram' | 'enter_ram' | 'start_core_channel') => {
-      const point = territorySiegeActionPoint(siegeSlot, action);
-      return (
-        (this.world.player.pos.x - point.x) ** 2 + (this.world.player.pos.z - point.z) ** 2 <=
-        point.radius ** 2
-      );
+    const origin = territorySiegeOrigin(siegeSlot);
+    const localPosition = {
+      x: this.world.player.pos.x - origin.x,
+      z: this.world.player.pos.z - origin.z,
     };
-    this.configureSiegeButton(
-      '#territory-deploy-ram',
-      'deployRam',
-      !canAct ||
-        controlLocked ||
-        siege.ramDeployed ||
-        siege.gateOpen ||
-        !inActionRange('deploy_ram'),
-    );
-    this.configureSiegeButton(
-      '#territory-enter-ram',
-      siege.ramJoined ? 'leaveRam' : 'enterRam',
-      !canAct ||
-        siege.coreChanneling ||
-        (!siege.ramJoined &&
-          (!siege.ramDeployed ||
-            siege.gateOpen ||
-            siege.ramOccupants >= 4 ||
-            !inActionRange('enter_ram'))),
-    );
-    this.configureSiegeButton(
-      '#territory-ram-gate',
-      'ramGate',
-      !canAct || !siege.ramJoined || siege.gateOpen || siege.ramCooldown > 0,
+    const rams =
+      siege.rams ??
+      (siege.ramDeployed
+        ? [
+            {
+              id: 0,
+              x: 0,
+              z: 23,
+              yaw: 0,
+              occupied: siege.ramOccupants > 0,
+              cooldown: 0,
+              empoweredCooldown: 0,
+            },
+          ]
+        : []);
+    return territorySiegeNearestRam(
+      localPosition.x,
+      localPosition.z,
+      rams.filter((ram) => !ram.occupied),
+    )
+      ? 'enter'
+      : null;
+  }
+
+  private mortarInteractAction(
+    siege: NonNullable<TerritoryMapState['siege']>,
+  ): 'enter' | 'exit' | null {
+    if (siege.mortarJoined) return 'exit';
+    if (
+      siege.state !== 'active' ||
+      siege.respawnIn > 0 ||
+      siege.ramJoined ||
+      siege.controlledCatapultId != null ||
+      siege.coreChanneling
+    ) {
+      return null;
+    }
+    const siegeSlot = territorySiegeOriginAt(this.world.player.pos.z).slot;
+    const origin = territorySiegeOrigin(siegeSlot);
+    return territorySiegeNearestMortar(
+      this.world.player.pos.x - origin.x,
+      this.world.player.pos.z - origin.z,
+      siege.mortars.filter((mortar) => mortar.side === siege.mySide && !mortar.occupied),
+    )
+      ? 'enter'
+      : null;
+  }
+
+  private catapultInteractAction(
+    siege: NonNullable<TerritoryMapState['siege']>,
+  ): 'enter' | 'exit' | null {
+    if (siege.controlledCatapultId != null) return 'exit';
+    if (
+      siege.state !== 'active' ||
+      siege.respawnIn > 0 ||
+      siege.ramJoined ||
+      siege.mortarJoined ||
+      siege.coreChanneling
+    ) {
+      return null;
+    }
+    const slot = territorySiegeOriginAt(this.world.player.pos.z).slot;
+    const origin = territorySiegeOrigin(slot);
+    return territorySiegeNearestCatapult(
+      this.world.player.pos.x - origin.x,
+      this.world.player.pos.z - origin.z,
+      (siege.catapults ?? []).filter(
+        (catapult) => catapult.side === siege.mySide && !catapult.occupied,
+      ),
+    )
+      ? 'enter'
+      : null;
+  }
+
+  private updateRamActionbar(siege: TerritoryMapState['siege']): void {
+    const root = element('#territory-ram-actionbar');
+    const visible = !!siege?.ramJoined && siege.state !== 'ended';
+    this.writers.setDisplay(root, visible ? 'flex' : 'none');
+    if (!visible || !siege) return;
+    const normal = element<HTMLButtonElement>('#territory-ram-strike');
+    const power = element<HTMLButtonElement>('#territory-ram-power-strike');
+    normal.disabled = siege.gateOpen || siege.respawnIn > 0 || siege.ramCooldown > 0;
+    power.disabled = siege.gateOpen || siege.respawnIn > 0 || siege.ramEmpoweredCooldown > 0;
+    this.writers.setText(
+      element('#territory-ram-strike-cooldown'),
+      siege.ramCooldown > 0 ? `${siege.ramCooldown}` : '',
     );
     this.writers.setText(
-      element('#territory-ram-gate'),
-      `${t('hudChrome.territoryMap.ramGate')} ${siege.ramOccupants}/4${
-        siege.ramCooldown > 0 ? ` · ${siege.ramCooldown}s` : ''
-      }`,
+      element('#territory-ram-power-strike-cooldown'),
+      siege.ramEmpoweredCooldown > 0 ? `${siege.ramEmpoweredCooldown}` : '',
     );
-    this.configureSiegeButton(
-      '#territory-channel-core',
-      siege.coreChanneling ? 'stopCoreChannel' : 'startCoreChannel',
-      !canAct || siege.ramJoined || (!siege.coreChanneling && !siege.gateOpen),
+    const normalLabel = t('hudChrome.territoryMap.ramStrike');
+    const powerLabel = t('hudChrome.territoryMap.ramPowerStrike');
+    this.writers.setAttr(normal, 'aria-label', normalLabel);
+    this.writers.setAttr(normal, 'title', normalLabel);
+    this.writers.setAttr(power, 'aria-label', powerLabel);
+    this.writers.setAttr(power, 'title', powerLabel);
+  }
+
+  private updateMortarActionbar(siege: TerritoryMapState['siege']): void {
+    const root = element('#territory-mortar-actionbar');
+    const visible = !!siege?.mortarJoined && siege.state !== 'ended';
+    this.writers.setDisplay(root, visible ? 'flex' : 'none');
+    if (!visible || !siege) return;
+    const buttons = [
+      {
+        element: element<HTMLButtonElement>('#territory-mortar-fire'),
+        cooldown: siege.mortarCooldown,
+        cooldownElement: element('#territory-mortar-fire-cooldown'),
+        label: t('hudChrome.territoryMap.mortarFire'),
+      },
+      {
+        element: element<HTMLButtonElement>('#territory-mortar-frost'),
+        cooldown: siege.mortarFrostCooldown,
+        cooldownElement: element('#territory-mortar-frost-cooldown'),
+        label: t('hudChrome.territoryMap.mortarFrost'),
+      },
+      {
+        element: element<HTMLButtonElement>('#territory-mortar-venom'),
+        cooldown: siege.mortarVenomCooldown,
+        cooldownElement: element('#territory-mortar-venom-cooldown'),
+        label: t('hudChrome.territoryMap.mortarVenom'),
+      },
+    ];
+    for (const button of buttons) {
+      button.element.disabled = siege.respawnIn > 0 || button.cooldown > 0;
+      this.writers.setText(button.cooldownElement, button.cooldown > 0 ? `${button.cooldown}` : '');
+      this.writers.setAttr(button.element, 'aria-label', button.label);
+      this.writers.setAttr(button.element, 'title', button.label);
+    }
+  }
+
+  private updateCatapultActionbar(siege: TerritoryMapState['siege']): void {
+    const root = element('#territory-catapult-actionbar');
+    const catapult = siege?.catapults?.find(
+      (candidate) => candidate.id === siege.controlledCatapultId,
     );
-    this.writers.setDisplay(
-      element('#territory-channel-core'),
-      siege.mySide === 'attacker' &&
-        (siege.coreChanneling || (siege.gateOpen && inActionRange('start_core_channel')))
-        ? 'block'
-        : 'none',
+    const visible = !!siege && !!catapult && siege.state !== 'ended';
+    this.writers.setDisplay(root, visible ? 'flex' : 'none');
+    if (!visible || !siege || !catapult) return;
+    const buttons = [
+      {
+        element: element<HTMLButtonElement>('#territory-catapult-fire'),
+        cooldown: catapult.cooldown,
+        cooldownElement: element('#territory-catapult-fire-cooldown'),
+        label: t('hudChrome.territoryMap.catapultFire'),
+      },
+      {
+        element: element<HTMLButtonElement>('#territory-catapult-cluster'),
+        cooldown: catapult.clusterCooldown,
+        cooldownElement: element('#territory-catapult-cluster-cooldown'),
+        label: t('hudChrome.territoryMap.catapultCluster'),
+      },
+    ];
+    for (const button of buttons) {
+      button.element.disabled = siege.respawnIn > 0 || button.cooldown > 0;
+      this.writers.setText(button.cooldownElement, button.cooldown > 0 ? `${button.cooldown}` : '');
+      this.writers.setAttr(button.element, 'aria-label', button.label);
+      this.writers.setAttr(button.element, 'title', button.label);
+    }
+  }
+
+  private coreInteractAvailable(siege: NonNullable<TerritoryMapState['siege']>): boolean {
+    if (
+      siege.state !== 'active' ||
+      siege.mySide !== 'attacker' ||
+      siege.respawnIn > 0 ||
+      (!siege.gateOpen && !siege.wallHealth?.some((wall) => wall.hp <= 0)) ||
+      siege.ramJoined ||
+      siege.mortarJoined ||
+      siege.controlledCatapultId != null
+    ) {
+      return false;
+    }
+    if (siege.coreChanneling) return true;
+    const slot = territorySiegeOriginAt(this.world.player.pos.z).slot;
+    const point = territorySiegeActionPoint(slot, 'start_core_channel');
+    return (
+      (this.world.player.pos.x - point.x) ** 2 + (this.world.player.pos.z - point.z) ** 2 <=
+      point.radius ** 2
     );
   }
 
+  private siegeLocalPlayerPosition(): { x: number; z: number } {
+    const slot = territorySiegeOriginAt(this.world.player.pos.z).slot;
+    const origin = territorySiegeOrigin(slot);
+    return { x: this.world.player.pos.x - origin.x, z: this.world.player.pos.z - origin.z };
+  }
+
+  private defenderPortalInteractAvailable(siege: NonNullable<TerritoryMapState['siege']>): boolean {
+    if (
+      siege.state !== 'active' ||
+      siege.mySide !== 'defender' ||
+      siege.respawnIn > 0 ||
+      this.isSiegeWeaponOperating() ||
+      siege.coreChanneling
+    ) {
+      return false;
+    }
+    const position = this.siegeLocalPlayerPosition();
+    return territorySiegeDefenderPortalDestination(position.x, position.z) !== null;
+  }
+
   private updateWarNotice(siegeVisible: boolean): void {
-    const war = this.world.territoryWarNotice;
+    const war = territoryRelatedWar(this.world.territoryWarNotice, this.world.territoryMap);
     const model = territoryWarNoticeModel(war, Date.now());
     const root = element('#territory-war-notice');
-    this.writers.setDisplay(root, model.visible && !siegeVisible ? 'block' : 'none');
-    if (!war || !model.visible || siegeVisible) return;
+    const visible = this.access.open && !siegeVisible;
+    this.writers.setDisplay(root, visible ? 'block' : 'none');
+    if (!visible) return;
+    const empty = !war || !model.visible;
+    this.writers.toggleClass(root, 'is-empty', empty);
+    this.writers.toggleClass(root, 'is-collapsed', !empty && !this.warNoticeExpanded);
+    const toggle = element<HTMLButtonElement>('#territory-war-notice-toggle');
+    this.writers.setDisplay(toggle, empty ? 'none' : 'inline-flex');
+    this.writers.setAttr(toggle, 'aria-expanded', String(this.warNoticeExpanded));
+    this.writers.setText(
+      toggle,
+      t(
+        this.warNoticeExpanded
+          ? 'hudChrome.territoryMap.noticeHide'
+          : 'hudChrome.territoryMap.noticeShow',
+      ),
+    );
+    if (empty) {
+      this.writers.setText(element('#territory-war-kicker'), t('hudChrome.territoryMap.title'));
+      this.writers.setText(element('#territory-war-title'), t('hudChrome.guildTerritory.noWars'));
+      return;
+    }
     this.writers.setText(
       element('#territory-war-kicker'),
       model.active
@@ -389,7 +812,9 @@ export class TerritoryMapController {
           : 'hudChrome.territoryMap.joinWar',
       ),
     );
-    action.disabled = war.mySide === null;
+    action.disabled =
+      war.mySide === null ||
+      (war.status === 'active' && war.mySide === 'attacker' && !war.registered);
   }
 
   private updateHover(clientX: number, clientY: number): void {
@@ -471,8 +896,12 @@ export class TerritoryMapController {
     else if (action?.kind === 'upgrade') this.world.territoryUpgrade(action.cellId, action.slot);
   }
 
+  private performSiegeCraft(kind: TerritorySiegeCraftKind): void {
+    this.world.territoryCraftSiege(kind);
+  }
+
   private performWarNoticeAction(): void {
-    const war = this.world.territoryWarNotice;
+    const war = territoryRelatedWar(this.world.territoryWarNotice, this.world.territoryMap);
     if (!war?.mySide) return;
     if (war.status === 'active') this.world.territoryJoinWar(war.id);
     else if (war.registered) this.world.territoryLeaveWar(war.id);
@@ -502,6 +931,7 @@ export class TerritoryMapController {
       this.writers.setDisplay(economy, 'none');
       this.writers.setDisplay(actions, 'none');
       this.writers.setDisplay(structures, 'none');
+      this.writers.setDisplay(element('#territory-workshop-crafting'), 'none');
       primary.disabled = true;
       this.renderStructureSlots(null);
       return;
@@ -520,6 +950,7 @@ export class TerritoryMapController {
       this.writers.setDisplay(economy, 'none');
       this.writers.setDisplay(actions, 'none');
       this.writers.setDisplay(structures, 'none');
+      this.writers.setDisplay(element('#territory-workshop-crafting'), 'none');
       primary.disabled = true;
       this.renderStructureSlots(null);
       panel.dataset.revision = String(state.revision);
@@ -569,6 +1000,7 @@ export class TerritoryMapController {
     this.writers.setText(primary, t(`hudChrome.territoryMap.${actionKey}`));
     this.writers.setDisplay(structures, owned ? 'block' : 'none');
     this.renderStructureSlots(owned ? state : null);
+    this.renderWorkshopCrafting(owned ? state : null, cellId);
     panel.dataset.revision = String(state.revision);
   }
 
@@ -607,6 +1039,33 @@ export class TerritoryMapController {
     }
   }
 
+  private renderWorkshopCrafting(state: TerritoryMapState | null, cellId: number): void {
+    const root = element('#territory-workshop-crafting');
+    const guild = state?.guild ?? null;
+    const ownsKeep = !!state?.cells.find(
+      (cell) => cell.cellId === cellId && cell.keepRoot && cell.ownerGuildId === guild?.id,
+    );
+    const workshop = state?.structures.find(
+      (structure) =>
+        structure.cellId === cellId &&
+        structure.slot === 'siege_workshop' &&
+        structure.state === 'active',
+    );
+    const visible = ownsKeep && !!workshop && !!guild;
+    this.writers.setDisplay(root, visible ? 'block' : 'none');
+    for (const kind of ['ram', 'mortar', 'catapult'] as const) {
+      const button = element<HTMLButtonElement>(`#territory-craft-${kind}`);
+      const recipe = TERRITORY_SIEGE_RECIPES[kind];
+      button.disabled =
+        !visible ||
+        !guild ||
+        this.world.copper < recipe.copper ||
+        Object.entries(recipe.resources).some(
+          ([resource, cost]) => guild.resources[resource as TerritoryResourceKind] < cost,
+        );
+    }
+  }
+
   private resourceLabel(resource: TerritoryResourceKind): string {
     const keys = {
       wood: 'hudChrome.territoryMap.resourceWood',
@@ -615,15 +1074,5 @@ export class TerritoryMapController {
       labor: 'hudChrome.territoryMap.resourceLabor',
     } as const;
     return t(keys[resource]);
-  }
-
-  private configureSiegeButton(
-    selector: string,
-    key: 'deployRam' | 'enterRam' | 'leaveRam' | 'ramGate' | 'startCoreChannel' | 'stopCoreChannel',
-    disabled: boolean,
-  ): void {
-    const button = element<HTMLButtonElement>(selector);
-    this.writers.setText(button, t(`hudChrome.territoryMap.${key}`));
-    button.disabled = disabled;
   }
 }

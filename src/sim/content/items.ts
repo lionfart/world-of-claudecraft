@@ -560,6 +560,36 @@ export const BASE_ITEMS: Record<string, ItemDef> = {
     sellValue: 4,
     buyValue: 20,
   },
+  territory_battering_ram: {
+    id: 'territory_battering_ram',
+    name: 'Battering Ram',
+    kind: 'tool',
+    quality: 'common',
+    stackSize: 50,
+    sellValue: 0,
+    noVendorSell: true,
+    noMarketList: true,
+  },
+  territory_field_mortar: {
+    id: 'territory_field_mortar',
+    name: 'Field Mortar',
+    kind: 'tool',
+    quality: 'common',
+    stackSize: 50,
+    sellValue: 0,
+    noVendorSell: true,
+    noMarketList: true,
+  },
+  territory_catapult: {
+    id: 'territory_catapult',
+    name: 'Field Catapult',
+    kind: 'tool',
+    quality: 'common',
+    stackSize: 50,
+    sellValue: 0,
+    noVendorSell: true,
+    noMarketList: true,
+  },
   // Tiered fishing rods (Professions 2.0): gatherTool items like the
   // picks/axes/sickles below, same tier pricing ladder. Their use still routes
   // to startFishing (src/sim/items.ts useItem), so a rod casts exactly like

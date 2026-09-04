@@ -9,6 +9,8 @@ export const TERRITORY_SIEGE_ASSET_URLS = {
   workshop: '/models/biome/hex_blacksmith.glb',
   cart: '/models/props/cart.glb',
   log: '/models/resources/wood_log_a.glb',
+  mortar: '/models/biome/beach_cannon.glb',
+  catapult: '/models/siege/territory_catapult.glb',
   coreAltar: '/models/props/enchanting_altar.glb',
   coreCrystal: '/models/resources/gem_large.glb',
   rock: '/models/foliage/rock_1.glb',
@@ -58,6 +60,11 @@ const sources = new Map<TerritorySiegeAssetKey, THREE.Group>();
 const sourceHeights = new Map<TerritorySiegeAssetKey, number>();
 const textureSources = new Map<TerritorySiegeTextureKey, THREE.Texture>();
 
+/** Catalogue GLBs sometimes carry visible collision-only meshes with no material. */
+export function territorySiegeAssetObjectVisible(name: string): boolean {
+  return !/(?:^|[-_.])colonly(?:$|[-_.])/i.test(name);
+}
+
 if (typeof window !== 'undefined') {
   registerDeferredPreload(async () => {
     await Promise.all([
@@ -93,6 +100,10 @@ export function cloneTerritorySiegeAsset(key: TerritorySiegeAssetKey): THREE.Gro
   const clone = source.clone(true);
   clone.name = `territory-siege-asset:${key}`;
   clone.traverse((object) => {
+    if (!territorySiegeAssetObjectVisible(object.name)) {
+      object.visible = false;
+      return;
+    }
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.castShadow = true;

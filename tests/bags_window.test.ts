@@ -373,10 +373,10 @@ describe('bags_window: touch peek + bank-cluster close', () => {
     // the shared dispatch, so they match the call opening and leave the argument
     // list to tests/item_copy_addressing_guard.
     expect(body).toMatch(/case 'petFeed':\s*this\.deps\.world\(\)\.feedPet\(s\.itemId/);
-    // The 'use' case tries the gathering-tool routing first (#2343) and only
-    // falls back to the plain useItem command when the hook declines.
+    // The 'use' case gives territory siege equipment first refusal, then tries
+    // the gathering-tool route, and only then falls back to plain useItem.
     expect(body).toMatch(
-      /case 'use': \{[\s\S]{0,400}?if \(!item \|\| !this\.deps\.useGatherTool\(item\)\) \{[\s\S]{0,200}?this\.deps\.world\(\)\.useItem\(s\.itemId/,
+      /case 'use': \{[\s\S]{0,500}?!this\.deps\.useTerritoryRam\?\.\(s\.itemId\)[\s\S]{0,200}?!this\.deps\.useGatherTool\(item\)[\s\S]{0,200}?this\.deps\.world\(\)\.useItem\(s\.itemId/,
     );
   });
 });

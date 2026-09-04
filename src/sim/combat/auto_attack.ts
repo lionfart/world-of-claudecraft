@@ -58,6 +58,7 @@ import { applyRageSpendCooldownRefund, spendResource } from './casting_lifecycle
 import { blindMissBonus, isDisarmed, isInStasis, isStunned } from './cc';
 import {
   combatAimAngle,
+  combatAimPitch,
   selectFirstTargetOnSegment,
   selectMeleeConeTargets,
 } from './directional_attack';
@@ -366,6 +367,7 @@ export function updatePlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerM
     } else {
       rangedSwing(ctx, p, null, rangedProfile, {
         angle,
+        pitch: combatAimPitch(meta),
         maxDistance: ranged.maxRange,
         minDistance: ranged.wand ? 0 : ranged.minRange,
       });
@@ -565,7 +567,7 @@ export function rangedSwing(
   attacker: Entity,
   target: Entity | null,
   ranged: { min: number; max: number; speed: number; wand?: boolean; school?: string },
-  directional?: { angle: number; maxDistance: number; minDistance?: number },
+  directional?: { angle: number; pitch?: number; maxDistance: number; minDistance?: number },
 ): void {
   const school = ranged.wand ? (ranged.school ?? 'arcane') : 'physical';
   const label = ranged.wand ? 'Wand' : AUTO_SHOT_LABEL;
@@ -646,6 +648,7 @@ export function rangedSwing(
       attacker,
       {
         angle: directional.angle,
+        pitch: directional.pitch,
         minDistance: directional.minDistance,
         maxDistance: directional.maxDistance,
         school,

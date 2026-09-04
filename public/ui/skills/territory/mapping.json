@@ -1,0 +1,19 @@
+{
+  "batchId": "territory-siege-abilities-2026-09-04",
+  "source": "OpenAI built-in image generation",
+  "owner": "World of ClaudeCraft",
+  "license": "World of ClaudeCraft project-generated art, project asset, rights reserved",
+  "iconSize": 128,
+  "acceptedSourcePath": "C:/Users/Bahri/.codex/generated_images/01a043ff-fb4e-7220-a3a3-d6afad52f234/exec-e50122d2-8704-4ed9-9c72-73cab684af4b.png",
+  "buildNote": "The generated 4x2 source atlas was cropped to seven 128px WebP runtime icons; only those compact crops ship with the game.",
+  "prompt": "Use case: stylized-concept. Asset type: cohesive 7-icon sprite atlas for a medieval fantasy MMORPG siege-weapon action bar. Primary request: Create seven distinct square ability icons arranged in a perfectly aligned 4 columns by 2 rows atlas. Row 1 left to right: (1) battering ram normal strike, a heavy iron-capped log slamming forward with sparks; (2) empowered battering ram strike, the same ram head surrounded by a powerful orange shockwave; (3) field mortar fire, a dark iron mortar launching one bright flaming shell in a high arc; (4) frost mortar shell, an icy blue mortar shell bursting into sharp frost crystals. Row 2 left to right: (5) venom mortar shell, a green toxic shell with poisonous vapor; (6) catapult boulder, a large rough stone flying with an orange impact trail; (7) catapult cluster barrage, several smaller stones spreading through the air; (8) leave completely empty solid black. Style/medium: hand-painted classic fantasy MMORPG ability icons, matching early-2000s high-contrast spell icons; dramatic highlights, painterly texture, crisp readable silhouettes at 48px. Composition/framing: exact uniform 4x2 grid, each cell perfectly square, subjects centered with safe padding, no overlap between cells; every occupied cell has the same thin ornate antique-gold fantasy frame and dark nearly-black smoky background. Lighting/mood: vivid magical impact lighting, deep shadows, bright focal effects. Color palette: bronze, iron, dark wood, fire orange; frost cyan-blue; venom emerald green. Constraints: no text, no numbers, no letters, no logos, no watermark, no characters, no UI outside the eight equal cells; each icon must be visually distinct and readable when downscaled; exact straight grid boundaries suitable for deterministic cropping.",
+  "entries": [
+    { "ability": "ram_strike", "file": "ram_strike.webp" },
+    { "ability": "ram_power_slam", "file": "ram_power_slam.webp" },
+    { "ability": "mortar_fire", "file": "mortar_fire.webp" },
+    { "ability": "mortar_frost", "file": "mortar_frost.webp" },
+    { "ability": "mortar_venom", "file": "mortar_venom.webp" },
+    { "ability": "catapult_boulder", "file": "catapult_boulder.webp" },
+    { "ability": "catapult_cluster", "file": "catapult_cluster.webp" }
+  ]
+}

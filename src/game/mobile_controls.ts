@@ -540,6 +540,8 @@ export class MobileControls {
     this.bindButton('mobile-bar-editor', () => this.callbacks.onBarEditor());
     this.bindButton('mobile-talents', () => this.callbacks.onTalents());
     this.bindButton('mobile-map', () => this.callbacks.onMap());
+    // Reuse the war-map action after the standard touch/More focus handoff.
+    this.bindButton('mobile-territory', () => document.getElementById('mm-territory')?.click());
     this.bindButton('mobile-leaderboard', () => this.callbacks.onLeaderboard());
     this.bindButton('mobile-daily-rewards', () => this.callbacks.onDailyRewards());
     this.bindButton('mobile-wocmarket', () => this.callbacks.onWocMarket());
@@ -551,13 +553,6 @@ export class MobileControls {
     this.bindButton('mobile-nameplates', () => {
       const on = this.callbacks.onNameplates();
       nameplatesBtn?.classList.toggle('active', on);
-    });
-    const musicBtn = document.getElementById('mobile-music');
-    this.bindButton('mobile-music', () => {
-      const on = this.callbacks.onMusic();
-      // mirror the desktop #mm-music control: a diagonal slash (.mm-muted) signals
-      // "off", rather than dimming the note
-      musicBtn?.classList.toggle('mm-muted', !on);
     });
     this.bindHapticsToggle('mobile-haptics');
     this.bindButton('mobile-more', () => {

@@ -25,7 +25,6 @@
 import {
   BALLISTIC_PROJECTILE_RADIUS,
   entityCombatRadius,
-  segmentCircleTimeOfImpact,
 } from './combat/directional_attack';
 import { evadeIncomingAttack } from './player_dodge';
 import type { SimContext } from './sim_context';
@@ -34,6 +33,27 @@ import { DT, type Entity } from './types';
 // Yards per second. Matches the homing projectile speed in src/render/vfx.ts so the
 // damage lands in step with the bolt the player actually sees. Keep the two in sync.
 export const PROJECTILE_SPEED = 26;
+export const BALLISTIC_PROJECTILE_LAUNCH_HEIGHT = 0.7;
+export const ENTITY_COMBAT_HEIGHT = 2;
+
+/**
+ * Canonical point that a client-side cursor hit should converge on. Visual
+ * character meshes are deliberately larger and more varied than the
+ * authoritative gameplay capsule, so aiming at the raw Three.js surface can
+ * send a projectile over a small target's server collider. This point is the
+ * centre of the same feet-anchored capsule used by swept collision below.
+ */
+export function entityCombatAimPoint(
+  entity: Pick<Entity, 'pos' | 'scale'>,
+): { x: number; y: number; z: number } {
+  const bodyRadius = entityCombatRadius(entity);
+  const bodyHeight = Math.max(bodyRadius * 2, ENTITY_COMBAT_HEIGHT * entity.scale);
+  return {
+    x: entity.pos.x,
+    y: entity.pos.y + bodyHeight * 0.5,
+    z: entity.pos.z,
+  };
+}
 
 // Impact radius in yards: the bolt lands once it is within this of the live target (or
 // one tick's step, whichever is larger). Mirrors the `Math.max(0.7, step)` arrival test
@@ -82,8 +102,10 @@ export type PendingBallisticProjectile = {
   kind: 'ballistic';
   trajectoryId: string;
   x: number;
+  y: number;
   z: number;
   dirX: number;
+  dirY: number;
   dirZ: number;
   sourceId: number;
   targetId?: never;
@@ -127,6 +149,7 @@ export function scheduleProjectile(
 
 export interface BallisticProjectileOptions {
   angle: number;
+  pitch?: number;
   maxDistance: number;
   minDistance?: number;
   speed?: number;
@@ -145,9 +168,17 @@ export function scheduleBallisticProjectile(
   fizzle?: () => void,
 ): string {
   const angle = Math.atan2(Math.sin(options.angle), Math.cos(options.angle));
+  const pitch =
+    typeof options.pitch === 'number' &&
+    Number.isFinite(options.pitch) &&
+    Math.abs(options.pitch) < Math.PI / 2
+      ? options.pitch
+      : 0;
   const trajectoryId = `${source.id}:${ctx.tickCount}:${ctx.pendingProjectiles.length}`;
-  const dirX = Math.sin(angle);
-  const dirZ = Math.cos(angle);
+  const horizontal = Math.cos(pitch);
+  const dirX = Math.sin(angle) * horizontal;
+  const dirY = Math.sin(pitch);
+  const dirZ = Math.cos(angle) * horizontal;
   const speed = Math.max(0.01, options.speed ?? PROJECTILE_SPEED);
   const radius = Math.max(0, options.radius ?? BALLISTIC_PROJECTILE_RADIUS);
   const maxDistance = Math.max(0, options.maxDistance);
@@ -155,8 +186,10 @@ export function scheduleBallisticProjectile(
     kind: 'ballistic',
     trajectoryId,
     x: source.pos.x,
+    y: source.pos.y + BALLISTIC_PROJECTILE_LAUNCH_HEIGHT,
     z: source.pos.z,
     dirX,
+    dirY,
     dirZ,
     sourceId: source.id,
     speed,
@@ -174,8 +207,10 @@ export function scheduleBallisticProjectile(
     trajectoryId,
     sourceId: source.id,
     x: source.pos.x,
+    y: source.pos.y + BALLISTIC_PROJECTILE_LAUNCH_HEIGHT,
     z: source.pos.z,
     dirX,
+    dirY,
     dirZ,
     speed,
     maxDistance,
@@ -191,22 +226,126 @@ export function scheduleBallisticProjectile(
 function wallImpactDistance(
   ctx: SimContext,
   source: Entity,
-  from: Readonly<{ x: number; z: number }>,
+  from: Readonly<{ x: number; y: number; z: number }>,
   dirX: number,
+  dirY: number,
   dirZ: number,
   distance: number,
 ): number | null {
-  const end = { x: from.x + dirX * distance, z: from.z + dirZ * distance };
+  const end = {
+    x: from.x + dirX * distance,
+    y: from.y + dirY * distance,
+    z: from.z + dirZ * distance,
+  };
   if (!ctx.projectilePathClear || ctx.projectilePathClear(source, from, end)) return null;
   let clear = 0;
   let blocked = distance;
   for (let i = 0; i < 10; i++) {
     const mid = (clear + blocked) / 2;
-    const probe = { x: from.x + dirX * mid, z: from.z + dirZ * mid };
+    const probe = {
+      x: from.x + dirX * mid,
+      y: from.y + dirY * mid,
+      z: from.z + dirZ * mid,
+    };
     if (!ctx.projectilePathClear || ctx.projectilePathClear(source, from, probe)) clear = mid;
     else blocked = mid;
   }
   return blocked;
+}
+
+function segmentSphereTimeOfImpact(
+  originX: number,
+  originY: number,
+  originZ: number,
+  directionX: number,
+  directionY: number,
+  directionZ: number,
+  maxDistance: number,
+  centerX: number,
+  centerY: number,
+  centerZ: number,
+  radius: number,
+): number | null {
+  const ox = originX - centerX;
+  const oy = originY - centerY;
+  const oz = originZ - centerZ;
+  const projection = ox * directionX + oy * directionY + oz * directionZ;
+  const c = ox * ox + oy * oy + oz * oz - radius * radius;
+  const discriminant = projection * projection - c;
+  if (discriminant < 0) return null;
+  const root = Math.sqrt(discriminant);
+  const enter = -projection - root;
+  const exit = -projection + root;
+  const distance = enter >= 0 ? enter : exit >= 0 ? 0 : null;
+  return distance !== null && distance <= maxDistance ? distance : null;
+}
+
+/** Swept projectile sphere against a feet-anchored vertical body capsule. */
+export function segmentEntityTimeOfImpact(
+  origin: Readonly<{ x: number; y: number; z: number }>,
+  direction: Readonly<{ x: number; y: number; z: number }>,
+  maxDistance: number,
+  entity: Pick<Entity, 'pos' | 'scale'>,
+  projectileRadius: number,
+): number | null {
+  const bodyRadius = entityCombatRadius(entity);
+  const bodyHeight = Math.max(bodyRadius * 2, ENTITY_COMBAT_HEIGHT * entity.scale);
+  const bottomY = entity.pos.y + bodyRadius;
+  const topY = entity.pos.y + bodyHeight - bodyRadius;
+  const radius = bodyRadius + Math.max(0, projectileRadius);
+  let best = segmentSphereTimeOfImpact(
+    origin.x,
+    origin.y,
+    origin.z,
+    direction.x,
+    direction.y,
+    direction.z,
+    maxDistance,
+    entity.pos.x,
+    bottomY,
+    entity.pos.z,
+    radius,
+  );
+  if (topY > bottomY + 1e-9) {
+    const topImpact = segmentSphereTimeOfImpact(
+      origin.x,
+      origin.y,
+      origin.z,
+      direction.x,
+      direction.y,
+      direction.z,
+      maxDistance,
+      entity.pos.x,
+      topY,
+      entity.pos.z,
+      radius,
+    );
+    if (topImpact !== null && (best === null || topImpact < best)) best = topImpact;
+  }
+
+  const ox = origin.x - entity.pos.x;
+  const oz = origin.z - entity.pos.z;
+  const a = direction.x * direction.x + direction.z * direction.z;
+  const c = ox * ox + oz * oz - radius * radius;
+  if (a > 1e-12) {
+    const b = 2 * (ox * direction.x + oz * direction.z);
+    const discriminant = b * b - 4 * a * c;
+    if (discriminant >= 0) {
+      const root = Math.sqrt(discriminant);
+      const enter = (-b - root) / (2 * a);
+      const exit = (-b + root) / (2 * a);
+      if (enter >= 0 && enter <= maxDistance) {
+        const enterY = origin.y + direction.y * enter;
+        if (enterY >= bottomY && enterY <= topY && (best === null || enter < best)) best = enter;
+      }
+      if (exit >= 0 && exit <= maxDistance) {
+        const exitY = origin.y + direction.y * exit;
+        if (exitY >= bottomY && exitY <= topY && (best === null || exit < best)) best = exit;
+      }
+    }
+    if (c <= 0 && origin.y >= bottomY && origin.y <= topY) best = 0;
+  }
+  return best;
 }
 
 function advanceBallisticProjectile(
@@ -221,6 +360,7 @@ function advanceBallisticProjectile(
       type: 'projectileImpact',
       trajectoryId: projectile.trajectoryId,
       x: projectile.x,
+      y: projectile.y,
       z: projectile.z,
       reason: 'range',
     });
@@ -232,6 +372,7 @@ function advanceBallisticProjectile(
     source,
     projectile,
     projectile.dirX,
+    projectile.dirY,
     projectile.dirZ,
     distance,
   );
@@ -239,16 +380,21 @@ function advanceBallisticProjectile(
   const midX = projectile.x + projectile.dirX * distance * 0.5;
   const midZ = projectile.z + projectile.dirZ * distance * 0.5;
   const visited = new Set<number>();
+  const projectileDirection = {
+    x: projectile.dirX,
+    y: projectile.dirY,
+    z: projectile.dirZ,
+  };
   const considerEntity = (entity: Entity): void => {
     if (visited.has(entity.id)) return;
     visited.add(entity.id);
     if (entity.id === source.id || entity.dead || !ctx.isHostileTo(source, entity)) return;
-    const impact = segmentCircleTimeOfImpact(
+    const impact = segmentEntityTimeOfImpact(
       projectile,
-      { x: projectile.dirX, z: projectile.dirZ },
+      projectileDirection,
       distance,
-      entity.pos,
-      projectile.radius + entityCombatRadius(entity),
+      entity,
+      projectile.radius,
     );
     if (impact === null || projectile.travelled + impact < projectile.minDistance - 1e-9) return;
     if (
@@ -259,7 +405,8 @@ function advanceBallisticProjectile(
       entityImpact = { entity, distance: impact };
     }
   };
-  const queryRadius = distance * 0.5 + 2.25;
+  const horizontalDistance = distance * Math.hypot(projectile.dirX, projectile.dirZ);
+  const queryRadius = horizontalDistance * 0.5 + 2.25;
   // Mobs/pets and players live in separate spatial indices. Querying both is
   // required for duel, arena and battleground interception; the id set keeps a
   // future overlapping index implementation deterministic and duplicate-free.
@@ -268,11 +415,13 @@ function advanceBallisticProjectile(
   const hit = entityImpact as { entity: Entity; distance: number } | null;
   if (hit && (wallImpact === null || hit.distance <= wallImpact + 1e-9)) {
     projectile.x += projectile.dirX * hit.distance;
+    projectile.y += projectile.dirY * hit.distance;
     projectile.z += projectile.dirZ * hit.distance;
     ctx.emit({
       type: 'projectileImpact',
       trajectoryId: projectile.trajectoryId,
       x: projectile.x,
+      y: projectile.y,
       z: projectile.z,
       targetId: hit.entity.id,
       reason: 'entity',
@@ -284,11 +433,13 @@ function advanceBallisticProjectile(
   }
   if (wallImpact !== null) {
     projectile.x += projectile.dirX * wallImpact;
+    projectile.y += projectile.dirY * wallImpact;
     projectile.z += projectile.dirZ * wallImpact;
     ctx.emit({
       type: 'projectileImpact',
       trajectoryId: projectile.trajectoryId,
       x: projectile.x,
+      y: projectile.y,
       z: projectile.z,
       reason: 'wall',
     });
@@ -296,6 +447,7 @@ function advanceBallisticProjectile(
     return false;
   }
   projectile.x += projectile.dirX * distance;
+  projectile.y += projectile.dirY * distance;
   projectile.z += projectile.dirZ * distance;
   projectile.travelled += distance;
   if (projectile.travelled >= projectile.maxDistance - 1e-9) {
@@ -303,6 +455,7 @@ function advanceBallisticProjectile(
       type: 'projectileImpact',
       trajectoryId: projectile.trajectoryId,
       x: projectile.x,
+      y: projectile.y,
       z: projectile.z,
       reason: 'range',
     });
@@ -333,6 +486,7 @@ export function advancePendingProjectiles(ctx: SimContext): void {
           type: 'projectileImpact',
           trajectoryId: proj.trajectoryId,
           x: proj.x,
+          y: proj.y,
           z: proj.z,
           reason: 'sourceDespawn',
         });

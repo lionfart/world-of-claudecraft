@@ -43,8 +43,8 @@ function state(rank: 'member' | 'officer' | 'leader' = 'leader'): TerritoryMapSt
       },
       {
         cellId: 9,
-        slot: 'wall',
-        kind: 'wall',
+        slot: 'walls',
+        kind: 'walls',
         level: 3,
         state: 'active',
         completesAt: null,
@@ -82,19 +82,19 @@ describe('territory structure slot cards', () => {
   });
 
   it('maps an empty clicked card to its exact build slot and kind', () => {
-    const gate = territorySlotModels(state(), 9).find((slot) => slot.slot === 'gate');
-    expect(gate).toMatchObject({
+    const granary = territorySlotModels(state(), 9).find((slot) => slot.slot === 'granary');
+    expect(granary).toMatchObject({
       state: 'empty',
-      action: { kind: 'build', cellId: 9, slot: 'gate', structureKind: 'gate' },
+      action: { kind: 'build', cellId: 9, slot: 'granary', structureKind: 'granary' },
     });
   });
 
   it('maps a built card to an upgrade of that same slot', () => {
-    const wall = territorySlotModels(state(), 9).find((slot) => slot.slot === 'wall');
-    expect(wall).toMatchObject({
+    const walls = territorySlotModels(state(), 9).find((slot) => slot.slot === 'walls');
+    expect(walls).toMatchObject({
       level: 3,
       state: 'active',
-      action: { kind: 'upgrade', cellId: 9, slot: 'wall' },
+      action: { kind: 'upgrade', cellId: 9, slot: 'walls' },
     });
   });
 
@@ -140,7 +140,7 @@ describe('territory pre-war notice', () => {
     expect(territoryWarCountdown(3_527)).toBe('58:47');
   });
 
-  it('keeps an active siege visible for late defenders and registered attackers only', () => {
+  it('keeps an active guild siege visible to both sides, including late unregistered attackers', () => {
     const now = Date.parse('2026-01-01T00:15:00.000Z');
     expect(territoryWarNoticeModel({ ...war, status: 'active', mySide: 'defender' }, now)).toEqual({
       visible: true,
@@ -160,6 +160,6 @@ describe('territory pre-war notice', () => {
         { ...war, status: 'active', mySide: 'attacker', registered: false },
         now,
       ).visible,
-    ).toBe(false);
+    ).toBe(true);
   });
 });

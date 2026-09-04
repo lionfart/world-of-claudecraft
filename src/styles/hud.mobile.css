@@ -2145,23 +2145,6 @@
   body.mobile-touch #mobile-extra-controls .mobile-btn.active .mobile-label {
     color: var(--gold);
   }
-  /* music toggle: a diagonal slash over the note signals "off" (mirrors #mm-music) */
-  body.mobile-touch #mobile-music {
-    position: relative;
-  }
-  body.mobile-touch #mobile-music.mm-muted::after {
-    content: "";
-    position: absolute;
-    left: 21px;
-    top: 50%;
-    width: 24px;
-    height: 2px;
-    border-radius: 2px;
-    background: #f0e8d2;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
-    transform: translate(-50%, -50%) rotate(-45deg);
-    pointer-events: none;
-  }
   /* Nothing renders IN this flow on touch any more: the player frame, the pet
      frame and the pet bar are lifted out to their own fixed seats, every desktop
      action bar is hidden, and #stancebar (the last occupant) stands down whole in

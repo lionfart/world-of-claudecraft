@@ -1192,6 +1192,7 @@ export const MEDIA_ASSETS: Record<string, string> =
   "models/resources/wood_planks_stack_large.glb": "/media/models/resources/wood_planks_stack_large.d048721175d3.glb",
   "models/resources/wood_planks_stack_medium.glb": "/media/models/resources/wood_planks_stack_medium.073476e7f49c.glb",
   "models/resources/wood_planks_stack_small.glb": "/media/models/resources/wood_planks_stack_small.4c4f6e80f874.glb",
+  "models/siege/territory_catapult.glb": "/media/models/siege/territory_catapult.2bb9fc69147a.glb",
   "models/tools/anvil.glb": "/media/models/tools/anvil.e498dc47c79f.glb",
   "models/tools/axe.glb": "/media/models/tools/axe.33f68649c8cf.glb",
   "models/tools/blueprint.glb": "/media/models/tools/blueprint.1aed6688633b.glb",

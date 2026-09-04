@@ -313,13 +313,139 @@ describe('territory service hot paths', () => {
       status: 'active',
       mySide: 'defender',
     });
-    await expect(attackerService.warNoticeForCharacter(12)).resolves.toBeNull();
+    await expect(attackerService.warNoticeForCharacter(12)).resolves.toMatchObject({
+      id: war.id,
+      status: 'active',
+      mySide: 'attacker',
+      registered: false,
+    });
     await expect(registeredAttackerService.warNoticeForCharacter(13)).resolves.toMatchObject({
       id: war.id,
       status: 'active',
       mySide: 'attacker',
       registered: true,
     });
+  });
+
+  it('keeps an active attacker registered after leaving so the same player can rejoin', async () => {
+    const nowMs = Date.now();
+    const war = {
+      id: '00000000-0000-4000-8000-000000000031',
+      targetCellId: 4,
+      attackerGuildId: '7',
+      attackerGuildName: 'Seven',
+      defenderGuildId: '8',
+      defenderGuildName: 'Eight',
+      status: 'active' as const,
+      declaredAt: new Date(nowMs - 10_000).toISOString(),
+      startsAt: new Date(nowMs - 1_000).toISOString(),
+      endsAt: new Date(nowMs + 60_000).toISOString(),
+      winnerGuildId: null,
+      attackerCount: 1,
+      defenderCount: 0,
+      mySide: null,
+      registered: false,
+    };
+    const repository = repositoryFake(mapState([war]));
+    repository.loadActiveWarRegistrations.mockResolvedValue([{ warId: war.id, characterId: 11 }]);
+    repository.leaveWar.mockResolvedValue({
+      ok: true,
+      delta: null,
+      duplicate: false,
+      guildId: 7,
+      seat: { warId: war.id, side: 'attacker', seatNo: 1 },
+    });
+    repository.joinWar.mockResolvedValue({
+      ok: true,
+      delta: null,
+      duplicate: false,
+      guildId: 7,
+      seat: { warId: war.id, side: 'attacker', seatNo: 1 },
+    });
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 11,
+        guildId: 7,
+        guildName: 'Seven',
+        rank: 'member',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+    );
+    await service.snapshotForCharacter(11);
+
+    const left = await service.execute(11, '00000000-0000-4000-8000-000000000032', 1, {
+      kind: 'leave_war',
+      warId: war.id,
+    });
+    const rejoined = await service.execute(11, '00000000-0000-4000-8000-000000000033', 1, {
+      kind: 'join_war',
+      warId: war.id,
+    });
+
+    expect(left).toMatchObject({ ok: true, seat: { side: 'attacker', seatNo: 1 } });
+    expect(rejoined).toMatchObject({ ok: true, seat: { side: 'attacker', seatNo: 1 } });
+    expect(repository.joinWar).toHaveBeenCalledOnce();
+  });
+
+  it('does not place a preserved but voluntarily departed attacker back into battle on restart', async () => {
+    const nowMs = Date.now();
+    const war = {
+      id: '00000000-0000-4000-8000-000000000034',
+      targetCellId: 4,
+      attackerGuildId: '7',
+      attackerGuildName: 'Seven',
+      defenderGuildId: '8',
+      defenderGuildName: 'Eight',
+      status: 'active' as const,
+      declaredAt: new Date(nowMs - 10_000).toISOString(),
+      startsAt: new Date(nowMs - 1_000).toISOString(),
+      endsAt: new Date(nowMs + 60_000).toISOString(),
+      winnerGuildId: null,
+      attackerCount: 1,
+      defenderCount: 0,
+      mySide: null,
+      registered: false,
+    };
+    const repository = repositoryFake(mapState([war]), [
+      {
+        warId: war.id,
+        targetCellId: war.targetCellId,
+        version: 2,
+        status: 'active',
+        startsAtMs: nowMs - 1_000,
+        endsAtMs: nowMs + 60_000,
+        gateLevel: 0,
+        coreLevel: 1,
+        attackerHasSiegeWorkshop: false,
+        defenseTowerLevel: 0,
+        participants: [
+          { characterId: 11, side: 'attacker', seatNo: 1, active: false },
+        ],
+      },
+    ]);
+    repository.loadActiveWarRegistrations.mockResolvedValue([{ warId: war.id, characterId: 11 }]);
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 11,
+        guildId: 7,
+        guildName: 'Seven',
+        rank: 'member',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+    );
+
+    await service.snapshotForCharacter(11);
+
+    expect(service.warNoticeFor(11, 7)?.registered).toBe(true);
+    expect(service.siegePlacementForCharacter(11)).toBeNull();
   });
 
   it('joins a live local siege without force-hydrating every participant again', async () => {
@@ -359,6 +485,7 @@ describe('territory service hot paths', () => {
       },
     ]);
     repository.loadActiveWarRegistrations.mockResolvedValue([{ warId: war.id, characterId: 11 }]);
+    const consumeRam = vi.fn(() => true);
     repository.joinWar.mockResolvedValue({
       ok: true,
       delta: null,
@@ -378,6 +505,7 @@ describe('territory service hot paths', () => {
       vi.fn(),
       vi.fn(),
       config,
+      { count: () => 50, consume: consumeRam },
     );
     await service.snapshotForCharacter(11);
 
@@ -399,6 +527,7 @@ describe('territory service hot paths', () => {
     expect(service.siegeForCharacter(11, nowMs)?.biome).toBe('snow');
     expect(action).toMatchObject({ ok: true, duplicate: false });
     expect(duplicate).toMatchObject({ ok: true, duplicate: true });
+    expect(consumeRam).toHaveBeenCalledTimes(1);
     expect(repository.loadDueSieges).toHaveBeenCalledTimes(1);
   });
 

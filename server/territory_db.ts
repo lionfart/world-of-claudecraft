@@ -4,6 +4,11 @@ import { territoryCellClaimable, territoryResourceProfile } from '../src/sim/ter
 import { territoryConstructionDurationMs } from '../src/sim/territory_construction';
 import type { TerritoryDelta } from '../src/sim/territory_delta';
 import {
+  TERRITORY_SIEGE_RECIPES,
+  territoryResourceProductionMultiplier,
+  type TerritorySiegeCraftKind,
+} from '../src/sim/territory_economy';
+import {
   createTerritoryManifest,
   type TerritoryManifest,
   type TerritoryResourceKind,
@@ -33,6 +38,8 @@ import {
   territoryFirstKeepAllowed,
   territoryRequiresSpend,
   territoryWarJoinAllowed,
+  territoryWarLeaveKeepsRegistration,
+  territoryWarParticipantBattleActive,
 } from './territory_rules';
 
 const RESOURCE_TICK_MS = 5 * 60_000;
@@ -43,6 +50,12 @@ const CLAIM_COST = { wood: 10, iron: 5, grain: 10, labor: 5 } as const;
 const WAR_COST = { wood: 50, iron: 75, grain: 50, labor: 50 } as const;
 const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>> = {
   keep_core: 'keep',
+  walls: 'walls',
+  towers: 'towers',
+  granary: 'granary',
+  forester: 'forester',
+  mine: 'mine',
+  house: 'house',
   gate: 'gate',
   wall: 'wall',
   tower_north: 'defense_tower',
@@ -60,6 +73,8 @@ type MutationError =
   | 'not_adjacent'
   | 'capacity'
   | 'insufficient_resources'
+  | 'insufficient_currency'
+  | 'siege_workshop_required'
   | 'occupied'
   | 'invalid_structure'
   | 'not_repairable'
@@ -155,7 +170,13 @@ export function territoryGuildColor(guildId: number): string {
 
 function buildCost(kind: TerritoryStructureKind, nextLevel: number) {
   const weight =
-    kind === 'keep' ? 5 : kind === 'gate' || kind === 'wall' ? 3 : kind === 'defense_tower' ? 4 : 2;
+    kind === 'keep'
+      ? 5
+      : kind === 'gate' || kind === 'wall' || kind === 'walls'
+        ? 3
+        : kind === 'defense_tower' || kind === 'towers'
+          ? 4
+          : 2;
   return {
     wood: weight * nextLevel * 12,
     iron: weight * nextLevel * 10,
@@ -528,7 +549,7 @@ export class TerritoryRepository {
   async loadGuildViewsSnapshot(now = new Date()): Promise<Map<number, TerritoryGuildSnapshot>> {
     const season = await this.activeSeason(this.pool);
     const seasonId = num(season.id);
-    const [states, owned, stores] = await Promise.all([
+    const [states, owned, extractors] = await Promise.all([
       this.pool.query<GuildStateRow & { guild_id: number; guild_name: string }>(
         `SELECT s.guild_id, g.name AS guild_name, s.territory_level,
                 s.wood, s.iron, s.grain, s.labor, s.accrued_at
@@ -541,13 +562,17 @@ export class TerritoryRepository {
           WHERE season_id = $1 ORDER BY guild_id, cell_id`,
         [seasonId],
       ),
-      this.pool.query<{ guild_id: number; total: string | number }>(
-        `SELECT c.guild_id, COALESCE(sum(s.level), 0) AS total
+      this.pool.query<{
+        guild_id: number;
+        kind: 'granary' | 'forester' | 'mine' | 'house';
+        total: string | number;
+      }>(
+        `SELECT c.guild_id, s.kind, COALESCE(sum(s.level), 0) AS total
            FROM territory_structures s
            JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
-          WHERE s.season_id = $1 AND s.kind = 'storehouse'
-            AND (s.state = 'active' OR s.target_level > s.level)
-          GROUP BY c.guild_id ORDER BY c.guild_id`,
+          WHERE s.season_id = $1 AND s.kind IN ('granary', 'forester', 'mine', 'house')
+            AND s.state = 'active'
+          GROUP BY c.guild_id, s.kind ORDER BY c.guild_id, s.kind`,
         [seasonId],
       ),
     ]);
@@ -557,12 +582,20 @@ export class TerritoryRepository {
       cells.push(cell.cell_id);
       cellsByGuild.set(cell.guild_id, cells);
     }
-    const storeLevels = new Map(stores.rows.map((row) => [row.guild_id, num(row.total)]));
+    const extractorLevels = new Map<
+      number,
+      Partial<Record<'granary' | 'forester' | 'mine' | 'house', number>>
+    >();
+    for (const row of extractors.rows) {
+      const levels = extractorLevels.get(row.guild_id) ?? {};
+      levels[row.kind] = num(row.total);
+      extractorLevels.set(row.guild_id, levels);
+    }
     const views = new Map<number, TerritoryGuildSnapshot>();
     for (const state of states.rows) {
       const cellIds = cellsByGuild.get(state.guild_id) ?? [];
-      const storeLevel = storeLevels.get(state.guild_id) ?? 0;
-      const capacity = 2_000 + storeLevel * 500;
+      const levels = extractorLevels.get(state.guild_id) ?? {};
+      const capacity = 2_000;
       const accruedMs = new Date(state.accrued_at).getTime();
       const ticks = Math.max(0, Math.floor((now.getTime() - accruedMs) / RESOURCE_TICK_MS));
       const production: Record<TerritoryResourceKind, number> = {
@@ -575,7 +608,10 @@ export class TerritoryRepository {
         for (const cellId of cellIds) {
           const cell = this.manifest.byId.get(cellId);
           const resource = cell ? territoryResourceProfile(cell, this.manifest.radius) : null;
-          if (resource) production[resource.kind] += ticks * resource.yield;
+          if (resource) {
+            production[resource.kind] +=
+              ticks * resource.yield * territoryResourceProductionMultiplier(resource.kind, levels);
+          }
         }
       }
       const level = state.territory_level;
@@ -631,17 +667,18 @@ export class TerritoryRepository {
     const accruedMs = new Date(row.accrued_at).getTime();
     const ticks = Math.max(0, Math.floor((now.getTime() - accruedMs) / RESOURCE_TICK_MS));
     if (ticks === 0) return row;
-    const [owned, storehouses] = await Promise.all([
+    const [owned, extractors] = await Promise.all([
       client.query<{ cell_id: number }>(
         `SELECT cell_id FROM territory_cells WHERE season_id = $1 AND guild_id = $2`,
         [seasonId, guildId],
       ),
-      client.query<{ total: string | number }>(
-        `SELECT COALESCE(sum(s.level), 0) AS total
+      client.query<{ kind: 'granary' | 'forester' | 'mine' | 'house'; total: string | number }>(
+        `SELECT s.kind, COALESCE(sum(s.level), 0) AS total
            FROM territory_structures s
            JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
-          WHERE s.season_id = $1 AND c.guild_id = $2 AND s.kind = 'storehouse'
-            AND (s.state = 'active' OR s.target_level > s.level)`,
+          WHERE s.season_id = $1 AND c.guild_id = $2
+            AND s.kind IN ('granary', 'forester', 'mine', 'house') AND s.state = 'active'
+          GROUP BY s.kind`,
         [seasonId, guildId],
       ),
     ]);
@@ -651,12 +688,17 @@ export class TerritoryRepository {
       grain: 0,
       labor: 0,
     };
+    const levels: Partial<Record<'granary' | 'forester' | 'mine' | 'house', number>> = {};
+    for (const row of extractors.rows) levels[row.kind] = num(row.total);
     for (const ownedCell of owned.rows) {
       const cell = this.manifest.byId.get(ownedCell.cell_id);
       const resource = cell ? territoryResourceProfile(cell, this.manifest.radius) : null;
-      if (resource) production[resource.kind] += ticks * resource.yield;
+      if (resource) {
+        production[resource.kind] +=
+          ticks * resource.yield * territoryResourceProductionMultiplier(resource.kind, levels);
+      }
     }
-    const capacity = 2_000 + num(storehouses.rows[0]?.total ?? 0) * 500;
+    const capacity = 2_000;
     const advancedAt = new Date(accruedMs + ticks * RESOURCE_TICK_MS);
     const updated = await client.query<GuildStateRow>(
       `UPDATE territory_guild_state
@@ -687,19 +729,10 @@ export class TerritoryRepository {
       const season = await this.activeSeason(client);
       const seasonId = num(season.id);
       const state = await this.accrueLocked(client, seasonId, actor.guildId, now);
-      const [owned, stores] = await Promise.all([
-        client.query<{ count: string | number }>(
-          `SELECT count(*) AS count FROM territory_cells WHERE season_id = $1 AND guild_id = $2`,
-          [seasonId, actor.guildId],
-        ),
-        client.query<{ total: string | number }>(
-          `SELECT COALESCE(sum(s.level), 0) AS total FROM territory_structures s
-             JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
-            WHERE s.season_id = $1 AND c.guild_id = $2 AND s.kind = 'storehouse'
-              AND (s.state = 'active' OR s.target_level > s.level)`,
-          [seasonId, actor.guildId],
-        ),
-      ]);
+      const owned = await client.query<{ count: string | number }>(
+        `SELECT count(*) AS count FROM territory_cells WHERE season_id = $1 AND guild_id = $2`,
+        [seasonId, actor.guildId],
+      );
       await client.query('COMMIT');
       const level = state.territory_level;
       return {
@@ -720,7 +753,7 @@ export class TerritoryRepository {
           grain: num(state.grain),
           labor: num(state.labor),
         },
-        resourceCapacity: 2_000 + num(stores.rows[0]?.total ?? 0) * 500,
+        resourceCapacity: 2_000,
         accruedAt: iso(state.accrued_at),
       };
     } catch (error) {
@@ -1040,6 +1073,30 @@ export class TerritoryRepository {
     });
   }
 
+  craftSiege(
+    ctx: TerritoryMutationContext,
+    kind: TerritorySiegeCraftKind,
+  ): Promise<TerritoryMutationResult> {
+    return this.mutate(ctx, `craft_siege_${kind}`, null, async (client, season) => {
+      const recipe = TERRITORY_SIEGE_RECIPES[kind];
+      if (!recipe) return 'invalid_structure';
+      const workshop = await client.query(
+        `SELECT 1
+           FROM territory_structures s
+           JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
+          WHERE s.season_id = $1 AND c.guild_id = $2
+            AND s.kind = 'siege_workshop' AND s.state = 'active'
+          LIMIT 1`,
+        [season.id, ctx.guildId],
+      );
+      if ((workshop.rowCount ?? 0) !== 1) return 'siege_workshop_required';
+      if (!(await this.spend(client, num(season.id), ctx.guildId, recipe.resources))) {
+        return 'insufficient_resources';
+      }
+      return { revision: 0 };
+    });
+  }
+
   upgrade(
     ctx: TerritoryMutationContext,
     cellId: number,
@@ -1280,6 +1337,12 @@ export class TerritoryRepository {
         ? new Date(existing.rows[0].joined_at).getTime() <= new Date(row.starts_at).getTime()
         : false;
       if (existing.rows[0] && territoryWarJoinAllowed(policyStatus, side, registeredBeforeStart)) {
+        await client.query(
+          `UPDATE territory_war_participants
+              SET disconnected_at = NULL
+            WHERE war_id = $1 AND character_id = $2`,
+          [warId, ctx.characterId],
+        );
         return { seat: { warId, side, seatNo: existing.rows[0].seat_no } };
       }
       if (!territoryWarJoinAllowed(policyStatus, side, false)) return 'registration_closed';
@@ -1307,14 +1370,49 @@ export class TerritoryRepository {
 
   leaveWar(ctx: TerritoryMutationContext, warId: string): Promise<TerritoryMutationResult> {
     return this.mutateParticipation(ctx, 'leave_war', warId, async (client, season) => {
-      const war = await client.query(
-        `SELECT 1 FROM territory_wars
+      const war = await client.query<{
+        attacker_guild_id: number;
+        defender_guild_id: number;
+        status: TerritoryWarStatus;
+        starts_at: Date | string;
+      }>(
+        `SELECT attacker_guild_id, defender_guild_id, status, starts_at
+           FROM territory_wars
           WHERE id = $1 AND season_id = $2
             AND status IN ('declared', 'forming', 'active')
           FOR UPDATE`,
         [warId, season.id],
       );
-      if ((war.rowCount ?? 0) !== 1) return 'war_not_found';
+      const row = war.rows[0];
+      if (!row) return 'war_not_found';
+      const side: TerritoryWarSide | null =
+        row.attacker_guild_id === ctx.guildId
+          ? 'attacker'
+          : row.defender_guild_id === ctx.guildId
+            ? 'defender'
+            : null;
+      if (!side) return 'forbidden';
+      const participant = await client.query<{ seat_no: number; joined_at: Date | string }>(
+        `SELECT seat_no, joined_at FROM territory_war_participants
+          WHERE war_id = $1 AND character_id = $2
+            AND left_at IS NULL AND seat_no IS NOT NULL`,
+        [warId, ctx.characterId],
+      );
+      const current = participant.rows[0];
+      if (!current) return 'not_participant';
+      const started = Date.now() >= new Date(row.starts_at).getTime();
+      const policyStatus = started ? 'active' : row.status;
+      const registeredBeforeStart =
+        new Date(current.joined_at).getTime() <= new Date(row.starts_at).getTime();
+      if (territoryWarLeaveKeepsRegistration(policyStatus, side, registeredBeforeStart)) {
+        await client.query(
+          `UPDATE territory_war_participants
+              SET disconnected_at = now()
+            WHERE war_id = $1 AND character_id = $2`,
+          [warId, ctx.characterId],
+        );
+        return { seat: { warId, side, seatNo: current.seat_no } };
+      }
       const left = await client.query(
         `UPDATE territory_war_participants
             SET left_at = now(), seat_no = NULL
@@ -1594,6 +1692,8 @@ export class TerritoryRepository {
     }>(
       `SELECT w.id, w.target_cell_id, w.version, w.status, w.starts_at, w.ends_at,
               COALESCE(
+                CASE WHEN walls.state = 'active' OR walls.target_level > walls.level
+                  THEN walls.level ELSE NULL END,
                 CASE WHEN gate.state = 'active' OR gate.target_level > gate.level
                   THEN gate.level ELSE 0 END,
                 0
@@ -1604,10 +1704,14 @@ export class TerritoryRepository {
                 1
               )::int AS core_level,
               (
-                COALESCE(CASE WHEN tower_n.state = 'active' OR tower_n.target_level > tower_n.level
-                  THEN tower_n.level ELSE 0 END, 0) +
-                COALESCE(CASE WHEN tower_s.state = 'active' OR tower_s.target_level > tower_s.level
-                  THEN tower_s.level ELSE 0 END, 0)
+                COALESCE(
+                  CASE WHEN towers.state = 'active' OR towers.target_level > towers.level
+                    THEN towers.level * 2 ELSE NULL END,
+                  COALESCE(CASE WHEN tower_n.state = 'active' OR tower_n.target_level > tower_n.level
+                    THEN tower_n.level ELSE 0 END, 0) +
+                  COALESCE(CASE WHEN tower_s.state = 'active' OR tower_s.target_level > tower_s.level
+                    THEN tower_s.level ELSE 0 END, 0)
+                )
               )::int AS defense_tower_level,
               EXISTS (
                 SELECT 1 FROM territory_structures workshop
@@ -1619,6 +1723,10 @@ export class TerritoryRepository {
                   AND (workshop.state = 'active' OR workshop.target_level > workshop.level)
               ) AS attacker_has_siege_workshop
          FROM territory_wars w
+         LEFT JOIN territory_structures walls
+           ON walls.season_id = w.season_id AND walls.cell_id = w.target_cell_id AND walls.slot = 'walls'
+         LEFT JOIN territory_structures towers
+           ON towers.season_id = w.season_id AND towers.cell_id = w.target_cell_id AND towers.slot = 'towers'
          LEFT JOIN territory_structures gate
            ON gate.season_id = w.season_id AND gate.cell_id = w.target_cell_id AND gate.slot = 'gate'
          LEFT JOIN territory_structures core
@@ -1641,8 +1749,9 @@ export class TerritoryRepository {
       side: TerritoryWarSide;
       seat_no: number | null;
       left_at: Date | string | null;
+      disconnected_at: Date | string | null;
     }>(
-      `SELECT p.war_id, p.character_id, p.side, p.seat_no, p.left_at
+      `SELECT p.war_id, p.character_id, p.side, p.seat_no, p.left_at, p.disconnected_at
          FROM territory_war_participants p
          JOIN territory_wars w ON w.id = p.war_id
         WHERE p.war_id = ANY($1::uuid[])
@@ -1658,7 +1767,10 @@ export class TerritoryRepository {
         characterId: participant.character_id,
         side: participant.side,
         seatNo: participant.seat_no,
-        active: participant.left_at === null,
+        active: territoryWarParticipantBattleActive(
+          participant.left_at,
+          participant.disconnected_at,
+        ),
       });
       byWar.set(participant.war_id, list);
     }

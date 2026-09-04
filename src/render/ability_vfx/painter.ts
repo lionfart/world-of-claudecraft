@@ -488,11 +488,19 @@ export class AbilityVfx {
   handleBallisticImpact(ev: {
     trajectoryId: string;
     x: number;
+    y?: number;
     z: number;
     targetId?: number;
     reason: 'entity' | 'wall' | 'range' | 'sourceDespawn';
   }): void {
-    this.deps.fx.finishBallisticSequence(ev.trajectoryId, ev.x, ev.z, ev.targetId, ev.reason);
+    this.deps.fx.finishBallisticSequence(
+      ev.trajectoryId,
+      ev.x,
+      ev.y,
+      ev.z,
+      ev.targetId,
+      ev.reason,
+    );
   }
 
   // Dev probe surface: per-ability claim/primitive counters (copied out).

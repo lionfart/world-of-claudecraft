@@ -13,16 +13,27 @@ export class GroundPointProjector {
   ) {}
 
   project(clientX: number, clientY: number, planeY: number): { x: number; z: number } | null {
+    if (!this.setRay(clientX, clientY)) return null;
+    this.groundPlane.constant = -planeY;
+    return this.raycaster.ray.intersectPlane(this.groundPlane, this.hit)
+      ? { x: this.hit.x, z: this.hit.z }
+      : null;
+  }
+
+  direction(clientX: number, clientY: number): { x: number; y: number; z: number } | null {
+    if (!this.setRay(clientX, clientY)) return null;
+    const direction = this.raycaster.ray.direction;
+    return { x: direction.x, y: direction.y, z: direction.z };
+  }
+
+  private setRay(clientX: number, clientY: number): boolean {
     const rect = this.canvas.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return null;
+    if (rect.width <= 0 || rect.height <= 0) return false;
     this.ndc.set(
       ((clientX - rect.left) / rect.width) * 2 - 1,
       -((clientY - rect.top) / rect.height) * 2 + 1,
     );
     this.raycaster.setFromCamera(this.ndc, this.camera);
-    this.groundPlane.constant = -planeY;
-    return this.raycaster.ray.intersectPlane(this.groundPlane, this.hit)
-      ? { x: this.hit.x, z: this.hit.z }
-      : null;
+    return true;
   }
 }

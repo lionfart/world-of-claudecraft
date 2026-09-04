@@ -6,6 +6,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   advancePendingProjectiles,
+  entityCombatAimPoint,
   PROJECTILE_REACH,
   PROJECTILE_SPEED,
   scheduleBallisticProjectile,
@@ -277,11 +278,19 @@ function ballisticCtx(mobs: any[] = [], players: any[] = []) {
   };
 }
 
-function ballisticEntity(id: number, x: number, z: number, hostile = true) {
-  return { ...ent(id, x, z), hostile, scale: 1 };
+function ballisticEntity(id: number, x: number, z: number, hostile = true, y = 0) {
+  return { ...ent(id, x, z), pos: { x, y, z }, hostile, scale: 1 };
 }
 
 describe('ballistic player projectiles', () => {
+  it('converges cursor hits on the centre of the authoritative entity capsule', () => {
+    expect(entityCombatAimPoint(ballisticEntity(2, 4, 8, true, 5))).toEqual({
+      x: 4,
+      y: 6,
+      z: 8,
+    });
+  });
+
   it('flies straight and lets the first intervening hostile take the shot', () => {
     const source = ballisticEntity(1, 0, 0, false);
     const far = ballisticEntity(2, 0, 16);
@@ -319,6 +328,80 @@ describe('ballistic player projectiles', () => {
     while (ctx.pendingProjectiles.length > 0) advancePendingProjectiles(ctx as any);
 
     expect(hits).toEqual([lowerId.id]);
+  });
+
+  it('climbs along a three-dimensional launch direction and hits an elevated target', () => {
+    const source = ballisticEntity(1, 0, 0, false, 0);
+    const elevated = ballisticEntity(2, 0, 10, true, 5);
+    const flatBystander = ballisticEntity(3, 0, 6, true, 0);
+    const ctx = ballisticCtx([source, flatBystander, elevated]);
+    const hits: number[] = [];
+
+    scheduleBallisticProjectile(
+      ctx as any,
+      source,
+      { angle: 0, pitch: Math.atan2(5, 10), maxDistance: 20, school: 'arcane' },
+      (_src, target) => hits.push(target.id),
+    );
+    const projectile = ctx.pendingProjectiles[0];
+    expect(projectile.dirY).toBeGreaterThan(0);
+    while (ctx.pendingProjectiles.length > 0) advancePendingProjectiles(ctx as any);
+
+    expect(hits).toEqual([elevated.id]);
+    expect(ctx.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'projectileImpact',
+        targetId: elevated.id,
+        y: expect.any(Number),
+      }),
+    );
+  });
+
+  it('passes below an elevated target when the launch pitch stays level', () => {
+    const source = ballisticEntity(1, 0, 0, false, 0);
+    const elevated = ballisticEntity(2, 0, 8, true, 5);
+    const ctx = ballisticCtx([source, elevated]);
+    const hit = vi.fn();
+
+    scheduleBallisticProjectile(
+      ctx as any,
+      source,
+      { angle: 0, pitch: 0, maxDistance: 12, school: 'fire' },
+      hit,
+    );
+    while (ctx.pendingProjectiles.length > 0) advancePendingProjectiles(ctx as any);
+
+    expect(hit).not.toHaveBeenCalled();
+    expect(ctx.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'projectileImpact', reason: 'range' }),
+    );
+  });
+
+  it('descends along a three-dimensional launch direction and hits a lower target', () => {
+    const source = ballisticEntity(1, 0, 0, false, 0);
+    const lower = ballisticEntity(2, 0, 10, true, -5);
+    const flatBystander = ballisticEntity(3, 0, 6, true, 0);
+    const ctx = ballisticCtx([source, flatBystander, lower]);
+    const hits: number[] = [];
+
+    scheduleBallisticProjectile(
+      ctx as any,
+      source,
+      { angle: 0, pitch: Math.atan2(-4.7, 10), maxDistance: 20, school: 'frost' },
+      (_src, target) => hits.push(target.id),
+    );
+    const projectile = ctx.pendingProjectiles[0];
+    expect(projectile.dirY).toBeLessThan(0);
+    while (ctx.pendingProjectiles.length > 0) advancePendingProjectiles(ctx as any);
+
+    expect(hits).toEqual([lower.id]);
+    expect(ctx.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'projectileImpact',
+        targetId: lower.id,
+        y: expect.any(Number),
+      }),
+    );
   });
 
   it('ignores friendlies and also collides with hostile players from playerGrid', () => {

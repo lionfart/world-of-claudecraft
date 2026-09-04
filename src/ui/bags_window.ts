@@ -228,6 +228,9 @@ export interface BagsWindowDeps extends PainterHostPresentation {
    *  handler consumed the use (nearest matching node + autorun stop); false
    *  falls back to the plain useItem command. */
   useGatherTool(item: ItemDef): boolean;
+  /** Territory siege equipment is an inventory action, not a HUD action.
+   *  True means the special-use route handled either deployment or its denial. */
+  useTerritoryRam?(itemId: string): boolean;
   // Hotbar drag plumbing (cross-window drag state lives on the HUD).
   isHotbarItemId(itemId: string): boolean;
   setDragAction(action: { type: 'item'; id: string } | null): void;
@@ -1578,7 +1581,10 @@ export class BagsWindow {
         // Gathering tools (#2343) route through the interact-style handler
         // (nearest matching node + autorun stop) when main.ts has wired it;
         // everything else, and any unwired host, keeps the plain useItem.
-        if (!item || !this.deps.useGatherTool(item)) {
+        if (
+          !this.deps.useTerritoryRam?.(s.itemId) &&
+          (!item || !this.deps.useGatherTool(item))
+        ) {
           this.deps.world().useItem(s.itemId, this.copyRefFor(s));
         }
         this.render();

@@ -5882,8 +5882,10 @@ export type SimEvent = { pid?: number } & (
       trajectoryId: string;
       sourceId: number;
       x: number;
+      y?: number;
       z: number;
       dirX: number;
+      dirY?: number;
       dirZ: number;
       speed: number;
       maxDistance: number;
@@ -5897,6 +5899,7 @@ export type SimEvent = { pid?: number } & (
       type: 'projectileImpact';
       trajectoryId: string;
       x: number;
+      y?: number;
       z: number;
       targetId?: number;
       reason: 'entity' | 'wall' | 'range' | 'sourceDespawn';

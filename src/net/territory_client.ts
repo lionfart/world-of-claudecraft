@@ -105,8 +105,16 @@ export class TerritoryClient {
   leaveWar(warId: string): void {
     this.mutate({ cmd: 'territory_leave_war', warId });
   }
-  siegeAction(action: TerritorySiegeAction): void {
-    this.mutate({ cmd: 'territory_siege_action', action });
+  craftSiege(kind: 'ram' | 'mortar' | 'catapult'): void {
+    this.mutate({ cmd: 'territory_craft_siege', kind });
+  }
+  siegeAction(action: TerritorySiegeAction, aim?: { x: number; z: number }, facing?: number): void {
+    this.mutate({
+      cmd: 'territory_siege_action',
+      action,
+      ...(aim ?? {}),
+      ...(facing === undefined ? {} : { facing }),
+    });
   }
 
   private commandId(): string {
@@ -262,9 +270,19 @@ export function installTerritoryClient<T extends object>(prototype: T): void {
         client(this).leaveWar(warId);
       },
     },
+    territoryCraftSiege: {
+      value(this: T, kind: 'ram' | 'mortar' | 'catapult') {
+        client(this).craftSiege(kind);
+      },
+    },
     territorySiegeAction: {
-      value(this: T, action: TerritorySiegeAction) {
-        client(this).siegeAction(action);
+      value(
+        this: T,
+        action: TerritorySiegeAction,
+        aim?: { x: number; z: number },
+        facing?: number,
+      ) {
+        client(this).siegeAction(action, aim, facing);
       },
     },
   });

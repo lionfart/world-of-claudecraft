@@ -1,12 +1,17 @@
 import type {
   TerritoryMapState,
+  TerritorySiegeWallId,
   TerritoryStructureKind,
   TerritoryStructureSlot,
 } from '../world_api/territory';
 import { createTerritoryManifest } from './territory_manifest';
 import type { TerritorySiegeControl } from './territory_siege';
 import {
+  clampTerritorySiegeCatapults,
   clampTerritorySiegeGate,
+  clampTerritorySiegeMortars,
+  clampTerritorySiegeRams,
+  resolveTerritorySiegeDestructibleStructures,
   sealTerritorySiegeGateForSide,
   territorySiegeProjectilePathClear,
 } from './territory_siege_layout';
@@ -18,11 +23,24 @@ export interface TerritorySimTeam {
   slot: number;
   gateOpen: boolean;
   control: TerritorySiegeControl | null;
+  /** Server-authored local positions for the at-most-three deployed ram carts. */
+  rams?: readonly Readonly<{ id: number; x: number; z: number }>[];
+  /** Server-authored local positions for both three-piece mortar batteries. */
+  mortars?: readonly Readonly<{ id: number; x: number; z: number }>[];
+  catapults?: readonly Readonly<{ id: number; x: number; z: number }>[];
+  wallHealth?: readonly Readonly<{ id: TerritorySiegeWallId; hp: number }>[];
+  towerHealth?: readonly Readonly<{ id: 'left' | 'right'; hp: number }>[];
 }
 
 const STARTING_RESOURCES = 250;
 const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>> = {
   keep_core: 'keep',
+  walls: 'walls',
+  towers: 'towers',
+  granary: 'granary',
+  forester: 'forester',
+  mine: 'mine',
+  house: 'house',
   gate: 'gate',
   wall: 'wall',
   tower_north: 'defense_tower',
@@ -240,6 +258,7 @@ export function territorySimLocksMovement(host: object, pid: number): boolean {
 export function territorySimResolveGate(
   host: object,
   pid: number,
+  fromX: number,
   fromZ: number,
   position: { x: number; z: number },
   radius: number,
@@ -254,12 +273,41 @@ export function territorySimResolveGate(
     position.z,
     radius,
   );
-  return sealTerritorySiegeGateForSide(
+  const sealed = sealTerritorySiegeGateForSide(
     team.slot,
     team.side,
     team.gateOpen,
     swept.x,
     swept.z,
+    radius,
+    team.wallHealth?.some((entry) => entry.hp <= 0) ?? false,
+  );
+  const clearOfRams =
+    team.control?.kind === 'ram' || !team.rams?.length
+      ? sealed
+      : clampTerritorySiegeRams(team.slot, team.rams, sealed.x, sealed.z, radius);
+  const clearOfMortars =
+    team.control?.kind === 'mortar' || !team.mortars?.length
+      ? clearOfRams
+      : clampTerritorySiegeMortars(team.slot, team.mortars, clearOfRams.x, clearOfRams.z, radius);
+  const clearOfCatapults =
+    team.control?.kind === 'catapult' || !team.catapults?.length
+      ? clearOfMortars
+      : clampTerritorySiegeCatapults(
+          team.slot,
+          team.catapults,
+          clearOfMortars.x,
+          clearOfMortars.z,
+          radius,
+        );
+  return resolveTerritorySiegeDestructibleStructures(
+    team.slot,
+    Object.fromEntries((team.wallHealth ?? []).map((entry) => [entry.id, entry.hp > 0])),
+    Object.fromEntries((team.towerHealth ?? []).map((entry) => [entry.id, entry.hp > 0])),
+    fromX,
+    fromZ,
+    clearOfCatapults.x,
+    clearOfCatapults.z,
     radius,
   );
 }
@@ -334,6 +382,7 @@ export function installTerritorySim<T extends object>(prototype: T): void {
     territoryCancelWar: { value() {} },
     territoryJoinWar: { value() {} },
     territoryLeaveWar: { value() {} },
+    territoryCraftSiege: { value() {} },
     territorySiegeAction: { value() {} },
     setTerritorySiegeTeam: {
       value(this: T, pid: number, team: TerritorySimTeam | null) {

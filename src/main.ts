@@ -329,6 +329,7 @@ import {
   ITEMS,
   isDelvePos,
   isRiftPos,
+  isTerritorySiegePos,
   MOBS,
   QUESTS,
   questRewardItem,
@@ -340,6 +341,7 @@ import { MARKET_HOUSE_STOCK } from './sim/market';
 import { bagOwnedMounts } from './sim/mounts';
 import { findPlayerPath, resolvePlayerDestination } from './sim/pathfind';
 import { isSubmerged } from './sim/player_motion';
+import { BALLISTIC_PROJECTILE_LAUNCH_HEIGHT } from './sim/projectile_travel';
 import { Sim } from './sim/sim';
 import { TAB_NEAR_RADIUS, TAB_QUERY_RADIUS, tabConeHalfAt } from './sim/tab_target';
 import {
@@ -502,7 +504,7 @@ import {
 } from './ui/wallet_balance';
 import { claudiumCheckoutErrorText } from './ui/wallet_bridge_reason_text';
 import { buildWalletConnectionView } from './ui/wallet_connection_view';
-import type { IWorld } from './world_api';
+import type { IWorld, TerritorySiegeObjectiveTarget } from './world_api';
 import { ONLINE_WORLD_INCOMPATIBLE_MESSAGE } from './world_api';
 
 const CLICK_MOVE_TURN_RATE = 4.2; // rad/sec; responsive turning while the camera stays decoupled from click spam
@@ -2055,6 +2057,9 @@ async function startGame(
     input,
     player: () => world.player,
     groundPoint: (x, y, planeY) => renderer.groundPoint(x, y, planeY),
+    screenRayDirection: (x, y) => renderer.screenRayDirection(x, y),
+    entityAimPoint: (x, y) => renderer.combatAimEntityPoint(x, y),
+    projectileLaunchHeight: BALLISTIC_PROJECTILE_LAUNCH_HEIGHT,
     offlineMeta: () => offlineSim?.meta(offlineSim.playerId) ?? null,
     online: () => online,
   });
@@ -2214,7 +2219,6 @@ async function startGame(
   };
   // reflect the current music state on the touch toggle (it may already be off
   // from a prior session, persisted in localStorage)
-  document.getElementById('mobile-music')?.classList.toggle('mm-muted', !music.enabled);
 
   // Gamepad: a separate remappable button profile drives the same dispatch the
   // keyboard/touch paths use. Edge-button actions route through this dispatcher;
@@ -3363,6 +3367,7 @@ async function startGame(
       world.bgFlagAction();
       return;
     }
+    if (hud.handleTerritorySiegeInteract()) return;
     stopAutorunForInteraction(
       tryNearbyInteraction(
         world,
@@ -3473,6 +3478,11 @@ async function startGame(
     );
   }
 
+  function selectTerritorySiegeObjective(target: TerritorySiegeObjectiveTarget | null): void {
+    hud.setTerritorySiegeObjectiveTarget(target);
+    renderer.setTerritorySiegeObjectiveTarget(target);
+  }
+
   function handlePick(x: number, y: number, button: number): void {
     if (hud.isGroundAimActive()) {
       if (button === 2) {
@@ -3499,10 +3509,19 @@ async function startGame(
       true,
       localPartyMemberIds(world.partyInfo),
     );
+    if (id === null && button === 0) {
+      const objective = renderer.pickTerritorySiegeObjective(x, y);
+      if (objective) {
+        world.targetEntity(null);
+        selectTerritorySiegeObjective(objective);
+        return;
+      }
+    }
     if (id === null || deferDirectCorpseToNode) {
       const nodeId = renderer.pickGatherNode(x, y);
       const node = nodeId !== null ? GATHER_NODES.find((n) => n.id === nodeId) : undefined;
       if (node) {
+        selectTerritorySiegeObjective(null);
         stopAutorunForInteraction(
           handleGatherNodeInteract(
             world,
@@ -3537,6 +3556,7 @@ async function startGame(
       // below is untouched). Decision table: src/game/target_click.ts.
       if (shouldClearTargetOnGroundClick(button, settings.get('stickyTarget'))) {
         world.targetEntity(null);
+        selectTerritorySiegeObjective(null);
       }
       // One ground raycast feeds both the move target and its marker, so the gold
       // marker appears only where the click actually sends you.
@@ -3551,6 +3571,7 @@ async function startGame(
       return;
     }
     const e = world.entities.get(id);
+    selectTerritorySiegeObjective(null);
     const interactionOutcome = handlePickedEntity(world, hud, id, button, x, y);
     const didInteractImmediately = interactionOutcome === true;
     if (e && e.id !== world.player.id) {
@@ -3956,6 +3977,20 @@ async function startGame(
     echoMs: 0,
     frameDt: 0,
   };
+  const TERRITORY_MORTAR_RTS_PITCH = 1.16;
+  const TERRITORY_MORTAR_RTS_DISTANCE = 88;
+  let territoryMortarCameraBlend = 0;
+  function applyCameraPose(frameDt: number): void {
+    const target = hud.isTerritoryMortarOperating() ? 1 : 0;
+    const response = target > territoryMortarCameraBlend ? 3.8 : 5.5;
+    territoryMortarCameraBlend +=
+      (target - territoryMortarCameraBlend) * Math.min(1, Math.max(0, frameDt) * response);
+    renderer.camYaw = input.camYaw;
+    renderer.camPitch =
+      input.camPitch + (TERRITORY_MORTAR_RTS_PITCH - input.camPitch) * territoryMortarCameraBlend;
+    renderer.camDist =
+      input.camDist + (TERRITORY_MORTAR_RTS_DISTANCE - input.camDist) * territoryMortarCameraBlend;
+  }
   function updateCamera(frameDt: number, interpFacing: number): void {
     const mi = input.readMoveInput();
     const clickMoving = !!input.clickMoveTarget && !input.suspendMovement && !movementFrozen();
@@ -4445,7 +4480,10 @@ async function startGame(
       while (acc >= DT) {
         const aim = combatAim.current();
         const meta = offlineSim.meta(offlineSim.playerId);
-        if (meta) meta.combatAimAngle = aim.angle;
+        if (meta) {
+          meta.combatAimAngle = aim.angle;
+          meta.combatAimPitch = aim.pitch;
+        }
         const { mi, facing } = resolveMove(
           mouselook,
           offlineSim.player.pos,
@@ -4515,9 +4553,7 @@ async function startGame(
         perf.finishTrace('camera.follow', traceStart, 'mode', 'offline', 'frameDtMs', frameDtMs);
       }
       introCameraTick(now);
-      renderer.camYaw = input.camYaw;
-      renderer.camPitch = input.camPitch;
-      renderer.camDist = input.camDist;
+      applyCameraPose(frameDt);
       // Cursor-driven renderer state: no cursor reaches a hidden window,
       // and the reticle is only consumed by the skipped draw (phase 4 QA F7).
       if (gate.render) syncGroundAimReticle();
@@ -4630,7 +4666,9 @@ async function startGame(
       net.moveInput.turnRight = false;
     }
     net.setMouselookFacing(netFacing);
-    net.setCombatAimAngle(combatAim.current().angle);
+    const liveCombatAim = combatAim.current();
+    net.setCombatAimAngle(liveCombatAim.angle);
+    net.setCombatAimPitch(liveCombatAim.pitch);
     // Online streams facing every frame, so the mouselook release yaw is
     // consumed here; drop it so it is not re-applied next frame.
     pendingReleaseFacing = null;
@@ -4717,7 +4755,8 @@ async function startGame(
     // spectating, corpse-frozen, or CC'd (playerImmobilized covers stun/root/
     // incapacitate/polymorph, and fear is a fear_incap incapacitate aura; the
     // fear steer and the charge/follow modes run server-side only), and inside
-    // a delve (the portcullis door clamps are not mirrored client-side).
+    // a delve or territory siege (their live doors / destructible walls are
+    // server-authoritative and are not mirrored by the display predictor).
     const selfMotion: SelfMotionFrame | null = SELF_MOTION_DISABLED
       ? null
       : selfMotionFrameBuffer.write(
@@ -4726,6 +4765,9 @@ async function startGame(
             !playerImmobilized() &&
             (pe.dodgeRemaining ?? 0) <= 0 &&
             !isDelvePos(pe.pos.x) &&
+            // Do not visually walk into an intact siege wall while the server
+            // is already holding the authoritative body at its front face.
+            !isTerritorySiegePos(pe.pos.x) &&
             // Rifts (like delves) are server-authoritative instanced content, and
             // their raised sanctum tiers lift the player's Y server-side. The local
             // kernel predicts a flat floor, so keep prediction off here and render
@@ -4762,9 +4804,7 @@ async function startGame(
       );
     }
     introCameraTick(now);
-    renderer.camYaw = input.camYaw;
-    renderer.camPitch = input.camPitch;
-    renderer.camDist = input.camDist;
+    applyCameraPose(frameDt);
     // Cursor-driven renderer state: no cursor reaches a hidden window,
     // and the reticle is only consumed by the skipped draw (phase 4 QA F7).
     if (gate.render) syncGroundAimReticle();

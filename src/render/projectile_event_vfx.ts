@@ -22,14 +22,18 @@ export function handleProjectileEventVfx(
   abilityVfx?: BallisticAbilityVfx,
 ): event is ProjectileEvent {
   if (event.type === 'projectileLaunch') {
-    const seed = getSeed();
+    const y =
+      typeof event.y === 'number' && Number.isFinite(event.y)
+        ? event.y
+        : groundHeight(event.x, event.z, getSeed()) + 0.7;
     const appearance = abilityVfx?.handleBallisticLaunch(event);
     vfx.ballisticProjectile(
       event.trajectoryId,
       event.x,
-      groundHeight(event.x, event.z, seed) + 0.7,
+      y,
       event.z,
       event.dirX,
+      event.dirY ?? 0,
       event.dirZ,
       event.speed,
       event.maxDistance,
@@ -39,11 +43,14 @@ export function handleProjectileEventVfx(
     return true;
   }
   if (event.type === 'projectileImpact') {
-    const seed = getSeed();
+    const y =
+      typeof event.y === 'number' && Number.isFinite(event.y)
+        ? event.y
+        : groundHeight(event.x, event.z, getSeed()) + 0.7;
     vfx.ballisticImpact(
       event.trajectoryId,
       event.x,
-      groundHeight(event.x, event.z, seed) + 0.7,
+      y,
       event.z,
       event.reason,
     );

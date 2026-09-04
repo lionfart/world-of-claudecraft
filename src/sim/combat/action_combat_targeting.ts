@@ -4,6 +4,7 @@ import { abilityUsesDirectionalHostileAim } from './directional_attack';
 export interface ActionCombatAim {
   x: number;
   z: number;
+  pitch?: number;
 }
 
 export interface ActionCombatCandidate {

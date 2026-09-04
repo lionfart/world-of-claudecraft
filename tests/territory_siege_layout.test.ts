@@ -1,23 +1,35 @@
 import { describe, expect, it } from 'vitest';
 import { territorySiegeOrigin } from '../src/sim/data';
 import {
+  TERRITORY_SIEGE_DEFENDER_PORTAL_X,
+  TERRITORY_SIEGE_DEFENDER_PORTAL_Z,
+  clampTerritorySiegeDestructibleStructures,
   clampTerritorySiegeGate,
+  resolveTerritorySiegeDestructibleStructures,
   sealTerritorySiegeGateForSide,
   TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
   TERRITORY_SIEGE_GATE_HALF_WIDTH,
   TERRITORY_SIEGE_GATE_Z,
+  TERRITORY_SIEGE_MORTAR_RANGE,
+  TERRITORY_SIEGE_RAM_COLLIDER_RADIUS,
+  TERRITORY_SIEGE_RAM_FORMATION,
   TERRITORY_SIEGE_TOWER_RANGE,
   TERRITORY_SIEGE_TOWER_X,
   territorySiegeActionPoint,
   territorySiegeBandColliders,
+  territorySiegeCatapultDeployPlacement,
+  territorySiegeCatapultPlacementAllowed,
+  territorySiegeDefenderPortalDestination,
   territorySiegeInTowerRange,
-  territorySiegeLocalColliders,
+  territorySiegeMortarDeployPlacement,
+  territorySiegeMortarPlacementAllowed,
   territorySiegeProjectilePathClear,
   territorySiegeSpawn,
   territorySiegeTowerPositions,
   territorySiegeWallPlacements,
+  territorySiegeWallSegmentPlacements,
 } from '../src/sim/territory_siege_layout';
 
 describe('territory siege instance layout', () => {
@@ -62,9 +74,7 @@ describe('territory siege instance layout', () => {
         const current = pieces[index];
         const previousCenter = alongZ ? previous.z : previous.x;
         const currentCenter = alongZ ? current.z : current.x;
-        expect(currentCenter - current.scaleX).toBeLessThanOrEqual(
-          previousCenter + previous.scaleX,
-        );
+        expect(currentCenter - current.scaleX).toBeCloseTo(previousCenter + previous.scaleX, 8);
       }
     }
   });
@@ -74,6 +84,164 @@ describe('territory siege instance layout', () => {
     const origin = territorySiegeOrigin(0);
     expect((origin.z + 25 - point.z) ** 2).toBeLessThanOrEqual(point.radius ** 2);
     expect((origin.z + 46 - point.z) ** 2).toBeGreaterThan(point.radius ** 2);
+  });
+
+  it('lays all three rams abreast on one crescent and pivots every nose at the gate', () => {
+    expect(TERRITORY_SIEGE_RAM_FORMATION).toHaveLength(3);
+    for (const ram of TERRITORY_SIEGE_RAM_FORMATION) {
+      expect(Math.hypot(ram.x, ram.z - TERRITORY_SIEGE_GATE_Z)).toBeCloseTo(9.5, 8);
+      expect(ram.yaw).toBeCloseTo(Math.atan2(ram.x, ram.z - TERRITORY_SIEGE_GATE_Z), 8);
+    }
+    for (let index = 1; index < TERRITORY_SIEGE_RAM_FORMATION.length; index += 1) {
+      const previous = TERRITORY_SIEGE_RAM_FORMATION[index - 1];
+      const current = TERRITORY_SIEGE_RAM_FORMATION[index];
+      expect(Math.hypot(current.x - previous.x, current.z - previous.z)).toBeGreaterThan(
+        TERRITORY_SIEGE_RAM_COLLIDER_RADIUS * 2,
+      );
+    }
+  });
+
+  it('allows free mortar placement while rejecting physical overlaps', () => {
+    expect(territorySiegeMortarDeployPlacement('defender', 12, -18)).toEqual({
+      x: 12,
+      z: -18,
+      yaw: Math.PI,
+      side: 'defender',
+    });
+    expect(territorySiegeMortarPlacementAllowed(0, -18, [])).toBe(true);
+    expect(territorySiegeMortarPlacementAllowed(24, 50, [])).toBe(true);
+    expect(territorySiegeMortarPlacementAllowed(0, 18, [])).toBe(false);
+    expect(territorySiegeMortarPlacementAllowed(0, -18, [{ x: 1, z: -18 }])).toBe(false);
+    expect(territorySiegeMortarPlacementAllowed(0, -18, [], [{ x: 1, z: -18 }])).toBe(false);
+    expect(territorySiegeMortarPlacementAllowed(0, -18, [], [], [{ x: 1, z: -18 }])).toBe(false);
+    const wall = territorySiegeWallSegmentPlacements()['back:3'];
+    expect(territorySiegeMortarPlacementAllowed(wall.x, wall.z, [])).toBe(false);
+    expect(TERRITORY_SIEGE_MORTAR_RANGE).toBeGreaterThan(50);
+    expect(TERRITORY_SIEGE_MORTAR_RANGE).toBeLessThan(TERRITORY_SIEGE_FIELD_HALF_Z * 2);
+  });
+
+  it('deploys catapults at clear free positions with the player facing', () => {
+    expect(territorySiegeCatapultDeployPlacement('attacker', 20, 52, 1.25)).toEqual({
+      x: 20,
+      z: 52,
+      yaw: 1.25,
+      side: 'attacker',
+    });
+    expect(territorySiegeCatapultPlacementAllowed(20, 52, [])).toBe(true);
+    expect(territorySiegeCatapultPlacementAllowed(20, 52, [{ x: 21, z: 52 }])).toBe(false);
+    expect(territorySiegeCatapultPlacementAllowed(0, 18, [])).toBe(false);
+    const wall = territorySiegeWallSegmentPlacements()['left:3'];
+    expect(territorySiegeCatapultPlacementAllowed(wall.x, wall.z, [])).toBe(false);
+    expect(
+      territorySiegeCatapultPlacementAllowed(TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_GATE_Z, []),
+    ).toBe(false);
+  });
+
+  it('removes collision only from the individual wall segment and tower whose health reached zero', () => {
+    const origin = territorySiegeOrigin(0);
+    const wall = territorySiegeWallSegmentPlacements()['left:3'];
+    const wallPoint = { x: origin.x + wall.x, z: origin.z + wall.z };
+    expect(
+      clampTerritorySiegeDestructibleStructures(
+        0,
+        { 'left:3': true },
+        undefined,
+        wallPoint.x,
+        wallPoint.z,
+        0.5,
+      ),
+    ).not.toEqual(wallPoint);
+    expect(
+      clampTerritorySiegeDestructibleStructures(
+        0,
+        { 'left:3': false },
+        undefined,
+        wallPoint.x,
+        wallPoint.z,
+        0.5,
+      ),
+    ).toEqual(wallPoint);
+
+    const towerPoint = {
+      x: origin.x + TERRITORY_SIEGE_TOWER_X - 3,
+      z: origin.z + TERRITORY_SIEGE_GATE_Z - 3,
+    };
+    expect(
+      clampTerritorySiegeDestructibleStructures(
+        0,
+        undefined,
+        { right: true },
+        towerPoint.x,
+        towerPoint.z,
+        0.5,
+      ),
+    ).not.toEqual(towerPoint);
+    expect(
+      clampTerritorySiegeDestructibleStructures(
+        0,
+        undefined,
+        { right: false },
+        towerPoint.x,
+        towerPoint.z,
+        0.5,
+      ),
+    ).toEqual(towerPoint);
+  });
+
+  it('sweeps long movement across intact wall segments without tunnelling through them', () => {
+    const origin = territorySiegeOrigin(0);
+    const wall = territorySiegeWallSegmentPlacements()['left:3'];
+    const outsideX = origin.x + wall.x - 5;
+    const insideX = origin.x + wall.x + 5;
+    const z = origin.z + wall.z;
+    const blocked = resolveTerritorySiegeDestructibleStructures(
+      0,
+      { 'left:3': true },
+      undefined,
+      outsideX,
+      z,
+      insideX,
+      z,
+      0.5,
+    );
+    expect(blocked.x).toBeLessThan(origin.x + wall.x);
+
+    expect(
+      resolveTerritorySiegeDestructibleStructures(
+        0,
+        { 'left:3': false },
+        undefined,
+        outsideX,
+        z,
+        insideX,
+        z,
+        0.5,
+      ),
+    ).toEqual({ x: insideX, z });
+  });
+
+  it('joins real wall footprints without crossing perpendicular runs or overlapping seams', () => {
+    // The shipped wall spans [-1,1] on X and [-0.4,0.4] on Z, scaled 2.25 deep.
+    const boxes = territorySiegeWallPlacements().map((wall) => {
+      const alongZ = wall.run === 'left' || wall.run === 'right';
+      return {
+        x: wall.x,
+        z: wall.z,
+        hx: alongZ ? 0.9 : wall.scaleX,
+        hz: alongZ ? wall.scaleX : 0.9,
+      };
+    });
+    for (let i = 0; i < boxes.length; i++) {
+      for (const b of boxes.slice(i + 1)) {
+        const a = boxes[i];
+        const overlapX = Math.min(a.x + a.hx, b.x + b.hx) - Math.max(a.x - a.hx, b.x - b.hx);
+        const overlapZ = Math.min(a.z + a.hz, b.z + b.hz) - Math.max(a.z - a.hz, b.z - b.hz);
+        expect(Math.min(overlapX, overlapZ)).toBeLessThanOrEqual(0.00001);
+      }
+    }
+    const side = boxes[0];
+    expect(side.z - side.hz).toBeCloseTo(-71.1);
+    expect(boxes[7].z + boxes[7].hz).toBeCloseTo(17.1);
   });
 
   it('gives the core channel a readable combat-sized attack area', () => {
@@ -124,6 +292,9 @@ describe('territory siege instance layout', () => {
         0.5,
       ).z,
     ).toBe(origin.z + 10);
+    expect(
+      sealTerritorySiegeGateForSide(0, 'attacker', false, origin.x, origin.z + 10, 0.5, true).z,
+    ).toBe(origin.z + 10);
   });
 
   it('blocks projectile segments through the gate leaf until it opens', () => {
@@ -143,12 +314,12 @@ describe('territory siege instance layout', () => {
   });
 
   it('seals the complete twenty-unit opening between the front wall segments', () => {
-    const frontWallInnerEdges = territorySiegeLocalColliders().flatMap((collider) =>
-      collider.type === 'obb' && collider.z === 18 && Math.abs(collider.x) === 27
-        ? [Math.abs(collider.x) - collider.hw]
+    const frontWallInnerEdges = territorySiegeWallPlacements().flatMap((wall) =>
+      wall.run === 'front_left' || wall.run === 'front_right'
+        ? [Math.abs(wall.x) - wall.scaleX]
         : [],
     );
-    expect(frontWallInnerEdges).toEqual([10, 10]);
+    expect(Math.min(...frontWallInnerEdges)).toBeCloseTo(TERRITORY_SIEGE_GATE_HALF_WIDTH);
     expect(TERRITORY_SIEGE_GATE_HALF_WIDTH).toBe(10);
   });
 
@@ -165,5 +336,18 @@ describe('territory siege instance layout', () => {
     expect(territorySiegeInTowerRange(0, origin.x, origin.z + TERRITORY_SIEGE_GATE_Z)).toBe(true);
     expect(territorySiegeInTowerRange(0, origin.x, origin.z + 50)).toBe(true);
     expect(territorySiegeInTowerRange(0, origin.x, origin.z + 96)).toBe(false);
+  });
+
+  it('moves a nearby defender across the front wall but rejects distant use', () => {
+    expect(
+      territorySiegeDefenderPortalDestination(
+        TERRITORY_SIEGE_DEFENDER_PORTAL_X,
+        TERRITORY_SIEGE_DEFENDER_PORTAL_Z + 1,
+      ),
+    ).toEqual({
+      x: TERRITORY_SIEGE_DEFENDER_PORTAL_X,
+      z: TERRITORY_SIEGE_DEFENDER_PORTAL_Z - 4.25,
+    });
+    expect(territorySiegeDefenderPortalDestination(30, 30)).toBeNull();
   });
 });

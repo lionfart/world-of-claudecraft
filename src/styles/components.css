@@ -11011,17 +11011,22 @@
   .territory-slot-card[data-territory-slot="keep_core"] {
     --territory-slot-accent: #d6a640;
   }
-  .territory-slot-card[data-territory-slot="gate"],
-  .territory-slot-card[data-territory-slot="wall"] {
+  .territory-slot-card[data-territory-slot="walls"] {
     --territory-slot-accent: #9a7654;
   }
-  .territory-slot-card[data-territory-slot^="tower_"] {
+  .territory-slot-card[data-territory-slot="towers"] {
     --territory-slot-accent: #a64532;
   }
-  .territory-slot-card[data-territory-slot="storehouse"] {
+  .territory-slot-card[data-territory-slot="granary"] {
     --territory-slot-accent: #99812f;
   }
-  .territory-slot-card[data-territory-slot="construction_workshop"] {
+  .territory-slot-card[data-territory-slot="forester"] {
+    --territory-slot-accent: #477638;
+  }
+  .territory-slot-card[data-territory-slot="mine"] {
+    --territory-slot-accent: #65717c;
+  }
+  .territory-slot-card[data-territory-slot="house"] {
     --territory-slot-accent: #b5672d;
   }
   .territory-slot-card[data-territory-slot="siege_workshop"] {
@@ -11080,14 +11085,73 @@
     opacity: 0.48;
     cursor: default;
   }
-
-  #territory-war-notice {
-    position: fixed;
+  #territory-workshop-crafting {
     display: none;
-    right: 112px;
-    bottom: 18px;
-    width: min(286px, calc(100vw - 128px));
-    z-index: 91;
+    margin-top: 7px;
+    padding: 7px;
+    color: #d9c59e;
+    border: 1px solid #6c4c28;
+    border-radius: 4px;
+    background: linear-gradient(145deg, #26160eeb, #100b08f2);
+  }
+  #territory-workshop-crafting > strong,
+  #territory-workshop-crafting > small {
+    display: block;
+  }
+  #territory-workshop-crafting > strong {
+    color: #f1c45d;
+    font: 11px var(--title-font);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  #territory-workshop-crafting > small {
+    margin: 3px 0 6px;
+    color: #aa9678;
+    font-size: 9px;
+  }
+  .territory-workshop-recipes {
+    display: grid;
+    gap: 4px;
+  }
+  .territory-workshop-recipes button {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 7px;
+    color: #f1dfbd;
+    border: 1px solid #76512a;
+    border-radius: 3px;
+    background: linear-gradient(#3a2515, #20130c);
+    cursor: var(--cursor-point);
+  }
+  .territory-workshop-recipes button:hover:not(:disabled) {
+    border-color: var(--gold);
+    box-shadow: inset 0 0 9px #b75b202e;
+  }
+  .territory-workshop-recipes button:disabled {
+    opacity: 0.42;
+    cursor: default;
+  }
+  .territory-workshop-recipes small {
+    color: #b99a61;
+  }
+
+  #territory-war-dock {
+    display: none;
+    position: absolute;
+    top: 58px;
+    right: 12px;
+    /* Keep the notice beside (not on top of) the owned-hex inspector. */
+    width: min(244px, calc(50% - 20px));
+    max-height: calc(100% - 80px);
+    overflow-y: auto;
+    z-index: 4;
+    pointer-events: auto;
+  }
+  #territory-war-notice {
+    position: relative;
+    display: none;
+    width: 100%;
     box-sizing: border-box;
     padding: 8px;
     color: var(--color-text);
@@ -11103,6 +11167,10 @@
       inset 0 8px 20px #0005,
       0 5px 20px #000c;
     pointer-events: auto;
+    margin-left: auto;
+    transition:
+      width 160ms ease,
+      padding 160ms ease;
   }
   .territory-war-notice-head {
     display: flex;
@@ -11129,6 +11197,54 @@
   .territory-war-notice-heading {
     min-width: 0;
     flex: 1;
+  }
+  #territory-war-notice-toggle {
+    min-width: 46px;
+    min-height: 24px;
+    flex: none;
+    padding: 3px 6px;
+    color: #d9c48f;
+    font-family: var(--font-ui);
+    font-size: 9px;
+    border: 1px solid #6d5729;
+    border-radius: 3px;
+    background: linear-gradient(#35271b, #17120e);
+    cursor: var(--cursor-point);
+  }
+  #territory-war-notice-toggle:hover,
+  #territory-war-notice-toggle:focus-visible {
+    color: #fff0bd;
+    border-color: var(--gold);
+    outline: 2px solid #d6a64033;
+  }
+  #territory-war-notice.is-collapsed #territory-war-notice-body {
+    display: none;
+  }
+  #territory-war-notice.is-collapsed {
+    width: 38px;
+    padding: 6px 4px;
+    border-left-color: #d69b45;
+  }
+  #territory-war-notice.is-collapsed .territory-war-notice-icon,
+  #territory-war-notice.is-collapsed .territory-war-notice-heading {
+    display: none;
+  }
+  #territory-war-notice.is-collapsed .territory-war-notice-head {
+    justify-content: center;
+  }
+  #territory-war-notice.is-collapsed #territory-war-notice-toggle {
+    width: 28px;
+    min-width: 28px;
+    padding: 0;
+    overflow: hidden;
+    color: transparent;
+    font-size: 0;
+  }
+  #territory-war-notice.is-collapsed #territory-war-notice-toggle::after {
+    content: "‹";
+    color: #f0cd87;
+    font-size: 20px;
+    line-height: 20px;
   }
   #territory-war-kicker {
     color: #db7651;
@@ -11208,6 +11324,17 @@
     border-color: var(--gold);
     outline: 2px solid #d6a64033;
   }
+  #territory-war-notice.is-empty .territory-war-notice-meta,
+  #territory-war-notice.is-empty #territory-war-countdown,
+  #territory-war-notice.is-empty #territory-war-teleport,
+  #territory-war-notice.is-empty #territory-war-action {
+    display: none;
+  }
+  #territory-war-notice.is-empty #territory-war-title {
+    white-space: normal;
+    font-family: var(--font-ui);
+    font-weight: normal;
+  }
 
   #territory-siege-hud {
     position: fixed;
@@ -11216,6 +11343,7 @@
     bottom: 18px;
     width: min(270px, calc(100vw - 128px));
     z-index: 90;
+    box-sizing: border-box;
     padding: 7px 8px;
     text-align: left;
     color: var(--color-text);
@@ -11234,44 +11362,6 @@
     font-size: 9px;
     color: var(--color-text-muted);
   }
-  .territory-siege-progress {
-    height: 12px;
-    margin-top: 2px;
-    overflow: hidden;
-    border: 1px solid #66502d;
-    background: #100c08;
-  }
-  .territory-siege-progress span {
-    display: block;
-    height: 100%;
-    width: 0;
-    padding: 0 4px;
-    box-sizing: border-box;
-    white-space: nowrap;
-    color: #fff;
-    font-size: 8px;
-    text-align: left;
-    background: linear-gradient(90deg, #7d321f, #c66a33);
-  }
-  .territory-siege-actions {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 3px;
-    margin-top: 4px;
-  }
-  .territory-siege-actions button {
-    min-height: 23px;
-    padding: 2px 4px;
-    font-size: 9px;
-    color: var(--color-text);
-    border: 1px solid #79572e;
-    background: #2b2116;
-    cursor: var(--cursor-point);
-  }
-  .territory-siege-actions button:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
   #territory-leave-siege {
     width: 100%;
     min-height: 22px;
@@ -11283,6 +11373,37 @@
     background: #1c1510;
     cursor: var(--cursor-point);
   }
+  #territory-siege-interact {
+    position: fixed;
+    display: none;
+    left: 50%;
+    bottom: 148px;
+    z-index: 94;
+    transform: translateX(-50%);
+    align-items: center;
+    gap: 8px;
+    padding: 7px 11px;
+    color: #e9ddb6;
+    font-family: var(--font-ui);
+    font-size: 11px;
+    border: 1px solid #8f7134;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #251c13ef, #0a0c10f2);
+    box-shadow:
+      0 4px 18px #000b,
+      inset 0 0 0 1px #e3bb4a1c;
+    pointer-events: none;
+  }
+  #territory-siege-interact kbd {
+    min-width: 25px;
+    padding: 3px 5px;
+    color: #fff2b6;
+    text-align: center;
+    border: 1px solid #bd923b;
+    border-radius: 3px;
+    background: #080a0d;
+    box-shadow: inset 0 -2px 0 #0008;
+  }
   #territory-leave-siege:hover,
   #territory-leave-siege:focus-visible {
     color: var(--color-text);
@@ -11293,6 +11414,121 @@
   body.territory-siege-control-locked #mobile-action-page {
     filter: saturate(0.3) brightness(0.65);
     pointer-events: none;
+  }
+  #territory-ram-actionbar,
+  #territory-mortar-actionbar,
+  #territory-catapult-actionbar {
+    display: none;
+    align-self: stretch;
+    justify-content: center;
+    gap: 6px;
+    box-sizing: border-box;
+    min-height: 58px;
+    padding: 6px;
+    border-color: #7b5727;
+    background: linear-gradient(90deg, #0c0a08ee, #21170f 50%, #0c0a08ee), #0b0908;
+    box-shadow:
+      inset 0 0 18px #000,
+      0 2px 8px #000b;
+  }
+  body.territory-ram-operating #actionbar,
+  body.territory-ram-operating #actionbar2,
+  body.territory-ram-operating #actionbar3,
+  body.territory-ram-operating #stancebar,
+  body.territory-ram-operating #cross-hotbar {
+    display: none !important;
+  }
+  body.territory-mortar-operating #actionbar,
+  body.territory-mortar-operating #actionbar2,
+  body.territory-mortar-operating #actionbar3,
+  body.territory-mortar-operating #stancebar,
+  body.territory-mortar-operating #cross-hotbar {
+    display: none !important;
+  }
+  body.territory-ram-operating #territory-ram-actionbar {
+    display: flex !important;
+  }
+  body.territory-mortar-operating #territory-mortar-actionbar {
+    display: flex !important;
+  }
+  body.territory-catapult-operating #territory-catapult-actionbar {
+    display: flex !important;
+  }
+  .territory-ram-skill {
+    overflow: hidden;
+    border-color: #73572d;
+    background: radial-gradient(circle at 42% 36%, #5a4023, #17110c 72%);
+  }
+  .territory-ram-skill .icon-label {
+    background: center / cover no-repeat url("/ui/skills/territory/ram_strike.webp");
+  }
+  .territory-ram-skill.power {
+    border-color: #a86221;
+    box-shadow:
+      inset 0 0 0 1px #ffb23c33,
+      0 2px 4px #0009;
+  }
+  .territory-ram-skill.power .icon-label {
+    background-image: url("/ui/skills/territory/ram_power_slam.webp");
+  }
+  .territory-ram-skill:disabled {
+    filter: grayscale(0.72) brightness(0.62);
+    cursor: default;
+  }
+  .territory-mortar-skill {
+    overflow: hidden;
+    border-color: #806132;
+    background: radial-gradient(circle at 42% 36%, #554124, #11100d 72%);
+  }
+  .territory-mortar-skill .icon-label {
+    background: center / cover no-repeat url("/ui/skills/territory/mortar_fire.webp");
+  }
+  .territory-mortar-skill.frost {
+    border-color: #4f91b6;
+    box-shadow: inset 0 0 9px #5bc9ff44;
+  }
+  .territory-mortar-skill.frost .icon-label {
+    background-image: url("/ui/skills/territory/mortar_frost.webp");
+  }
+  .territory-mortar-skill.venom {
+    border-color: #578d34;
+    box-shadow: inset 0 0 9px #6bcf3c44;
+  }
+  .territory-mortar-skill.venom .icon-label {
+    background-image: url("/ui/skills/territory/mortar_venom.webp");
+  }
+  .territory-mortar-skill.prepared {
+    border-color: #ffd05a;
+    box-shadow:
+      0 0 0 2px #ffbf35,
+      0 0 15px #ff9c2a99,
+      inset 0 0 10px #ffe28c44;
+  }
+  .territory-mortar-skill:disabled {
+    filter: grayscale(0.72) brightness(0.62);
+    cursor: default;
+  }
+  .territory-catapult-skill {
+    overflow: hidden;
+    border-color: #8f642d;
+    background: radial-gradient(circle at 42% 36%, #67401d, #100c08 72%);
+  }
+  .territory-catapult-skill .icon-label {
+    background: center / cover no-repeat url("/ui/skills/territory/catapult_boulder.webp");
+  }
+  .territory-catapult-skill.cluster .icon-label {
+    background-image: url("/ui/skills/territory/catapult_cluster.webp");
+  }
+  .territory-catapult-skill.prepared {
+    border-color: #ffd05a;
+    box-shadow:
+      0 0 0 2px #ffbf35,
+      0 0 15px #ff9c2a99,
+      inset 0 0 10px #ffe28c44;
+  }
+  .territory-catapult-skill:disabled {
+    filter: grayscale(0.72) brightness(0.62);
+    cursor: default;
   }
   #territory-siege-result {
     position: fixed;
@@ -11394,8 +11630,12 @@
     #territory-panel {
       left: 8px;
       bottom: 8px;
-      width: min(320px, calc(100% - 62px));
+      width: calc(50% - 16px);
       max-height: 52%;
+    }
+    #territory-panel[data-mode="owned"],
+    #territory-panel[data-mode="mountain"] {
+      width: calc(50% - 16px);
     }
     #territory-structure-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11405,15 +11645,37 @@
     #territory-war-action {
       min-height: 44px;
     }
-    #territory-war-notice,
+    #territory-war-dock {
+      right: 8px;
+      top: 48px;
+      max-height: 48%;
+    }
     #territory-siege-hud {
       right: 56px;
       bottom: 70px;
       width: min(286px, calc(100vw - 68px));
     }
-    .territory-siege-actions {
-      grid-template-columns: repeat(2, 1fr);
-    }
+  }
+  /* Landscape phones also have a narrow map even when the viewport is >620px. */
+  body.mobile-touch #territory-panel,
+  body.mobile-touch #territory-panel[data-mode="owned"],
+  body.mobile-touch #territory-panel[data-mode="mountain"] {
+    left: 8px;
+    bottom: 8px;
+    width: calc(50% - 16px);
+    max-height: calc(100% - 76px);
+  }
+  body.mobile-touch #territory-structure-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.mobile-touch #territory-war-dock {
+    right: 8px;
+    top: 48px;
+    max-height: calc(100% - 80px);
+  }
+  body.mobile-touch #territory-war-dock button {
+    min-height: 44px;
+    font-size: 12px;
   }
 
   /* ---------- Dungeon Finder ---------- */

@@ -340,6 +340,33 @@
           <div id="actionbar2" class="panel"></div>
           <div id="cross-hotbar" class="xhb" style="display: none"></div>
           <div id="actionbar" class="panel"></div>
+          <div id="territory-ram-actionbar" class="panel" aria-label="Battering ram abilities">
+            <button type="button" class="action-btn territory-ram-skill normal" id="territory-ram-strike">
+              <span class="icon-label" aria-hidden="true"></span><span class="keybind">1</span><span class="cdtext" id="territory-ram-strike-cooldown"></span>
+            </button>
+            <button type="button" class="action-btn territory-ram-skill power" id="territory-ram-power-strike">
+              <span class="icon-label" aria-hidden="true"></span><span class="keybind">2</span><span class="cdtext" id="territory-ram-power-strike-cooldown"></span>
+            </button>
+          </div>
+          <div id="territory-mortar-actionbar" class="panel" aria-label="Field mortar abilities">
+            <button type="button" class="action-btn territory-mortar-skill normal" id="territory-mortar-fire">
+              <span class="icon-label" aria-hidden="true"></span><span class="keybind">1</span><span class="cdtext" id="territory-mortar-fire-cooldown"></span>
+            </button>
+            <button type="button" class="action-btn territory-mortar-skill frost" id="territory-mortar-frost">
+              <span class="icon-label" aria-hidden="true"></span><span class="keybind">2</span><span class="cdtext" id="territory-mortar-frost-cooldown"></span>
+            </button>
+            <button type="button" class="action-btn territory-mortar-skill venom" id="territory-mortar-venom">
+              <span class="icon-label" aria-hidden="true"></span><span class="keybind">3</span><span class="cdtext" id="territory-mortar-venom-cooldown"></span>
+            </button>
+          </div>
+          <div id="territory-catapult-actionbar" class="panel" aria-label="Field catapult abilities">
+            <button type="button" class="action-btn territory-catapult-skill normal" id="territory-catapult-fire">
+              <span class="icon-label" aria-hidden="true"></span><span class="keybind">1</span><span class="cdtext" id="territory-catapult-fire-cooldown"></span>
+            </button>
+            <button type="button" class="action-btn territory-catapult-skill cluster" id="territory-catapult-cluster">
+              <span class="icon-label" aria-hidden="true"></span><span class="keybind">2</span><span class="cdtext" id="territory-catapult-cluster-cooldown"></span>
+            </button>
+          </div>
           <div id="xpbar"><div class="fill"></div><div class="rested"></div><div class="ticks"></div><div class="label"></div></div>
         </div>
         <div id="target-auras-window" class="panel mt-panel ta-panel" role="region" aria-labelledby="target-auras-title" style="display: none">
@@ -470,14 +497,56 @@
       </div>
       <canvas id="map-canvas" width="560" height="560" role="img" aria-describedby="map-summary map-marker-summary" data-i18n-aria="hud.core.mapCanvasLabel" aria-label="Map"></canvas>
       <div id="territory-panel">
+        <button type="button" class="x-btn" id="territory-panel-close" data-i18n-title="game.talents.close" data-i18n-aria="game.talents.close" title="Close" aria-label="Close" data-icon="close"></button>
         <div id="territory-cell-title"></div>
         <div id="territory-cell-detail"></div>
         <div id="territory-cell-battlefield"></div>
         <div id="territory-economy"></div>
         <div class="territory-actions">
-          <button type="button" id="territory-primary-action"></button>
-          <button type="button" id="territory-build-action"></button>
-          <button type="button" id="territory-upgrade-action"></button>
+          <button type="button" class="btn" id="territory-primary-action"></button>
+        </div>
+        <section id="territory-structure-section" aria-labelledby="territory-structure-title">
+          <div id="territory-structure-title" data-i18n="hudChrome.territoryMap.structureSlots">Keep structures</div>
+          <div id="territory-structure-grid">
+            <button type="button" class="territory-slot-card" data-territory-slot="keep_core" data-icon="crown"><span><strong id="territory-slot-keep_core-name" data-i18n="hudChrome.territoryMap.slotKeep">Keep core</strong><small id="territory-slot-keep_core-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="walls" data-icon="tank"><span><strong id="territory-slot-walls-name" data-i18n="hudChrome.territoryMap.slotWalls">Walls &amp; gate</strong><small id="territory-slot-walls-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="towers" data-icon="target"><span><strong id="territory-slot-towers-name" data-i18n="hudChrome.territoryMap.slotTowers">Towers</strong><small id="territory-slot-towers-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="granary" data-icon="chest"><span><strong id="territory-slot-granary-name" data-i18n="hudChrome.territoryMap.slotGranary">Granary</strong><small id="territory-slot-granary-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="forester" data-icon="crafting"><span><strong id="territory-slot-forester-name" data-i18n="hudChrome.territoryMap.slotForester">Forester</strong><small id="territory-slot-forester-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="mine" data-icon="attack"><span><strong id="territory-slot-mine-name" data-i18n="hudChrome.territoryMap.slotMine">Mine</strong><small id="territory-slot-mine-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="house" data-icon="crown"><span><strong id="territory-slot-house-name" data-i18n="hudChrome.territoryMap.slotHouse">House</strong><small id="territory-slot-house-status"></small></span></button>
+            <button type="button" class="territory-slot-card" data-territory-slot="siege_workshop" data-icon="attack"><span><strong id="territory-slot-siege_workshop-name" data-i18n="hudChrome.territoryMap.slotSiegeWorkshop">Siege workshop</strong><small id="territory-slot-siege_workshop-status"></small></span></button>
+          </div>
+          <div id="territory-workshop-crafting">
+            <strong data-i18n="hudChrome.territoryMap.workshopTitle">Siege weapon production</strong>
+            <small data-i18n="hudChrome.territoryMap.workshopHint">Requires an active siege workshop. Costs are paid by the guild and your purse.</small>
+            <div class="territory-workshop-recipes">
+              <button type="button" id="territory-craft-ram"><span data-i18n="hudChrome.territoryMap.craftRam">Build battering ram</span><small>80 W · 35 I · 15 G · 30 L · 5 S</small></button>
+              <button type="button" id="territory-craft-mortar"><span data-i18n="hudChrome.territoryMap.craftMortar">Build field mortar</span><small>30 W · 80 I · 20 G · 35 L · 10 S</small></button>
+              <button type="button" id="territory-craft-catapult"><span data-i18n="hudChrome.territoryMap.craftCatapult">Build field catapult</span><small>100 W · 50 I · 25 G · 45 L · 15 S</small></button>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div id="territory-war-dock">
+        <div id="territory-war-notice" class="panel" role="status" aria-live="polite" aria-atomic="true">
+          <div class="territory-war-notice-head">
+            <span class="territory-war-notice-icon" data-icon="attack" aria-hidden="true"></span>
+            <div class="territory-war-notice-heading">
+              <div id="territory-war-kicker"></div>
+              <div id="territory-war-title"></div>
+            </div>
+            <button type="button" id="territory-war-notice-toggle" aria-controls="territory-war-notice-body" aria-expanded="true">Hide</button>
+          </div>
+          <div id="territory-war-notice-body">
+            <div class="territory-war-notice-meta">
+              <div id="territory-war-queue"></div>
+              <div id="territory-war-start"></div>
+            </div>
+            <div id="territory-war-countdown"></div>
+            <div id="territory-war-teleport"></div>
+            <button type="button" class="btn" id="territory-war-action"></button>
+          </div>
         </div>
       </div>
       <span id="map-summary" class="visually-hidden" role="status" aria-live="polite"></span>
@@ -503,15 +572,16 @@
     <div id="territory-siege-hud" class="panel" role="status" aria-live="polite" aria-atomic="true">
       <div id="territory-siege-title"></div>
       <div id="territory-siege-timer"></div>
-      <div class="territory-siege-progress"><span id="territory-gate-progress"></span></div>
-      <div class="territory-siege-progress"><span id="territory-core-progress"></span></div>
-      <div class="territory-siege-actions">
-        <button type="button" id="territory-deploy-ram"></button>
-        <button type="button" id="territory-enter-ram"></button>
-        <button type="button" id="territory-ram-gate"></button>
-        <button type="button" id="territory-channel-core"></button>
-      </div>
       <button type="button" id="territory-leave-siege"></button>
+    </div>
+    <div id="territory-siege-interact" role="status" aria-live="polite">
+      <kbd>F</kbd><span id="territory-siege-interact-label"></span>
+    </div>
+    <div id="territory-siege-result" class="panel" role="status" aria-live="assertive" aria-atomic="true">
+      <div id="territory-result-sigil" aria-hidden="true">✦</div>
+      <div id="territory-result-title"></div>
+      <div id="territory-result-detail"></div>
+      <div id="territory-result-return"></div>
     </div>
     <div id="options-menu" class="window panel"></div>
     <div id="emote-editor" class="window panel"></div>
@@ -539,7 +609,7 @@
         <button class="micro-btn" id="mm-leaderboard" data-i18n-title="game.leaderboard.title" data-i18n-aria="game.leaderboard.title" title="Leaderboard" aria-label="Leaderboard" data-icon="leaderboard"><span class="keybind">k</span></button>
         <button class="micro-btn" id="mm-wocmarket" hidden data-i18n-title="hudChrome.wocMarket.launcherLabel" data-i18n-aria="hudChrome.wocMarket.launcherLabel" title="$WOC Exchange" aria-label="$WOC Exchange" data-icon="market"></button>
         <button class="micro-btn" id="mm-emote" data-i18n-aria="hudChrome.emoteWheel.label" aria-label="Emotes" data-icon="emote"><span class="keybind">x</span></button>
-        <button class="micro-btn" id="mm-music" data-i18n-title="hud.options.music" data-i18n-aria="hud.options.music" title="Music" aria-label="Music" data-icon="music"></button>
+        <button type="button" class="micro-btn territory-war-launcher" id="mm-territory" data-i18n-title="hudChrome.territoryMap.title" data-i18n-aria="hudChrome.territoryMap.title" title="War Map" aria-label="War Map" aria-controls="map-window territory-war-dock" aria-expanded="false" data-icon="territory"></button>
         <button class="micro-btn" id="mm-social" data-i18n-title="hud.keybinds.actions.social" data-i18n-aria="hud.keybinds.actions.social" title="Friends &amp; Guild" aria-label="Friends &amp; Guild" data-icon="social"><span class="keybind">o</span></button>
         <button class="micro-btn" id="mm-donate" hidden data-i18n-title="a11y.donateProject" data-i18n-aria="a11y.donateProject" title="Donate" aria-label="Donate" data-icon="donate"></button>
         <button class="micro-btn" id="mm-wiki" data-i18n-title="nav.wiki" data-i18n-aria="nav.wiki" title="Wiki" aria-label="Wiki" data-icon="wiki"></button>
@@ -1315,7 +1385,7 @@
           <button type="button" class="mobile-btn" id="mobile-mounts" data-i18n-title="hudChrome.keybinds.mount" data-i18n-aria="hudChrome.keybinds.mount" title="Mount / Dismount" aria-label="Mount / Dismount" data-icon="mount"><span class="mobile-label" data-i18n="hudChrome.mounts.mount">Mount</span></button>
           <button type="button" class="mobile-btn" id="mobile-professions" data-i18n-title="hudChrome.professions.title" data-i18n-aria="hudChrome.professions.title" title="Professions" aria-label="Professions" data-icon="professions"><span class="mobile-label" data-i18n="hudChrome.mobile.professions">Professions</span></button>
           <button class="mobile-btn active" id="mobile-nameplates" data-i18n-title="hud.keybinds.actions.nameplates" data-i18n-aria="hud.keybinds.actions.nameplates" title="Toggle nameplates" aria-label="Toggle nameplates" data-icon="nameplates"><span class="mobile-label" data-i18n="hudChrome.mobile.nameplates">Names</span></button>
-          <button class="mobile-btn" id="mobile-music" data-i18n-title="hud.options.music" data-i18n-aria="hud.options.music" title="Music" aria-label="Toggle music" data-icon="music"><span class="mobile-label" data-i18n="hud.options.music">Music</span></button>
+          <button type="button" class="mobile-btn territory-war-launcher" id="mobile-territory" data-i18n-title="hudChrome.territoryMap.title" data-i18n-aria="hudChrome.territoryMap.title" title="War Map" aria-label="War Map" aria-controls="map-window territory-war-dock" aria-expanded="false" data-icon="territory"><span class="mobile-label" data-i18n="hudChrome.territoryMap.title">War Map</span></button>
           <button class="mobile-btn" id="mobile-haptics" data-i18n-title="hudChrome.mobile.toggleHaptics" data-i18n-aria="hudChrome.mobile.toggleHaptics" title="Toggle haptic feedback" aria-label="Toggle haptic feedback" aria-pressed="true" data-icon="vibrate"><span class="mobile-label" data-i18n="hudChrome.mobile.haptics">Haptics</span></button>
         </div>
       </div>

@@ -78,6 +78,13 @@ describe('movement input sanitizing', () => {
     expect(parseMoveInputFrame({ mi: {}, aim: Number.NaN }).combatAimAngle).toBeNull();
     expect(parseMoveInputFrame({ mi: {}, aim: 'north' }).combatAimAngle).toBeNull();
   });
+
+  it('carries a bounded vertical combat aim and rejects malformed pitch', () => {
+    expect(parseMoveInputFrame({ mi: {}, aimPitch: 0.45 }).combatAimPitch).toBeCloseTo(0.45);
+    expect(parseMoveInputFrame({ mi: {}, combatAimPitch: -0.8 }).combatAimPitch).toBeCloseTo(-0.8);
+    expect(parseMoveInputFrame({ mi: {}, aimPitch: Math.PI }).combatAimPitch).toBeNull();
+    expect(parseMoveInputFrame({ mi: {}, aimPitch: Number.NaN }).combatAimPitch).toBeNull();
+  });
 });
 
 describe('agent movement channel', () => {
@@ -141,6 +148,7 @@ describe('agent movement channel', () => {
     };
     client.mouselookFacing = null;
     client.combatAimAngle = null;
+    client.combatAimPitch = null;
 
     client.setMoveInput({ f: '1', forward: true, sr: 1, jump: 'yes' }, Number.NaN);
 
@@ -163,5 +171,10 @@ describe('agent movement channel', () => {
 
     client.setCombatAimAngle(-Math.PI * 7.5);
     expect(client.combatAimAngle).toBeCloseTo(Math.PI / 2);
+
+    client.setCombatAimPitch(0.6);
+    expect(client.combatAimPitch).toBeCloseTo(0.6);
+    client.setCombatAimPitch(Math.PI);
+    expect(client.combatAimPitch).toBeNull();
   });
 });

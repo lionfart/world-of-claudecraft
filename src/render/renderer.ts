@@ -40,12 +40,13 @@ import {
 } from '../sim/data';
 import type { DelveModuleId } from '../sim/delve_layout';
 import { generateRiftFloor, riftLiftAt } from '../sim/rift/rift_gen';
+import { entityCombatAimPoint as projectileEntityAimPoint } from '../sim/projectile_travel';
 import type { BiomeId, ZoneDef } from '../sim/types';
 import { ALL_CLASSES, type Entity, isMechWearer, type SimEvent } from '../sim/types';
 import { groundHeight, waterLevelAt, zoneBiomeAt } from '../sim/world';
 import type { ChatBubbleStyle } from '../ui/chat_bubble_style';
 import { tEntity } from '../ui/entity_i18n';
-import type { IWorld } from '../world_api';
+import type { IWorld, TerritorySiegeObjectiveTarget } from '../world_api';
 import { buildAbilityMaterialPrewarmGroup } from './ability_material_prewarm';
 import {
   AbilityRangeReticleVisual,
@@ -1301,6 +1302,17 @@ export class Renderer {
   private readonly raycastNdc = new THREE.Vector2();
   private readonly raycastHits: THREE.Intersection[] = [];
   private readonly groundPointProjector: GroundPointProjector;
+  private readonly combatAimEntityCache: {
+    clientX: number;
+    clientY: number;
+    sampledAt: number;
+    point: { x: number; y: number; z: number } | null;
+  } = {
+    clientX: Number.NaN,
+    clientY: Number.NaN,
+    sampledAt: Number.NEGATIVE_INFINITY,
+    point: null,
+  };
   private readonly directHitIds: number[] = [];
   clickTargets: THREE.Object3D[] = [];
   // Gather-node meshes (#1866), raycast separately from `clickTargets`/`pick()`:
@@ -13113,6 +13125,86 @@ export class Renderer {
     return this.groundPointProjector.project(clientX, clientY, planeY);
   }
 
+  screenRayDirection(
+    clientX: number,
+    clientY: number,
+  ): { x: number; y: number; z: number } | null {
+    return this.groundPointProjector.direction(clientX, clientY);
+  }
+
+  /**
+   * Canonical gameplay-body point under the combat cursor/crosshair. The
+   * Three.js intersection only identifies which visible actor is under the
+   * cursor; convergence uses the centre of the authoritative collision capsule
+   * instead of the raw art surface, whose scale can extend above that capsule.
+   * The server still performs the authoritative swept projectile collision.
+   * The reused hit array and 20 Hz cache keep the frame loop from raycasting
+   * every render frame while still tracking moving actors at sim cadence; a
+   * moved cursor samples immediately.
+   */
+  combatAimEntityPoint(
+    clientX: number,
+    clientY: number,
+  ): { x: number; y: number; z: number } | null {
+    const cache = this.combatAimEntityCache;
+    const now = performance.now();
+    if (clientX === cache.clientX && clientY === cache.clientY && now - cache.sampledAt < 45) {
+      return cache.point;
+    }
+    cache.clientX = clientX;
+    cache.clientY = clientY;
+    cache.sampledAt = now;
+    cache.point = null;
+
+    const rect = this.canvas.getBoundingClientRect();
+    if (
+      rect.width <= 0 ||
+      rect.height <= 0 ||
+      clientX < rect.left ||
+      clientX > rect.right ||
+      clientY < rect.top ||
+      clientY > rect.bottom
+    ) {
+      return null;
+    }
+    this.raycastNdc.set(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(this.raycastNdc, this.camera);
+    const hits = this.raycastHits;
+    hits.length = 0;
+    this.raycaster.intersectObjects(this.clickTargets, true, hits);
+    for (const hit of hits) {
+      let object: THREE.Object3D | null = hit.object;
+      while (object) {
+        const rawId = object.userData.entityId;
+        if (typeof rawId !== 'number') {
+          object = object.parent;
+          continue;
+        }
+        if (rawId === this.sim.playerId) break;
+        const view = this.views.get(rawId);
+        const entity = this.sim.entities.get(rawId);
+        if (
+          !entity ||
+          (view && !view.group.visible) ||
+          (entity.templateId === 'spirit_healer' && !this.sim.player?.ghost)
+        ) {
+          break;
+        }
+        const point = projectileEntityAimPoint(entity);
+        if (Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z)) {
+          cache.point = point;
+        }
+        hits.length = 0;
+        return cache.point;
+      }
+    }
+    hits.length = 0;
+    return null;
+  }
+
   // Click/tap-to-harvest (#1866): raycasts the static gather-node meshes
   // (`gatherNodeMeshes`, with per-instance ids in src/render/gather_nodes.ts)
   // and returns the hit node's content id, or null.
@@ -13178,6 +13270,24 @@ export class Renderer {
     hits.length = 0;
     if (directHitIds.length === 0) return null;
     return resolveDirectPickEntityId(directHitIds, this.sim.entities, this.sim.player.targetId);
+  }
+
+  /** Selectable siege structures share the normal target-frame selection path. */
+  pickTerritorySiegeObjective(
+    clientX: number,
+    clientY: number,
+  ): TerritorySiegeObjectiveTarget | null {
+    if (!this.territorySiegeBand) return null;
+    this.raycastNdc.set(
+      (clientX / this.viewport.width) * 2 - 1,
+      -(clientY / this.viewport.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(this.raycastNdc, this.camera);
+    return this.territorySiegeBand.pickObjective(this.raycaster, this.raycastHits);
+  }
+
+  setTerritorySiegeObjectiveTarget(target: TerritorySiegeObjectiveTarget | null): void {
+    this.territorySiegeBand?.setSelectedObjective(target);
   }
 
   // The forgiving-assist half of pick(): snap to the nearest targetable

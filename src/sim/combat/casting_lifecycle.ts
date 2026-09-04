@@ -43,7 +43,12 @@ import {
 import { isPlayerDodging } from '../player_dodge';
 import { effectiveFishingBand, fishReelWindowSecFor } from '../professions/fishing';
 import { bestOwnedGatherToolFor } from '../professions/tools';
-import { scheduleBallisticProjectile, scheduleProjectile } from '../projectile_travel';
+import {
+  BALLISTIC_PROJECTILE_LAUNCH_HEIGHT,
+  scheduleBallisticProjectile,
+  scheduleProjectile,
+  segmentEntityTimeOfImpact,
+} from '../projectile_travel';
 import type { PlayerMeta, ResolvedAbility } from '../sim';
 import type { SimContext } from '../sim_context';
 import { abilityScalingPower, channelTickBonus } from '../spell_scaling';
@@ -123,7 +128,9 @@ import {
 } from './destruction';
 import {
   abilityUsesDirectionalHostileAim,
+  BALLISTIC_PROJECTILE_RADIUS,
   combatAimAngle,
+  combatAimPitch,
   playerAttackResolution,
   selectFirstTargetOnSegment,
   selectMeleeConeTargets,
@@ -772,7 +779,7 @@ export function castAbilityBySlot(
   ctx: SimContext,
   slot: number,
   pid?: number,
-  aim?: { x: number; z: number },
+  aim?: ActionCombatAim,
 ): void {
   const r = ctx.resolve(pid);
   if (!r) return;
@@ -859,6 +866,13 @@ function directionalAimAngle(p: Entity, meta: PlayerMeta, aim?: ActionCombatAim)
     if (Number.isFinite(dx) && Number.isFinite(dz) && Math.hypot(dx, dz) > 1e-6) {
       const angle = Math.atan2(dx, dz);
       meta.combatAimAngle = angle;
+      if (
+        typeof aim.pitch === 'number' &&
+        Number.isFinite(aim.pitch) &&
+        Math.abs(aim.pitch) < Math.PI / 2
+      ) {
+        meta.combatAimPitch = aim.pitch;
+      }
       return angle;
     }
   }
@@ -896,6 +910,40 @@ function aimedHostileTargets(
       candidates,
     });
   }
+  if (resolution === 'ballisticProjectile') {
+    const angle = directionalAimAngle(p, meta, aim);
+    const pitch = combatAimPitch(meta);
+    const horizontal = Math.cos(pitch);
+    const direction = {
+      x: Math.sin(angle) * horizontal,
+      y: Math.sin(pitch),
+      z: Math.cos(angle) * horizontal,
+    };
+    const origin = {
+      x: p.pos.x,
+      y: p.pos.y + BALLISTIC_PROJECTILE_LAUNCH_HEIGHT,
+      z: p.pos.z,
+    };
+    let best: { entity: Entity; impact: number } | null = null;
+    for (const candidate of candidates) {
+      const impact = segmentEntityTimeOfImpact(
+        origin,
+        direction,
+        maxRange,
+        candidate,
+        BALLISTIC_PROJECTILE_RADIUS,
+      );
+      if (impact === null || impact < (ability.minRange ?? 0)) continue;
+      if (
+        !best ||
+        impact < best.impact - 1e-9 ||
+        (Math.abs(impact - best.impact) <= 1e-9 && candidate.id < best.entity.id)
+      ) {
+        best = { entity: candidate, impact };
+      }
+    }
+    return best ? [best.entity] : [];
+  }
   const selected = selectFirstTargetOnSegment({
     origin: p.pos,
     angle: directionalAimAngle(p, meta, aim),
@@ -920,7 +968,7 @@ export function castAbility(
   ctx: SimContext,
   abilityId: string,
   pid?: number,
-  aim?: { x: number; z: number },
+  aim?: ActionCombatAim,
   castTargetId: number | null = null,
 ): void {
   const r = ctx.resolve(pid);
@@ -2316,6 +2364,7 @@ function applyChannelTick(
           p,
           {
             angle,
+            pitch: combatAimPitch(meta),
             minDistance: res.def.minRange,
             maxDistance: res.def.range > 0 ? res.def.range : MELEE_RANGE,
             school: res.def.school,
@@ -2890,6 +2939,7 @@ function applyAbility(
       p,
       {
         angle,
+        pitch: combatAimPitch(meta),
         minDistance: ability.minRange,
         maxDistance: ability.range > 0 ? ability.range : MELEE_RANGE,
         school: ability.school,

@@ -14,9 +14,16 @@ import type { IWorld } from '../src/world_api';
 function harness(
   inventory: InvSlot[],
   useGatherTool: (item: ItemDef) => boolean,
-): { root: HTMLElement; usedItems: string[]; gatherToolCalls: ItemDef[] } {
+  useTerritoryRam: (itemId: string) => boolean = () => false,
+): {
+  root: HTMLElement;
+  usedItems: string[];
+  gatherToolCalls: ItemDef[];
+  territoryRamCalls: string[];
+} {
   const usedItems: string[] = [];
   const gatherToolCalls: ItemDef[] = [];
+  const territoryRamCalls: string[] = [];
   const world = {
     inventory,
     bags: [null, null, null, null],
@@ -69,6 +76,10 @@ function harness(
       gatherToolCalls.push(item);
       return useGatherTool(item);
     },
+    useTerritoryRam: (itemId) => {
+      territoryRamCalls.push(itemId);
+      return useTerritoryRam(itemId);
+    },
     setDragAction: noop,
     clearActionDropTargets: noop,
     dragState: new ItemDragState(),
@@ -80,7 +91,7 @@ function harness(
     openItemActionMenu: noop,
   };
   new BagsWindow(deps).render();
-  return { root, usedItems, gatherToolCalls };
+  return { root, usedItems, gatherToolCalls, territoryRamCalls };
 }
 
 function clickFirstCell(root: HTMLElement): void {
@@ -90,6 +101,42 @@ function clickFirstCell(root: HTMLElement): void {
 }
 
 describe('bags use-click gathering-tool routing (#2343)', () => {
+  it('lets a battering ram inventory Use consume the action before generic item use', () => {
+    const { root, usedItems, gatherToolCalls, territoryRamCalls } = harness(
+      [{ itemId: 'territory_battering_ram', count: 1 }],
+      () => false,
+      () => true,
+    );
+    clickFirstCell(root);
+    expect(territoryRamCalls).toEqual(['territory_battering_ram']);
+    expect(gatherToolCalls).toEqual([]);
+    expect(usedItems).toEqual([]);
+  });
+
+  it('routes a field mortar through the same siege-item Use seam', () => {
+    const { root, usedItems, gatherToolCalls, territoryRamCalls } = harness(
+      [{ itemId: 'territory_field_mortar', count: 1 }],
+      () => false,
+      () => true,
+    );
+    clickFirstCell(root);
+    expect(territoryRamCalls).toEqual(['territory_field_mortar']);
+    expect(gatherToolCalls).toEqual([]);
+    expect(usedItems).toEqual([]);
+  });
+
+  it('routes a field catapult through the same siege-item Use seam', () => {
+    const { root, usedItems, gatherToolCalls, territoryRamCalls } = harness(
+      [{ itemId: 'territory_catapult', count: 1 }],
+      () => false,
+      () => true,
+    );
+    clickFirstCell(root);
+    expect(territoryRamCalls).toEqual(['territory_catapult']);
+    expect(gatherToolCalls).toEqual([]);
+    expect(usedItems).toEqual([]);
+  });
+
   it('a consumed gathering-tool use never falls back to world.useItem', () => {
     const { root, usedItems, gatherToolCalls } = harness(
       [{ itemId: 'copper_mining_pick', count: 1 }],

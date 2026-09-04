@@ -31,7 +31,6 @@ describe('directional attack resolution', () => {
     }
     expect(playerAttackResolution(ABILITIES.whirlwind)).toBe('selfArea');
     expect(playerAttackResolution(ABILITIES.charge)).toBe('lockOnActivation');
-    expect(playerAttackResolution(ABILITIES.sport_shoulder)).toBe('lockOnActivation');
     expect(playerAttackResolution(ABILITIES.bloodhook)).toBe('lockOnActivation');
   });
 

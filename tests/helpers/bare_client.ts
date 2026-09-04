@@ -170,6 +170,7 @@ export function bareClient(pid: number, overrides: BareClientOverrides = {}): Cl
   c.profanityWords = [];
   c.mouselookFacing = null;
   c.combatAimAngle = null;
+  c.combatAimPitch = null;
   c.lastInputSentAt = 0;
   c.lastInputSig = '';
   c.inputSeq = 0;

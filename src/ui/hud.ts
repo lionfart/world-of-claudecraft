@@ -74,6 +74,8 @@ import {
   MOBS,
   NPCS,
   QUESTS,
+  territorySiegeOrigin,
+  territorySiegeOriginAt,
   WORLD_MAX_X,
   WORLD_MAX_Z,
   WORLD_MIN_X,
@@ -97,6 +99,21 @@ import { inRangeStationTypes, stationTypesSignature } from '../sim/professions/s
 import { TIER_SKILL_STEP, tierForSkill } from '../sim/professions/wheel';
 import { questObjectivesForMob } from '../sim/quest_targets';
 import type { ResolvedAbility } from '../sim/sim';
+import {
+  TERRITORY_SIEGE_CATAPULT_ITEM_ID,
+  TERRITORY_SIEGE_MORTAR_ITEM_ID,
+  TERRITORY_SIEGE_RAM_ITEM_ID,
+} from '../sim/territory_siege';
+import {
+  TERRITORY_SIEGE_CATAPULT_RANGE,
+  TERRITORY_SIEGE_MAX_CATAPULTS_PER_SIDE,
+  TERRITORY_SIEGE_MAX_MORTARS_PER_SIDE,
+  TERRITORY_SIEGE_MAX_RAMS,
+  TERRITORY_SIEGE_MORTAR_RANGE,
+  territorySiegeCatapultPlacementAllowed,
+  territorySiegeMortarPlacementAllowed,
+  territorySiegeRamDeploymentAreaContains,
+} from '../sim/territory_siege_layout';
 import type {
   AbilityDef,
   CalendarResultCode,
@@ -143,6 +160,7 @@ import {
   OVERHEAD_EMOTES,
   type OverheadEmoteId,
   type PartyInfo,
+  type TerritorySiegeObjectiveTarget,
 } from '../world_api';
 import type { AbilityScaling } from './ability_damage';
 import {
@@ -380,7 +398,6 @@ import {
   ITEM_ICON_PREFIX,
 } from './hud/action_bar/action_bar_view';
 import { BarEditorWindow } from './hud/action_bar/bar_editor';
-import { CONSUMABLE_BAR_SLOTS, consumableBarItems } from './hud/action_bar/consumable_bar_view';
 import {
   buildMobileConsumableSeat,
   type MobileConsumableSeat,
@@ -1340,6 +1357,8 @@ export class Hud {
     this.actionBarController.replaceAttackAction(action);
   }
   private groundAim: GroundAimState = createGroundAimState();
+  private territoryMortarAimSlot: number | null = null;
+  private territoryCatapultAimSlot: number | null = null;
   private groundAimPoint: AimPoint | null = null;
   private groundAimClamped = false;
   private empowerCharge: { slot: number; abilityId: string } | null = null;
@@ -1542,6 +1561,7 @@ export class Hud {
   // from its enclosing scope; the gate now lives in the painter, so the redraw
   // closure reads it from here).
   private targetPortraitSubject: Entity | null = null;
+  private territorySiegeObjectiveTarget: TerritorySiegeObjectiveTarget | null = null;
   private comboRowEl = $('#combo-row');
   private paladinDevotionFrameEl = $('#paladin-devotion-frame');
   private paladinDevotionEl = $('#paladin-devotion');
@@ -2019,6 +2039,7 @@ export class Hud {
       this.writerFacet,
       () => this.updateMapWindow(),
       () => this.setMapLevel('continent'),
+      (weapon, slot) => this.beginTerritorySiegeAim(weapon, slot),
     );
     this.mapMarkerTooltipContent = new MapMarkerTooltipContent(this.sim);
     this.mapMarkerInteraction = new MapMarkerInteractionController({
@@ -2750,12 +2771,11 @@ export class Hud {
     });
     wireChromeFocus($);
     $('#mm-map').addEventListener('click', () => this.toggleMap());
-    $('#map-close').addEventListener('click', () => {
-      $('#map-window').style.display = 'none';
-      this.territoryMap.close();
-      this.hideTooltip(); // a touch marker tip can outlive the window otherwise
-      this.syncAnyWindowOpenState();
-    });
+    this.territoryMap.bindLaunchers(
+      () => this.openTerritoryMapWindow(),
+      () => this.toggleMap(),
+    );
+    $('#map-close').addEventListener('click', () => this.toggleMap());
     const mapCanvas = $('#map-canvas') as unknown as HTMLCanvasElement;
     mapCanvas.addEventListener(
       'wheel',
@@ -2967,18 +2987,6 @@ export class Hud {
     emoteBtn.addEventListener('click', (ev) => {
       ev.preventDefault();
       this.toggleEmoteWheel();
-    });
-    const musicBtn = $('#mm-music');
-    const styleMusicBtn = () => {
-      // keep the note clearly readable when off (a plain tan, not gold) — the
-      // slash, not dimming, signals "muted"
-      musicBtn.style.color = music.enabled ? 'var(--gold)' : '#cdbd8e';
-      musicBtn.classList.toggle('mm-muted', !music.enabled);
-    };
-    styleMusicBtn();
-    musicBtn.addEventListener('click', () => {
-      music.setEnabled(!music.enabled);
-      styleMusicBtn();
     });
     const startZone = zoneAt(sim.player.pos.x, sim.player.pos.z);
     const startZoneName = zoneDisplayName(startZone.id);
@@ -3540,6 +3548,9 @@ export class Hud {
       // Both route through the painter so focus returns to the opener (WCAG 2.2 AA).
       case 'spellbook':
         this.spellbookWindow.close();
+        break;
+      case 'map-window':
+        this.toggleMap();
         break;
       case 'bar-editor':
         this.barEditorWindow.close();
@@ -4693,6 +4704,7 @@ export class Hud {
     },
     isHotbarItemId: (itemId) => this.isHotbarItemId(itemId),
     useGatherTool: (item) => this.gatherToolUseHook?.(item) ?? false,
+    useTerritoryRam: (itemId) => this.useTerritorySiegeItem(itemId),
     setDragAction: (action) => {
       this.dragAction = action ? { action, sourceIndex: null } : null;
     },
@@ -5394,6 +5406,10 @@ export class Hud {
   // player target shows its real 3D class headshot (rendered locally from the synced
   // class + skin); mobs use committed model portraits and NPCs use their crest.
   private drawTargetPortrait(): void {
+    if (this.territorySiegeObjectiveTarget) {
+      this.drawTerritoryObjectivePortrait(this.territorySiegeObjectiveTarget.kind);
+      return;
+    }
     const target = this.targetPortraitSubject;
     if (!target) return;
     if (target.kind === 'player') {
@@ -5405,6 +5421,67 @@ export class Hud {
     } else {
       this.drawNonPlayerPortrait(this.targetPortraitEl, target);
     }
+  }
+
+  private drawTerritoryObjectivePortrait(kind: TerritorySiegeObjectiveTarget['kind']): void {
+    const canvas = this.targetPortraitEl;
+    const cssSize = 58;
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.round(cssSize * dpr);
+    canvas.height = Math.round(cssSize * dpr);
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, cssSize, cssSize);
+    const shade = context.createRadialGradient(20, 15, 3, 29, 29, 31);
+    shade.addColorStop(0, '#59616c');
+    shade.addColorStop(1, '#171b22');
+    context.fillStyle = shade;
+    context.beginPath();
+    context.arc(29, 29, 27, 0, Math.PI * 2);
+    context.fill();
+    context.strokeStyle = '#d5ad4b';
+    context.lineWidth = 2;
+    context.stroke();
+    if (kind === 'gate' || kind === 'wall' || kind === 'tower') {
+      context.fillStyle = '#737985';
+      context.fillRect(10, 14, 8, 33);
+      context.fillRect(40, 14, 8, 33);
+      context.fillRect(10, 10, 38, 8);
+      context.fillStyle = kind === 'gate' ? '#653b26' : '#8b9298';
+      context.fillRect(18, 18, 22, 29);
+      context.strokeStyle = '#2b1a14';
+      context.lineWidth = 2;
+      context.strokeRect(18, 18, 22, 29);
+      context.beginPath();
+      context.moveTo(29, 18);
+      context.lineTo(29, 47);
+      context.moveTo(19, 22);
+      context.lineTo(39, 42);
+      context.moveTo(39, 22);
+      context.lineTo(19, 42);
+      context.stroke();
+      return;
+    }
+    context.fillStyle = '#70472b';
+    context.fillRect(13, 25, 32, 13);
+    context.strokeStyle = '#251914';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.arc(18, 41, 6, 0, Math.PI * 2);
+    context.arc(40, 41, 6, 0, Math.PI * 2);
+    context.stroke();
+    context.strokeStyle = '#d5ad4b';
+    context.lineWidth = 4;
+    context.beginPath();
+    if (kind === 'mortar') {
+      context.moveTo(28, 27);
+      context.lineTo(38, 13);
+    } else {
+      context.moveTo(25, 25);
+      context.lineTo(kind === 'ram' ? 46 : 38, kind === 'ram' ? 25 : 10);
+    }
+    context.stroke();
   }
 
   private drawNonPlayerPortrait(canvas: HTMLCanvasElement, entity: Entity): void {
@@ -5439,6 +5516,80 @@ export class Hud {
   // main.ts applySetting. When off, the per-frame update paints the frame hidden.
   setShowTargetOfTarget(on: boolean): void {
     this.showTargetOfTarget = on;
+  }
+
+  private territorySiegeObjectiveFrame(): {
+    current: number;
+    maximum: number;
+    name: string;
+    key: string;
+  } | null {
+    const target = this.territorySiegeObjectiveTarget;
+    const siege = this.sim.territoryMap?.siege;
+    if (!target || !siege || siege.state === 'ended') return null;
+    if (target.kind === 'gate') {
+      const maximum = siege.gateMaxHp ?? 100;
+      const current = siege.gateHp ?? Math.max(0, 1 - siege.gateProgress) * maximum;
+      return current > 0
+        ? { current, maximum, name: t('hudChrome.territoryMap.gateName'), key: 'gate' }
+        : null;
+    }
+    if (target.kind === 'wall') {
+      const health = siege.wallHealth?.find((entry) => entry.id === target.id);
+      return health && health.hp > 0
+        ? {
+            current: health.hp,
+            maximum: health.maxHp,
+            name: t('hudChrome.territoryMap.wallName'),
+            key: `wall:${target.id}`,
+          }
+        : null;
+    }
+    if (target.kind === 'tower') {
+      const health = siege.towerHealth?.find((entry) => entry.id === target.id);
+      return health && health.hp > 0
+        ? {
+            current: health.hp,
+            maximum: health.maxHp,
+            name: t('hudChrome.territoryMap.towerName'),
+            key: `tower:${target.id}`,
+          }
+        : null;
+    }
+    const weapon =
+      target.kind === 'ram'
+        ? siege.rams?.find((entry) => entry.id === target.id)
+        : target.kind === 'mortar'
+          ? siege.mortars.find((entry) => entry.id === target.id)
+          : siege.catapults?.find((entry) => entry.id === target.id);
+    const current = weapon?.hp ?? weapon?.maxHp ?? 1;
+    const maximum = weapon?.maxHp ?? Math.max(1, current);
+    if (!weapon || current <= 0) return null;
+    const name =
+      target.kind === 'ram'
+        ? t('hudChrome.territoryMap.ramName')
+        : target.kind === 'mortar'
+          ? t('hudChrome.territoryMap.mortarName')
+          : t('hudChrome.territoryMap.catapultName');
+    return {
+      current,
+      maximum,
+      name,
+      key: `${target.kind}:${target.id}`,
+    };
+  }
+
+  setTerritorySiegeObjectiveTarget(target: TerritorySiegeObjectiveTarget | null): void {
+    const current = this.territorySiegeObjectiveTarget;
+    if (!target && !current) return;
+    if (
+      target?.kind === current?.kind &&
+      (target?.kind === 'gate' ||
+        (target && current && 'id' in target && 'id' in current && target.id === current.id))
+    )
+      return;
+    this.territorySiegeObjectiveTarget = target;
+    this.targetFramePainter.invalidatePortrait();
   }
 
   // A pet is always a mob entity, so it uses the same committed portrait and
@@ -6777,6 +6928,9 @@ export class Hud {
   // Slot key DOWN: every slot fires immediately (a tap is down + up, so this
   // is the press).
   pressSlot(slot: number): void {
+    if (this.territoryMap.handleCatapultActionSlot(slot)) return;
+    if (this.territoryMap.handleMortarActionSlot(slot)) return;
+    if (this.territoryMap.handleRamActionSlot(slot)) return;
     if (slot === 0 && this.attackSlotIsAttack()) {
       this.optionsHooks?.syncCombatAim?.();
       this.sim.startAutoAttack();
@@ -6798,6 +6952,7 @@ export class Hud {
   // Slot key UP: release an empowered hold. A non-charging slot already fired
   // on press, so this is a no-op.
   releaseSlot(slot: number): void {
+    if (this.territoryMap.isSiegeWeaponOperating()) return;
     if (slot === 0 && this.attackSlotIsAttack()) {
       this.sim.stopAutoAttack();
       return;
@@ -6858,18 +7013,69 @@ export class Hud {
   }
 
   isGroundAimActive(): boolean {
-    return this.groundAim.activeAbilityId !== null;
+    return (
+      this.groundAim.activeAbilityId !== null ||
+      this.territoryMortarAimSlot !== null ||
+      this.territoryCatapultAimSlot !== null
+    );
   }
 
   cancelGroundAim(): boolean {
     if (!this.isGroundAimActive()) return false;
     this.groundAim = cancelGroundAim(this.groundAim);
+    this.territoryMortarAimSlot = null;
+    this.territoryCatapultAimSlot = null;
     this.groundAimPoint = null;
     this.groundAimClamped = false;
     this.renderer.setGroundAimReticle(null);
     this.renderer.setAbilityRangeReticle(null);
     this.paintPreparedSlot(null);
+    this.paintMortarPrepared(null);
+    this.paintCatapultPrepared(null);
     return true;
+  }
+
+  private beginTerritorySiegeAim(weapon: 'mortar' | 'catapult', slot: number): void {
+    const active =
+      weapon === 'mortar' ? this.territoryMortarAimSlot : this.territoryCatapultAimSlot;
+    if (active === slot) {
+      this.commitGroundAimAt();
+      return;
+    }
+    if (this.isGroundAimActive()) this.cancelGroundAim();
+    if (weapon === 'mortar') this.territoryMortarAimSlot = slot;
+    else this.territoryCatapultAimSlot = slot;
+    this.groundAimPoint = null;
+    this.groundAimClamped = false;
+    if (weapon === 'mortar') this.paintMortarPrepared(slot);
+    else this.paintCatapultPrepared(slot);
+  }
+
+  private paintMortarPrepared(slot: number | null): void {
+    const buttons = [
+      document.getElementById('territory-mortar-fire'),
+      document.getElementById('territory-mortar-frost'),
+      document.getElementById('territory-mortar-venom'),
+    ];
+    buttons.forEach((button, index) => {
+      if (!button) return;
+      const active = index === slot;
+      button.classList.toggle('prepared', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  private paintCatapultPrepared(slot: number | null): void {
+    const buttons = [
+      document.getElementById('territory-catapult-fire'),
+      document.getElementById('territory-catapult-cluster'),
+    ];
+    buttons.forEach((button, index) => {
+      if (!button) return;
+      const active = index === slot;
+      button.classList.toggle('prepared', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
   }
 
   private beginGroundAim(abilityId: string, slot: number): void {
@@ -6908,6 +7114,18 @@ export class Hud {
       this.groundAimClamped = false;
       return;
     }
+    if (this.territoryMortarAimSlot !== null || this.territoryCatapultAimSlot !== null) {
+      const aim = clampAimToRange(
+        this.sim.player,
+        rawPoint,
+        this.territoryCatapultAimSlot !== null
+          ? TERRITORY_SIEGE_CATAPULT_RANGE
+          : TERRITORY_SIEGE_MORTAR_RANGE,
+      );
+      this.groundAimPoint = aim.point;
+      this.groundAimClamped = aim.clamped;
+      return;
+    }
     const res = this.activeGroundAimAbility();
     if (!res) {
       this.cancelGroundAim();
@@ -6927,6 +7145,27 @@ export class Hud {
     if (!this.isGroundAimActive()) return null;
     const point = this.groundAimPoint;
     if (!point) return null;
+    if (this.territoryMortarAimSlot !== null) {
+      return {
+        point,
+        radius: this.territoryMortarAimSlot === 1 ? 7 : 6,
+        school:
+          this.territoryMortarAimSlot === 1
+            ? 'frost'
+            : this.territoryMortarAimSlot === 2
+              ? 'nature'
+              : 'physical',
+        clamped: this.groundAimClamped,
+      };
+    }
+    if (this.territoryCatapultAimSlot !== null) {
+      return {
+        point,
+        radius: this.territoryCatapultAimSlot === 1 ? 10 : 5.5,
+        school: 'physical',
+        clamped: this.groundAimClamped,
+      };
+    }
     const res = this.activeGroundAimAbility();
     if (!res) return null;
     if (res.def.targetMode !== 'position' || res.def.selfCentered) return null;
@@ -6947,6 +7186,27 @@ export class Hud {
     halfAngle?: number;
   } | null {
     if (!this.isGroundAimActive()) return null;
+    if (this.territoryMortarAimSlot !== null) {
+      return {
+        point: { x: this.sim.player.pos.x, z: this.sim.player.pos.z },
+        radius: TERRITORY_SIEGE_MORTAR_RANGE,
+        school:
+          this.territoryMortarAimSlot === 1
+            ? 'frost'
+            : this.territoryMortarAimSlot === 2
+              ? 'nature'
+              : 'physical',
+        kind: 'circle',
+      };
+    }
+    if (this.territoryCatapultAimSlot !== null) {
+      return {
+        point: { x: this.sim.player.pos.x, z: this.sim.player.pos.z },
+        radius: TERRITORY_SIEGE_CATAPULT_RANGE,
+        school: 'physical',
+        kind: 'circle',
+      };
+    }
     const res = this.activeGroundAimAbility();
     if (!res) return null;
     const radius = abilityPreviewRange(res);
@@ -6984,6 +7244,35 @@ export class Hud {
 
   commitGroundAimAt(rawPoint: AimPoint | null = this.groundAimPoint): boolean {
     if (!this.isGroundAimActive()) return false;
+    if (this.territoryCatapultAimSlot !== null) {
+      const slot = this.territoryCatapultAimSlot;
+      const raw = rawPoint ?? this.groundTargetAim();
+      const point = clampAimToRange(this.sim.player, raw, TERRITORY_SIEGE_CATAPULT_RANGE).point;
+      this.territoryCatapultAimSlot = null;
+      this.groundAimPoint = null;
+      this.groundAimClamped = false;
+      this.renderer.setGroundAimReticle(null);
+      this.renderer.setAbilityRangeReticle(null);
+      this.paintCatapultPrepared(null);
+      this.sim.territorySiegeAction(slot === 0 ? 'catapult_fire' : 'catapult_cluster', point);
+      return true;
+    }
+    if (this.territoryMortarAimSlot !== null) {
+      const slot = this.territoryMortarAimSlot;
+      const raw = rawPoint ?? this.groundTargetAim();
+      const point = clampAimToRange(this.sim.player, raw, TERRITORY_SIEGE_MORTAR_RANGE).point;
+      this.territoryMortarAimSlot = null;
+      this.groundAimPoint = null;
+      this.groundAimClamped = false;
+      this.renderer.setGroundAimReticle(null);
+      this.renderer.setAbilityRangeReticle(null);
+      this.paintMortarPrepared(null);
+      this.sim.territorySiegeAction(
+        slot === 0 ? 'mortar_fire' : slot === 1 ? 'mortar_frost' : 'mortar_venom',
+        point,
+      );
+      return true;
+    }
     const res = this.activeGroundAimAbility();
     const abilityId = this.groundAim.activeAbilityId;
     if (!res || !abilityId) {
@@ -7062,6 +7351,9 @@ export class Hud {
   }
 
   castSlot(barSlot: number): void {
+    if (this.territoryMap.handleCatapultActionSlot(barSlot)) return;
+    if (this.territoryMap.handleMortarActionSlot(barSlot)) return;
+    if (this.territoryMap.handleRamActionSlot(barSlot)) return;
     if (this.isGroundAimActive()) {
       if (this.groundAim.activeSlot === barSlot) {
         this.commitGroundAimAt();
@@ -7121,7 +7413,9 @@ export class Hud {
   // route through the interact-style handler first (#2343); everything else
   // (and fishing implements) keeps the plain useItem command.
   private useHotbarItem(itemId: string): void {
-    if (!this.tryGatherToolUse(itemId)) this.sim.useItem(itemId);
+    if (!this.useTerritorySiegeItem(itemId) && !this.tryGatherToolUse(itemId)) {
+      this.sim.useItem(itemId);
+    }
     if ($('#bags').style.display !== 'none') this.renderBags();
   }
 
@@ -8677,7 +8971,9 @@ export class Hud {
     // debuffs + cast bar CONSUME the existing auras paint + the cast_bar
     // target instance. (Targeting a world object hides the frame, like no target.)
     const target = p.targetId !== null ? sim.entities.get(p.targetId) : null;
+    const territoryObjective = this.territorySiegeObjectiveFrame();
     if (target && target.kind !== 'object') {
+      this.toggleClass(this.targetFrameEl, 'territory-objective', false);
       const targetTemplate = MOBS[target.templateId];
       const targetRank = targetRankView(targetTemplate);
       // The portrait gate fires inside paint(); hand it the subject to redraw.
@@ -8864,7 +9160,43 @@ export class Hud {
           unitFrameViewInto(this.totFrameBuffer, ABSENT_TARGET_DESCRIPTOR),
         );
       }
+    } else if (territoryObjective) {
+      const { current, maximum, name, key } = territoryObjective;
+      this.lastTargetFrameId = null;
+      this.targetPortraitSubject = null;
+      const targetFrame = this.targetFrameDescriptor;
+      targetFrame.present = true;
+      targetFrame.hpFrac = current / Math.max(1, maximum);
+      targetFrame.hpText = unitFrameCurrentMaxText(current, maximum);
+      targetFrame.showAbsorbText = false;
+      targetFrame.resourceKind = 'none';
+      targetFrame.resFrac = 0;
+      targetFrame.resText = '';
+      targetFrame.levelText = null;
+      targetFrame.name = name;
+      targetFrame.titlePre = '';
+      targetFrame.titlePost = '';
+      targetFrame.cheaterTag = '';
+      targetFrame.borderSlug = '';
+      targetFrame.portraitKey = `territory:${key}`;
+      targetFrame.absorb = null;
+      targetFrame.dead = false;
+      targetFrame.outOfRange = false;
+      this.targetFramePainter.paint(unitFrameViewInto(this.targetFrameBuffer, targetFrame));
+      this.toggleClass(this.targetFrameEl, 'territory-objective', true);
+      this.toggleClass(this.targetFrameEl, 'elite', false);
+      this.toggleClass(this.targetFrameEl, 'boss', false);
+      this.toggleClass(this.targetNameEl, 'hostile', false);
+      this.setStyleProp(this.targetNameEl, 'color', 'var(--gold)');
+      this.setText(this.targetEliteTagEl, '');
+      this.targetDiscordSig = '';
+      this.setText(this.targetDiscordEl, '');
+      this.targetAurasWindow.clear();
+      this.lastTotFrameId = null;
+      this.totFramePainter.paint(unitFrameViewInto(this.totFrameBuffer, ABSENT_TARGET_DESCRIPTOR));
     } else {
+      this.territorySiegeObjectiveTarget = null;
+      this.toggleClass(this.targetFrameEl, 'territory-objective', false);
       // No target (or a world object): hide the frame. The painter also resets its
       // portrait gate here, so re-acquiring a target repaints (the old -999 reset). Reset
       // the tier cadence id too, so re-acquiring a target bypasses the low-tier throttle
@@ -10386,6 +10718,14 @@ export class Hud {
     el.style.display = 'block';
     this.updateMapWindow();
     this.syncAnyWindowOpenState();
+  }
+
+  handleTerritorySiegeInteract(): boolean {
+    return this.territoryMap.handleSiegeInteract();
+  }
+
+  isTerritoryMortarOperating(): boolean {
+    return this.territoryMap.isRangedSiegeOperating();
   }
 
   private openTerritoryMapWindow(): void {
@@ -14499,6 +14839,100 @@ export class Hud {
     // emit a textual chat line via log(), so the #chat-live region announces them; adding the
     // float too would double-announce, which the announce contract forbids.)
     this.combatAnnouncer.push(text, performance.now());
+  }
+
+  /** Inventory/slot Use route for itemized, single-operator siege weapons. */
+  private useTerritorySiegeItem(itemId: string): boolean {
+    if (
+      itemId !== TERRITORY_SIEGE_RAM_ITEM_ID &&
+      itemId !== TERRITORY_SIEGE_MORTAR_ITEM_ID &&
+      itemId !== TERRITORY_SIEGE_CATAPULT_ITEM_ID
+    ) {
+      return false;
+    }
+    const siege = this.sim.territoryMap?.siege;
+    if (itemId === TERRITORY_SIEGE_CATAPULT_ITEM_ID) {
+      if (siege?.state !== 'active' || siege.respawnIn > 0) {
+        this.showError(t('hudChrome.territoryMap.catapultUnavailable'));
+        return true;
+      }
+      const ownCatapults = (siege.catapults ?? []).filter(
+        (catapult) => catapult.side === siege.mySide,
+      ).length;
+      if (ownCatapults >= TERRITORY_SIEGE_MAX_CATAPULTS_PER_SIDE) {
+        this.showError(t('hudChrome.territoryMap.catapultLimit'));
+        return true;
+      }
+      const origin = territorySiegeOrigin(territorySiegeOriginAt(this.sim.player.pos.z).slot);
+      const localX = this.sim.player.pos.x - origin.x;
+      const localZ = this.sim.player.pos.z - origin.z;
+      if (
+        !territorySiegeCatapultPlacementAllowed(
+          localX,
+          localZ,
+          siege.catapults ?? [],
+          siege.mortars,
+          siege.rams ?? [],
+        )
+      ) {
+        this.showError(t('hudChrome.territoryMap.catapultPlacement'));
+        return true;
+      }
+      this.sim.territorySiegeAction('deploy_catapult', undefined, this.sim.player.facing);
+      return true;
+    }
+    if (itemId === TERRITORY_SIEGE_MORTAR_ITEM_ID) {
+      if (siege?.state !== 'active' || siege.respawnIn > 0) {
+        this.showError(t('hudChrome.territoryMap.mortarUnavailable'));
+        return true;
+      }
+      const ownMortars = siege.mortars.filter((mortar) => mortar.side === siege.mySide).length;
+      if (ownMortars >= TERRITORY_SIEGE_MAX_MORTARS_PER_SIDE) {
+        this.showError(t('hudChrome.territoryMap.mortarLimit'));
+        return true;
+      }
+      const siegeSlot = territorySiegeOriginAt(this.sim.player.pos.z).slot;
+      const origin = territorySiegeOrigin(siegeSlot);
+      const localX = this.sim.player.pos.x - origin.x;
+      const localZ = this.sim.player.pos.z - origin.z;
+      if (
+        !territorySiegeMortarPlacementAllowed(
+          localX,
+          localZ,
+          siege.mortars,
+          siege.rams ?? [],
+          siege.catapults ?? [],
+        )
+      ) {
+        this.showError(t('hudChrome.territoryMap.mortarPlacement'));
+        return true;
+      }
+      this.sim.territorySiegeAction('deploy_mortar', undefined, this.sim.player.facing);
+      return true;
+    }
+    if (
+      siege?.state !== 'active' ||
+      siege.mySide !== 'attacker' ||
+      siege.respawnIn > 0 ||
+      siege.gateOpen
+    ) {
+      this.showError(t('hudChrome.territoryMap.ramUnavailable'));
+      return true;
+    }
+    if ((siege.rams?.length ?? (siege.ramDeployed ? 1 : 0)) >= TERRITORY_SIEGE_MAX_RAMS) {
+      this.showError(t('hudChrome.territoryMap.ramLimit'));
+      return true;
+    }
+    const siegeSlot = territorySiegeOriginAt(this.sim.player.pos.z).slot;
+    const origin = territorySiegeOrigin(siegeSlot);
+    const localX = this.sim.player.pos.x - origin.x;
+    const localZ = this.sim.player.pos.z - origin.z;
+    if (!territorySiegeRamDeploymentAreaContains(localX, localZ)) {
+      this.showError(t('hudChrome.territoryMap.ramPlacement'));
+      return true;
+    }
+    this.sim.territorySiegeAction('deploy_ram');
+    return true;
   }
 
   showError(text: string, logChannel = ERROR_LOG_CHAN, announceWhenFiltered = false): void {

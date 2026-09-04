@@ -118,12 +118,20 @@ describe('player gesture release on cast fx (review #2961)', () => {
     painter.handleBallisticImpact({
       trajectoryId: '3:5:0',
       x: 11,
+      y: 4,
       z: 14,
       targetId: TARGET_ID,
       reason: 'entity',
     });
 
-    expect(fx.finishBallisticSequence).toHaveBeenCalledWith('3:5:0', 11, 14, TARGET_ID, 'entity');
+    expect(fx.finishBallisticSequence).toHaveBeenCalledWith(
+      '3:5:0',
+      11,
+      4,
+      14,
+      TARGET_ID,
+      'entity',
+    );
   });
 
   it('lands a target-born DoT with its authored contact sequence and no projectile', () => {

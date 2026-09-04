@@ -17,8 +17,10 @@ describe('handleProjectileEventVfx', () => {
       trajectoryId: '7:12:0',
       sourceId: 7,
       x: 3,
+      y: 4,
       z: 5,
       dirX: 0.6,
+      dirY: 0.3,
       dirZ: 0.8,
       speed: 26,
       maxDistance: 35,
@@ -30,9 +32,10 @@ describe('handleProjectileEventVfx', () => {
     expect(vfx.ballisticProjectile).toHaveBeenCalledWith(
       '7:12:0',
       3,
-      expect.any(Number),
+      4,
       5,
       0.6,
+      0.3,
       0.8,
       26,
       35,
@@ -58,8 +61,10 @@ describe('handleProjectileEventVfx', () => {
       trajectoryId: '9:4:0',
       sourceId: 9,
       x: 1,
+      y: 1.7,
       z: 2,
       dirX: 0,
+      dirY: 0,
       dirZ: 1,
       speed: 26,
       maxDistance: 30,
@@ -73,14 +78,47 @@ describe('handleProjectileEventVfx', () => {
     expect(vfx.ballisticProjectile).toHaveBeenCalledWith(
       '9:4:0',
       1,
-      expect.any(Number),
+      1.7,
       2,
+      0,
       0,
       1,
       26,
       30,
       'nature',
       appearance,
+    );
+  });
+
+  it('keeps rolling-deploy compatibility with a horizontal legacy launch event', () => {
+    const vfx = projectileEventVfx();
+    const event: SimEvent = {
+      type: 'projectileLaunch',
+      trajectoryId: 'legacy:1',
+      sourceId: 1,
+      x: 3,
+      z: 5,
+      dirX: 0,
+      dirZ: 1,
+      speed: 26,
+      maxDistance: 20,
+      radius: 0.2,
+      school: 'frost',
+    };
+
+    expect(handleProjectileEventVfx(event, () => 42, vfx)).toBe(true);
+    expect(vfx.ballisticProjectile).toHaveBeenCalledWith(
+      'legacy:1',
+      3,
+      expect.any(Number),
+      5,
+      0,
+      0,
+      1,
+      26,
+      20,
+      'frost',
+      undefined,
     );
   });
 
@@ -92,12 +130,13 @@ describe('handleProjectileEventVfx', () => {
         type: 'projectileImpact',
         trajectoryId: '7:12:0',
         x: 9,
+        y: 2.5,
         z: 11,
         reason,
       };
 
       expect(handleProjectileEventVfx(event, () => 42, vfx)).toBe(true);
-      expect(vfx.ballisticImpact).toHaveBeenCalledWith('7:12:0', 9, expect.any(Number), 11, reason);
+      expect(vfx.ballisticImpact).toHaveBeenCalledWith('7:12:0', 9, 2.5, 11, reason);
     },
   );
 
@@ -111,6 +150,7 @@ describe('handleProjectileEventVfx', () => {
       type: 'projectileImpact',
       trajectoryId: '9:4:0',
       x: 8,
+      y: 3,
       z: 13,
       targetId: 17,
       reason: 'entity',

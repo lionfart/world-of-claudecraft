@@ -2452,6 +2452,9 @@ const ITEM_ENTITY_IDS = [
   'ps_lustrous_pearl',
   'mother_of_pearl',
   'ps_passing_stone',
+  'territory_battering_ram',
+  'territory_field_mortar',
+  'territory_catapult',
 ] as const;
 
 type ItemEntityId = (typeof ITEM_ENTITY_IDS)[number];
@@ -2589,6 +2592,9 @@ const APPENDED_ITEM_NAMES: Partial<Record<ItemEntityId, string>> = {
   ps_lustrous_pearl: 'Lustrous Pearl',
   mother_of_pearl: 'Mother of Pearl',
   ps_passing_stone: 'Passing Stone',
+  territory_battering_ram: 'Battering Ram',
+  territory_field_mortar: 'Field Mortar',
+  territory_catapult: 'Field Catapult',
 };
 
 function itemTranslations(names: readonly string[]): ItemEntityTranslations {

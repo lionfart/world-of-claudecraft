@@ -54,17 +54,34 @@ export function normalizeMoveFacing(raw: unknown): number | null {
     : null;
 }
 
+export function sanitizeCombatAimPitch(raw: unknown): number | null {
+  return typeof raw === 'number' &&
+    Number.isFinite(raw) &&
+    Math.abs(raw) < Math.PI / 2
+    ? raw
+    : null;
+}
+
 export interface MoveInputFrame {
   moveInput: MoveInput;
   facing: number | null;
   combatAimAngle?: number | null;
+  combatAimPitch?: number | null;
 }
 
 export function parseMoveInputFrame(raw: unknown): MoveInputFrame {
-  if (!isRecord(raw)) return { moveInput: emptyMoveInput(), facing: null, combatAimAngle: null };
+  if (!isRecord(raw)) {
+    return {
+      moveInput: emptyMoveInput(),
+      facing: null,
+      combatAimAngle: null,
+      combatAimPitch: null,
+    };
+  }
   return {
     moveInput: sanitizeMoveInput(raw.mi),
     facing: sanitizeMoveFacing(raw.facing),
     combatAimAngle: normalizeMoveFacing(raw.combatAimAngle ?? raw.aim),
+    combatAimPitch: sanitizeCombatAimPitch(raw.combatAimPitch ?? raw.aimPitch),
   };
 }

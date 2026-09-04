@@ -6,7 +6,7 @@ import {
   TERRITORY_SIEGE_FIELD_HALF_Z,
   TERRITORY_SIEGE_VISUAL_MARGIN,
 } from '../sim/territory_siege_ground';
-import type { TerritorySiegeView } from '../world_api';
+import type { TerritorySiegeObjectiveTarget, TerritorySiegeView } from '../world_api';
 import { setRenderCategory } from './renderer_diagnostics';
 import {
   buildTerritorySiegePrototype,
@@ -19,6 +19,8 @@ export class TerritorySiegeBand {
     number,
     { biome: TerritorySiegeBiome; view: TerritorySiegePrototypeView }
   >();
+  private readonly objectiveTargets: THREE.Object3D[] = [];
+  private selectedObjective: TerritorySiegeObjectiveTarget | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -41,12 +43,50 @@ export class TerritorySiegeBand {
       if (existing) {
         this.scene.remove(existing.view.group);
         this.views.delete(slot);
+        this.rebuildObjectiveTargets();
       }
       const view = buildTerritorySiegePrototype(slot, siege.biome);
       setRenderCategory(view.group, 'dungeon');
       this.scene.add(view.group);
       this.views.set(slot, { biome: siege.biome, view });
+      this.rebuildObjectiveTargets();
     }
-    for (const { view } of this.views.values()) view.update(siege, time, { x, z });
+    for (const { view } of this.views.values())
+      view.update(siege, time, { x, z }, this.selectedObjective);
+  }
+
+  /** Direct, exact picking for siege objectives; no character-style sloppy assist. */
+  pickObjective(
+    raycaster: THREE.Raycaster,
+    hits: THREE.Intersection[],
+  ): TerritorySiegeObjectiveTarget | null {
+    if (!this.objectiveTargets.length) return null;
+    hits.length = 0;
+    raycaster.intersectObjects(this.objectiveTargets, true, hits);
+    for (const hit of hits) {
+      let object: THREE.Object3D | null = hit.object;
+      while (object) {
+        const objective = object.userData.territorySiegeObjective as
+          | TerritorySiegeObjectiveTarget
+          | undefined;
+        if (objective && object.visible) {
+          hits.length = 0;
+          return objective;
+        }
+        object = object.parent;
+      }
+    }
+    hits.length = 0;
+    return null;
+  }
+
+  setSelectedObjective(target: TerritorySiegeObjectiveTarget | null): void {
+    this.selectedObjective = target;
+  }
+
+  private rebuildObjectiveTargets(): void {
+    this.objectiveTargets.length = 0;
+    for (const { view } of this.views.values())
+      this.objectiveTargets.push(...view.objectiveTargets);
   }
 }

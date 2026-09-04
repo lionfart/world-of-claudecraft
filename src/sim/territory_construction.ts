@@ -2,6 +2,12 @@ import type { TerritoryStructureKind } from '../world_api';
 
 const KIND_TIME_WEIGHT: Readonly<Record<TerritoryStructureKind, number>> = {
   keep: 5,
+  walls: 3,
+  towers: 4,
+  granary: 2,
+  forester: 2,
+  mine: 2,
+  house: 2,
   gate: 3,
   wall: 3,
   defense_tower: 4,

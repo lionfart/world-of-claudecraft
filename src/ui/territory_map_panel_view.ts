@@ -28,27 +28,23 @@ export interface TerritorySlotDescriptor {
   kind: TerritoryStructureKind;
   labelKey:
     | 'slotKeep'
-    | 'slotGate'
-    | 'slotWall'
-    | 'slotTowerNorth'
-    | 'slotTowerSouth'
-    | 'slotStorehouse'
-    | 'slotConstructionWorkshop'
+    | 'slotWalls'
+    | 'slotTowers'
+    | 'slotGranary'
+    | 'slotForester'
+    | 'slotMine'
+    | 'slotHouse'
     | 'slotSiegeWorkshop';
 }
 
 export const TERRITORY_SLOT_DESCRIPTORS: readonly TerritorySlotDescriptor[] = [
   { slot: 'keep_core', kind: 'keep', labelKey: 'slotKeep' },
-  { slot: 'gate', kind: 'gate', labelKey: 'slotGate' },
-  { slot: 'wall', kind: 'wall', labelKey: 'slotWall' },
-  { slot: 'tower_north', kind: 'defense_tower', labelKey: 'slotTowerNorth' },
-  { slot: 'tower_south', kind: 'defense_tower', labelKey: 'slotTowerSouth' },
-  { slot: 'storehouse', kind: 'storehouse', labelKey: 'slotStorehouse' },
-  {
-    slot: 'construction_workshop',
-    kind: 'construction_workshop',
-    labelKey: 'slotConstructionWorkshop',
-  },
+  { slot: 'walls', kind: 'walls', labelKey: 'slotWalls' },
+  { slot: 'towers', kind: 'towers', labelKey: 'slotTowers' },
+  { slot: 'granary', kind: 'granary', labelKey: 'slotGranary' },
+  { slot: 'forester', kind: 'forester', labelKey: 'slotForester' },
+  { slot: 'mine', kind: 'mine', labelKey: 'slotMine' },
+  { slot: 'house', kind: 'house', labelKey: 'slotHouse' },
   { slot: 'siege_workshop', kind: 'siege_workshop', labelKey: 'slotSiegeWorkshop' },
 ];
 
@@ -151,9 +147,7 @@ export function territoryWarNoticeModel(
 ): TerritoryWarNoticeModel {
   const startsAtMs = war ? new Date(war.startsAt).getTime() : Number.NaN;
   const endsAtMs = war ? new Date(war.endsAt).getTime() : Number.NaN;
-  const active =
-    war?.status === 'active' &&
-    (war.mySide === 'defender' || (war.mySide === 'attacker' && war.registered));
+  const active = war?.status === 'active';
   return {
     visible: !!war && (war.status === 'declared' || war.status === 'forming' || active),
     active,

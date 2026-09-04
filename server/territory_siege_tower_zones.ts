@@ -11,10 +11,13 @@ export interface TerritoryTowerTarget {
 interface TerritoryTowerZone {
   id: number;
   warId: string;
+  fromX: number;
+  fromZ: number;
   x: number;
   z: number;
   radius: number;
   damage: number;
+  durationMs: number;
   detonatesAtMs: number;
 }
 
@@ -24,18 +27,23 @@ export class TerritorySiegeTowerZones {
 
   queue(
     warId: string,
+    source: Pick<TerritoryTowerTarget, 'x' | 'z'>,
     target: Pick<TerritoryTowerTarget, 'x' | 'z'>,
     damage: number,
     nowMs: number,
   ): void {
+    const durationMs = 1_800;
     this.zones.push({
       id: this.nextId++,
       warId,
+      fromX: source.x,
+      fromZ: source.z,
       x: target.x,
       z: target.z,
       radius: 5,
       damage,
-      detonatesAtMs: nowMs + 1_800,
+      durationMs,
+      detonatesAtMs: nowMs + durationMs,
     });
   }
 
@@ -66,10 +74,13 @@ export class TerritorySiegeTowerZones {
       .filter((zone) => zone.warId === warId)
       .map((zone) => ({
         id: zone.id,
+        fromX: zone.fromX,
+        fromZ: zone.fromZ,
         x: zone.x,
         z: zone.z,
         radius: zone.radius,
         detonatesIn: Math.max(0, (zone.detonatesAtMs - nowMs) / 1_000),
+        duration: zone.durationMs / 1_000,
       }));
   }
 }

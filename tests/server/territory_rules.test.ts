@@ -4,6 +4,8 @@ import {
   territoryFirstKeepAllowed,
   territoryRequiresSpend,
   territoryWarJoinAllowed,
+  territoryWarLeaveKeepsRegistration,
+  territoryWarParticipantBattleActive,
 } from '../../server/territory_rules';
 
 describe('territory test preset rules', () => {
@@ -28,5 +30,19 @@ describe('territory test preset rules', () => {
     expect(territoryWarJoinAllowed('active', 'defender', true)).toBe(true);
     expect(territoryWarJoinAllowed('resolved', 'defender', true)).toBe(false);
     expect(territoryWarJoinAllowed('cancelled', 'attacker', true)).toBe(false);
+  });
+
+  it('keeps only a pre-registered attacker seat when voluntarily leaving active combat', () => {
+    expect(territoryWarLeaveKeepsRegistration('forming', 'attacker', true)).toBe(false);
+    expect(territoryWarLeaveKeepsRegistration('active', 'attacker', true)).toBe(true);
+    expect(territoryWarLeaveKeepsRegistration('active', 'attacker', false)).toBe(false);
+    expect(territoryWarLeaveKeepsRegistration('active', 'defender', true)).toBe(false);
+    expect(territoryWarLeaveKeepsRegistration('resolved', 'attacker', true)).toBe(false);
+  });
+
+  it('does not restore a voluntarily departed roster seat into battle after restart', () => {
+    expect(territoryWarParticipantBattleActive(null, null)).toBe(true);
+    expect(territoryWarParticipantBattleActive(null, new Date())).toBe(false);
+    expect(territoryWarParticipantBattleActive(new Date(), null)).toBe(false);
   });
 });
