@@ -7,7 +7,7 @@
 import type { AbilityDef, AbilityEffect, Entity } from '../../../sim/types';
 import {
   type AimPoint,
-  abilityAoeRadius,
+  abilityGroundAreaRadius,
   cancelGroundAim,
   clampAimToRange,
   commitGroundAim,
@@ -20,7 +20,10 @@ import {
 } from './ground_aim';
 
 export interface GroundAimResolvedAbility {
-  def: Pick<AbilityDef, 'id' | 'range' | 'minRange' | 'school' | 'impactArea'>;
+  def: Pick<
+    AbilityDef,
+    'id' | 'range' | 'minRange' | 'school' | 'targetMode' | 'selfCentered' | 'impactArea'
+  >;
   effects: readonly AbilityEffect[];
 }
 
@@ -177,9 +180,11 @@ export class GroundAimController {
     const diverged =
       Math.hypot(projected.x - aim.point.x, projected.z - aim.point.z) >
       PROJECTION_DIVERGENCE_EPSILON;
+    const radius = abilityGroundAreaRadius(res);
+    if (radius === null) return null;
     return {
       point: projected,
-      radius: abilityAoeRadius(res),
+      radius,
       school: res.def.school,
       dimmed: aim.clamped || diverged,
       blocked: withinMinRange(player, aim.point, res.def.minRange),

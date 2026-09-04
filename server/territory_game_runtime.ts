@@ -782,7 +782,10 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
     const spawn = territorySiegeSpawn(placement.slot, placement.side, placement.seatNo);
     this.deps.teleport(session, spawn);
     const teleported = this.deps.sim.entities.get(session.pid);
-    if (teleported) teleported.facing = spawn.facing;
+    if (teleported) {
+      teleported.facing = spawn.facing;
+      teleported.prevFacing = spawn.facing;
+    }
     this.deps.sim.setTerritorySiegeTeam(session.pid, {
       warId: placement.warId,
       side: placement.side,
@@ -800,7 +803,10 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
     if (!position) return;
     this.deps.teleport(session, position);
     const entity = this.deps.sim.entities.get(session.pid);
-    if (entity) entity.facing = position.facing;
+    if (entity) {
+      entity.facing = position.facing;
+      entity.prevFacing = position.facing;
+    }
     state.returnPos = null;
     state.controlAnchor = null;
   }

@@ -540,7 +540,13 @@ describe('Hud ground aim behavior', () => {
       const controller = new GroundAimController({
         player: () => entity(1, 0, 0),
         resolveAbility: () => ({
-          def: { id: 'heroic_leap', range: 30, school: 'physical' },
+          def: {
+            id: 'heroic_leap',
+            range: 30,
+            school: 'physical',
+            targetMode: 'position',
+            selfCentered: false,
+          },
           effects: [],
         }),
         seedTargetPoint: () => null,
@@ -566,7 +572,13 @@ describe('Hud ground aim behavior', () => {
       const controller = new GroundAimController({
         player: () => entity(1, 0, 0),
         resolveAbility: () => ({
-          def: { id: 'flamestrike', range: 30, school: 'fire' },
+          def: {
+            id: 'flamestrike',
+            range: 30,
+            school: 'fire',
+            targetMode: 'position',
+            selfCentered: false,
+          },
           effects: [],
         }),
         seedTargetPoint: () => null,
@@ -582,6 +594,32 @@ describe('Hud ground aim behavior', () => {
       const reticle = controller.reticle();
       expect(reticle?.point).toEqual({ x: 0, z: 20 });
       expect(reticle?.dimmed).toBe(false);
+    });
+
+    it('keeps a prepared direct projectile free of a fake ground circle', () => {
+      const controller = new GroundAimController({
+        player: () => entity(1, 0, 0),
+        resolveAbility: () => ({
+          def: {
+            id: 'fireball',
+            range: 35,
+            school: 'fire',
+            targetMode: undefined,
+            selfCentered: false,
+          },
+          effects: [{ type: 'directDamage', min: 10, max: 12 }],
+        }),
+        seedTargetPoint: () => null,
+        fallbackPoint: () => ({ x: 0, z: 0 }),
+        castAt: vi.fn(),
+        clearReticle: vi.fn(),
+      });
+
+      controller.begin('fireball', 1);
+      controller.updatePoint({ x: 0, z: 20 });
+
+      expect(controller.reticle()).toBeNull();
+      expect(controller.activeAbilityId()).toBe('fireball');
     });
   });
 });

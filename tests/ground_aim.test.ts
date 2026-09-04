@@ -3,6 +3,7 @@ import { ABILITIES } from '../src/sim/data';
 import type { AbilityEffect, Entity } from '../src/sim/types';
 import {
   abilityAoeRadius,
+  abilityGroundAreaRadius,
   abilityPreviewAngle,
   abilityPreviewKind,
   abilityPreviewRange,
@@ -37,13 +38,14 @@ describe('ground_aim', () => {
     expect(shouldUseGroundAim(false, true, false)).toBe(true);
   });
 
-  it('prepares desktop skills but preserves direct touch casting outside ground placement', () => {
-    const bolt = { id: 'bolt', targetMode: undefined, selfCentered: undefined };
-    const ground = { id: 'meteor', targetMode: 'position' as const, selfCentered: false };
-    expect(shouldPrepareAbility(bolt, false, true)).toBe(true);
-    expect(shouldPrepareAbility(bolt, true, true)).toBe(false);
-    expect(shouldPrepareAbility(ground, true, true)).toBe(true);
-    expect(shouldPrepareAbility(ground, false, false)).toBe(false);
+  it('prepares aimed desktop skills while self-only skills cast immediately', () => {
+    expect(shouldPrepareAbility(ABILITIES.fireball, false, true)).toBe(true);
+    expect(shouldPrepareAbility(ABILITIES.fireball, true, true)).toBe(false);
+    expect(shouldPrepareAbility(ABILITIES.flamestrike, true, true)).toBe(true);
+    expect(shouldPrepareAbility(ABILITIES.flamestrike, false, false)).toBe(false);
+    expect(shouldPrepareAbility(ABILITIES.frost_armor, false, true)).toBe(false);
+    expect(shouldPrepareAbility(ABILITIES.arcane_explosion, false, true)).toBe(false);
+    expect(shouldPrepareAbility(ABILITIES.conjure_water, false, true)).toBe(false);
   });
 
   it('passes through points inside range', () => {
@@ -112,6 +114,21 @@ describe('ground_aim', () => {
     expect(abilityAoeRadius({ effects: [{ type: 'directDamage', min: 1, max: 2 }] })).toBe(
       DEFAULT_GROUND_AOE_RADIUS,
     );
+  });
+
+  it('shows a ground circle only for genuine area-capable abilities', () => {
+    expect(
+      abilityGroundAreaRadius({ def: ABILITIES.fireball, effects: ABILITIES.fireball.effects }),
+    ).toBeNull();
+    expect(
+      abilityGroundAreaRadius({
+        def: ABILITIES.flamestrike,
+        effects: ABILITIES.flamestrike.effects,
+      }),
+    ).toBeGreaterThan(0);
+    expect(
+      abilityGroundAreaRadius({ def: ABILITIES.meteor, effects: ABILITIES.meteor.effects }),
+    ).toBe(8);
   });
 
   it('builds maximum-range guides from authored range, area, or melee reach', () => {

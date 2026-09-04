@@ -26,16 +26,40 @@ function required<T>(value: T | null | undefined, label: string): T {
 }
 
 describe('settleTeleportArrival', () => {
-  it('zeroes vertical velocity, clears jumping, grounds the entity, and pins fallStartY to the new pos', () => {
+  it('settles every movement driver and pins fallStartY to the new position', () => {
     const p = createPlayer(1, 'warrior', { x: 10, y: 40, z: 10 }, 'Faller');
+    p.vx = 7;
+    p.vz = -4;
     p.vy = -12;
+    p.dodgeRemaining = 0.2;
+    p.dodgeDirX = 1;
+    p.dodgeDirZ = -1;
+    p.chargeTargetId = 99;
+    p.chargeTimeLeft = 1;
+    p.chargePath = [{ x: 20, y: 0, z: 20 }];
+    p.followTargetId = 98;
+    p.leap = {} as NonNullable<typeof p.leap>;
+    p.valkyrsCalling = {} as NonNullable<typeof p.valkyrsCalling>;
+    p.climb = {} as NonNullable<typeof p.climb>;
     p.jumping = true;
     p.onGround = false;
     p.fallStartY = 78; // stale overworld height the entity fell from
 
     settleTeleportArrival(p);
 
+    expect(p.vx).toBe(0);
+    expect(p.vz).toBe(0);
     expect(p.vy).toBe(0);
+    expect(p.dodgeRemaining).toBe(0);
+    expect(p.dodgeDirX).toBe(0);
+    expect(p.dodgeDirZ).toBe(0);
+    expect(p.chargeTargetId).toBeNull();
+    expect(p.chargeTimeLeft).toBe(0);
+    expect(p.chargePath).toEqual([]);
+    expect(p.followTargetId).toBeNull();
+    expect(p.leap).toBeNull();
+    expect(p.valkyrsCalling).toBeNull();
+    expect(p.climb).toBeNull();
     expect(p.jumping).toBe(false);
     expect(p.onGround).toBe(true);
     expect(p.fallStartY).toBe(p.pos.y);

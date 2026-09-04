@@ -79,6 +79,7 @@ import {
   parseTalentOptionId,
   parseTalentRowLevel,
 } from '../src/sim/talent_allocation_input';
+import { settleTeleportArrival } from '../src/sim/teleport_arrival';
 import { stealthDetectionRadius, threatEntries } from '../src/sim/threat';
 import {
   DT,
@@ -2318,13 +2319,17 @@ export class GameServer {
     const ground = this.sim.groundPos(pos.x, pos.z);
     entity.pos = ground;
     entity.prevPos = { ...ground };
-    entity.vy = 0;
-    entity.onGround = true;
-    entity.fallStartY = ground.y;
+    settleTeleportArrival(entity);
     this.sim.grid.update(entity);
     this.sim.playerGrid.update(entity);
     const meta = this.sim.meta(session.pid);
     if (meta) Object.assign(meta.moveInput, emptyMoveInput());
+    // This is an authoritative discontinuity, not a very large walking step.
+    // Force the next self snapshot to rebuild and make movement-wire v2 suspend
+    // any predicted path that was queued on the old map immediately.
+    session.movementOverrideEpoch++;
+    session.movementAuthoritativePosition = { ...ground };
+    session.lastSent = {};
   }
 
   private jailSpawnFor(session: ClientSession): { x: number; z: number } {

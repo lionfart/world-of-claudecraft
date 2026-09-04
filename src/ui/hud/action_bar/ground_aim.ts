@@ -1,6 +1,7 @@
 import { playerAttackResolution } from '../../../sim/combat/directional_attack';
 import type { AbilityDef, AbilityEffect, Entity } from '../../../sim/types';
 import { MELEE_RANGE } from '../../../sim/types';
+import { isSelfOnlyAbility } from './ability_self_only';
 
 export interface AimPoint {
   x: number;
@@ -56,10 +57,16 @@ export function shouldUseGroundAim(
 /** Desktop combat skills enter a confirmable prepared state. Touch keeps its
  * existing direct-cast controls, apart from authored ground placement. */
 export function shouldPrepareAbility(
-  ability: Pick<AbilityDef, 'id' | 'targetMode' | 'selfCentered'>,
+  ability: AbilityDef,
   mobileTouch: boolean,
   groundPlacementEnabled: boolean,
 ): boolean {
+  // A spell whose only meaningful origin is the caster has nothing for a
+  // second press to choose. This covers authored self buffs and hostile
+  // player-centred areas (plus special targetless actions such as conjures),
+  // while friendly/entity, melee and directional ranged abilities remain
+  // confirmable below.
+  if (isSelfOnlyAbility(ability) || playerAttackResolution(ability) === 'selfArea') return false;
   if (mobileTouch) {
     return ability.targetMode === 'position' && !ability.selfCentered && groundPlacementEnabled;
   }
@@ -164,6 +171,20 @@ export function abilityAoeRadius(res: {
   effects: readonly AbilityEffect[];
 }): number {
   return explicitAbilityAoeRadius(res) ?? DEFAULT_GROUND_AOE_RADIUS;
+}
+
+/** Radius of a genuine impact/placement area. A direct strike or projectile
+ * deliberately returns null: its prepared state still paints the range/aim
+ * guide, but must not masquerade as a six-yard ground spell. */
+export function abilityGroundAreaRadius(res: {
+  def: Pick<AbilityDef, 'targetMode' | 'selfCentered' | 'impactArea'>;
+  effects: readonly AbilityEffect[];
+}): number | null {
+  const authored = explicitAbilityAoeRadius(res);
+  if (authored !== null) return authored;
+  return res.def.targetMode === 'position' && !res.def.selfCentered
+    ? DEFAULT_GROUND_AOE_RADIUS
+    : null;
 }
 
 export function explicitAbilityAoeRadius(res: {
