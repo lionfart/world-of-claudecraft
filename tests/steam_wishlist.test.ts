@@ -19,7 +19,7 @@ import { hasUiIcon, svgIcon } from '../src/ui/ui_icons';
 // and they are the four ways this feature can rot:
 //   1. the SUPPRESSION policy (who must never see it) stays a pure decision, and
 //      the shell probe degrades toward showing rather than hiding;
-//   2. the reminder is on every surface, in BOTH entry documents, with the same
+//   2. the reminder is on every remaining Steam surface, in BOTH entry documents, with the same
 //      URL as the module constant (the play.html shared-entry trap: markup that
 //      drifts between entries fails silently at runtime);
 //   3. the CSS keeps it QUIET: the sheen stays gated on the ambient-effects tier,
@@ -32,16 +32,12 @@ const entry = (file: string): string => readFileSync(join(repoRoot, file), 'utf8
 const hudCss = (): string => readFileSync(join(repoRoot, 'src/styles/hud.css'), 'utf8');
 const shellCss = (): string => readFileSync(join(repoRoot, 'src/styles/shell.css'), 'utf8');
 
-/** The four wishlist surfaces, keyed by the class that identifies each one. */
+/** The three remaining wishlist surfaces, keyed by the class that identifies each one. */
 const SURFACES = [
   { name: 'homepage header CTA', marker: 'class="steam-wishlist steam-wishlist-cta"' },
   {
     name: 'homepage footer link',
     marker: 'class="social-link steam-wishlist steam-wishlist-social"',
-  },
-  {
-    name: 'in-game community rail',
-    marker: 'class="community-link steam-wishlist steam-wishlist-chip"',
   },
   { name: 'mobile More tray', marker: 'id="mobile-steam-wishlist"' },
   // Every one of them is a plain link: nothing here needs client state, so the
@@ -142,7 +138,7 @@ describe('steam wishlist suppression policy', () => {
 });
 
 describe('steam wishlist markup', () => {
-  it('renders every surface in both entry documents', () => {
+  it('renders every remaining Steam surface in both entry documents', () => {
     for (const file of ENTRIES) {
       const html = entry(file);
       for (const surface of SURFACES) {
@@ -233,37 +229,40 @@ describe('steam wishlist styling stays quiet', () => {
     expect(css).toContain(`body.${STEAM_BUILD_BODY_CLASS} .steam-wishlist`);
   });
 
-  it('gates the in-game sheen on the ambient effects tier, so low and reduced-motion stop it', () => {
+  it('gates the replacement Donate sheen on the ambient effects tier', () => {
     const css = hudCss();
     const sheen = css.slice(
-      css.indexOf('.community-link.steam-wishlist-chip::after'),
-      css.indexOf('@keyframes steam-wishlist-sheen'),
+      css.indexOf('.community-link.community-support-chip::after'),
+      css.indexOf('@keyframes community-support-sheen'),
     );
     expect(sheen).toContain('animation-play-state: var(--fx-ambient-anim, running);');
     expect(sheen).toContain('animation-duration: calc(14s * var(--motion-scale, 1));');
     // The visible pass is a small slice of the cycle; the rest parks off-screen.
-    expect(css).toContain('@keyframes steam-wishlist-sheen');
+    expect(css).toContain('@keyframes community-support-sheen');
     expect(css).toMatch(/0%,\n\s*88% \{\n\s*transform: translateX\(-140%\);/);
   });
 
-  it('never fills with Steam blue or the reserved gold, only edges with it on hover and focus', () => {
+  it('keeps Steam blue in the shell and Donate pink in the replacement HUD edge', () => {
     const hud = hudCss();
     const shell = shellCss();
-    for (const [name, raw] of [
-      ['hud.css', hud],
-      ['shell.css', shell],
-    ] as const) {
-      // Comments name the colour too; only declarations are being audited here.
-      const css = raw.replace(/\/\*[\s\S]*?\*\//g, (c) => ' '.repeat(c.length));
-      const uses = [...css.matchAll(/#66c0f4/g)];
-      expect(uses.length, `${name} uses the Steam accent`).toBeGreaterThan(0);
-      for (const use of uses) {
-        const line = css.slice(css.lastIndexOf('\n', use.index) + 1, use.index);
-        expect(line.trim(), `${name} paints Steam blue on an edge only`).toMatch(
-          /^border-color:$|^border-color: $/,
-        );
-      }
+    // Comments name colours too; only declarations are being audited here.
+    const shellDeclarations = shell.replace(/\/\*[\s\S]*?\*\//g, (c) => ' '.repeat(c.length));
+    const steamUses = [...shellDeclarations.matchAll(/#66c0f4/g)];
+    expect(steamUses.length, 'shell.css uses the Steam accent').toBeGreaterThan(0);
+    for (const use of steamUses) {
+      const line = shellDeclarations.slice(
+        shellDeclarations.lastIndexOf('\n', use.index) + 1,
+        use.index,
+      );
+      expect(line.trim(), 'shell.css paints Steam blue on an edge only').toMatch(
+        /^border-color:$|^border-color: $/,
+      );
     }
+    const supportRule = hud.slice(
+      hud.indexOf('.community-link.community-support-chip:hover'),
+      hud.indexOf('/* Two audiences never see the reminder'),
+    );
+    expect(supportRule).toContain('border-color: #ff6b8b;');
     // The gold call-to-action fill stays with Donate (DESIGN.md 10.1: at most
     // one primary action per surface).
     const cta = shell.slice(
@@ -273,10 +272,13 @@ describe('steam wishlist styling stays quiet', () => {
     expect(cta).toContain('background: linear-gradient(180deg, #1b1b26 0%, #0d0d14 100%);');
   });
 
-  it('keeps the focus-visible treatment steady (no transition, animation, or filter)', () => {
+  it('keeps Steam and replacement Donate focus treatments steady', () => {
     let focusRuleCount = 0;
-    for (const css of [hudCss(), shellCss()]) {
-      for (const match of css.matchAll(/\.steam-wishlist[^{}]*:focus-visible[^{]*\{([^}]*)\}/g)) {
+    for (const [css, selector] of [
+      [shellCss(), /\.steam-wishlist[^{}]*:focus-visible[^{]*\{([^}]*)\}/g],
+      [hudCss(), /\.community-support-chip[^{}]*:focus-visible[^{]*\{([^}]*)\}/g],
+    ] as const) {
+      for (const match of css.matchAll(selector)) {
         focusRuleCount += 1;
         expect(match[1]).not.toMatch(/transition|animation|filter/);
       }
