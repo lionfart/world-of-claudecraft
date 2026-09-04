@@ -30,6 +30,7 @@ function deps(): GamepadActionDeps {
     toggleDiscord: vi.fn(),
     openChat: vi.fn(),
     toggleActionCamera: vi.fn(),
+    dodge: vi.fn(),
   };
 }
 
@@ -39,6 +40,12 @@ describe('dispatchGamepadAction', () => {
     dispatchGamepadAction('toggleActionCamera', d);
     expect(d.toggleActionCamera).toHaveBeenCalledTimes(1);
     expect(d.hud.cancelGroundAim).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes the remappable dodge action through its host callback', () => {
+    const d = deps();
+    dispatchGamepadAction('dodge', d);
+    expect(d.dodge).toHaveBeenCalledTimes(1);
   });
 
   it('lets Escape dismiss the camera prompt before opening a menu', () => {

@@ -116,6 +116,7 @@ export const KTX2_MIP_RELEASABLE_MODEL_ROOTS: readonly string[] = [
   'props',
   'quest',
   'resources',
+  'siege',
 ];
 
 /** Model roots a SECOND renderer can upload (character-creation preview,

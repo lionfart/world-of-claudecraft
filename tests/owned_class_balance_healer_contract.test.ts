@@ -29,8 +29,10 @@ describe('owned-class level 20 balance harness (healer contract)', () => {
       // (floors stay 250), spiritmendGroup resourceEnd 2234.2 / 2249.5 (floor
       // stays 1_200), doctrineSingle hps+dps 155.31 / 154.48 (floor stays 140),
       // doctrineGroup resourceEnd 719.6 / 727.5 (floor stays 150). The one
-      // mover: doctrineGroup hps+dps+absorbed/60 measured 168.06 full / 182.28
-      // diet, so the diet floor is 130.
+      // mover after directional combat removed implicit wand auto-start and
+      // Scouring Hymn became an explicitly aimed ground impact:
+      // doctrineGroup hps+dps+absorbed/60 measured 108.19 full / 118.49 diet.
+      // Preserve roughly the former 29% regression margin at 75 / 85.
       expect(benisonGroup.emergencyRecoverySeconds).toBeLessThan(
         spiritmendGroup.emergencyRecoverySeconds,
       );
@@ -41,7 +43,7 @@ describe('owned-class level 20 balance harness (healer contract)', () => {
       expect(doctrineSingle.hps + doctrineSingle.dps).toBeGreaterThanOrEqual(140);
       expect(
         doctrineGroup.hps + doctrineGroup.dps + doctrineGroup.absorbedDamage / 60,
-      ).toBeGreaterThanOrEqual(band(120, 130));
+      ).toBeGreaterThanOrEqual(band(75, 85));
       expect(doctrineGroup.resourceEnd).toBeGreaterThanOrEqual(150);
       expect(spiritmendSingle.hps).toBeGreaterThan(0);
       // Same owned-class matrix growth as the DPS metric test in

@@ -60,6 +60,7 @@ import { blindMissBonus, isDisarmed, isInStasis, isStunned } from './cc';
 import {
   combatAimAngle,
   combatAimPitch,
+  entityCombatRadius,
   selectFirstTargetOnSegment,
   selectMeleeConeTargets,
 } from './directional_attack';
@@ -78,7 +79,7 @@ import { tryGrantDawnsWrath } from './paladin_dawns_wrath';
 import { tryGrantSolarReprisal } from './paladin_solar_reprisal';
 import { applyRequitalAutoAttack } from './paladin_talents';
 import { isValkyrsCallingAirborne } from './paladin_valkyrs_calling_state';
-import { effectivePlayerAttackRange } from './player_attack_reach';
+import { effectivePlayerAttackRange, RAID_BOSS_PLAYER_MELEE_RANGE } from './player_attack_reach';
 import { rangedShotProfile } from './ranged_shot';
 import { wearsSetBonus } from './set_bonus_wearer';
 import { triggerWardCycle } from './shaman_talents';
@@ -151,7 +152,7 @@ export function startAutoAttack(ctx: SimContext, pid?: number): void {
     r.meta.lastActiveTick = ctx.tickCount;
     const distance = dist2d(p.pos, target.pos);
     if (
-      distance <= MELEE_RANGE &&
+      distance <= effectivePlayerAttackRange(target, MELEE_RANGE) &&
       !p.castingAbility &&
       target.kind === 'mob' &&
       target.hostile &&
@@ -241,7 +242,7 @@ function updateLegacyPlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerMe
     p.swingTimer = shot.speed * ctx.swingIntervalMult(p, 'ranged');
     return;
   }
-  if (distance > MELEE_RANGE) return;
+  if (distance > effectivePlayerAttackRange(target, MELEE_RANGE)) return;
   if (isArenaPos(p.pos.x) && !ctx.hasLineOfSight(p, target)) return;
   ctx.breakGhostWolf(p);
   const dualWieldWhiteMissPenalty = hasDualWieldWhiteMissPenalty(ctx, p, meta);
@@ -385,11 +386,22 @@ export function updatePlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerM
     p.swingTimer = shot.speed * ctx.swingIntervalMult(p, 'ranged');
     return;
   }
+  const meleeCandidates = autoAttackCandidates(ctx, p, RAID_BOSS_PLAYER_MELEE_RANGE).filter(
+    (candidate) => {
+      const distance = dist2d(p.pos, candidate.pos);
+      const effectiveRange = effectivePlayerAttackRange(candidate, MELEE_RANGE);
+      const contactRange =
+        effectiveRange > MELEE_RANGE
+          ? effectiveRange
+          : effectiveRange + entityCombatRadius(candidate);
+      return distance <= contactRange;
+    },
+  );
   const targets = selectMeleeConeTargets({
     origin: p.pos,
     facing: p.facing,
-    range: MELEE_RANGE,
-    candidates: autoAttackCandidates(ctx, p, MELEE_RANGE).filter(
+    range: RAID_BOSS_PLAYER_MELEE_RANGE,
+    candidates: meleeCandidates.filter(
       (candidate) => !isArenaPos(p.pos.x) || ctx.hasLineOfSight(p, candidate),
     ),
     cap: ctx.playerDirectionalCombat === false ? 1 : undefined,

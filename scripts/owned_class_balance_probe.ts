@@ -996,7 +996,11 @@ function healerCast(
   caster.facing = Math.atan2(target.pos.x - caster.pos.x, target.pos.z - caster.pos.z);
   caster.prevFacing = caster.facing;
   const before = castFingerprint(sim, resolved.def.id);
-  sim.castAbility(abilityId, caster.id);
+  if (resolved.def.targetMode === 'position') {
+    sim.castAbility(abilityId, caster.id, { x: target.pos.x, z: target.pos.z });
+  } else {
+    sim.castAbility(abilityId, caster.id);
+  }
   if (castFingerprint(sim, resolved.def.id) === before) return false;
   castsByAbility[resolved.def.name] = (castsByAbility[resolved.def.name] ?? 0) + 1;
   return true;

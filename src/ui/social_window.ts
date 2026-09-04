@@ -338,8 +338,8 @@ export class SocialWindow {
     const shouldWatch = force && this.isOpen && this.tab === 'guild' && !!w.socialInfo?.guild;
     if (shouldWatch === this.territoryWatching) return;
     this.territoryWatching = shouldWatch;
-    if (shouldWatch) w.territoryOpen();
-    else w.territoryClose();
+    if (shouldWatch) w.territoryOpen?.();
+    else w.territoryClose?.();
   }
 
   // Full rebuild: title, tabs, body, notice, and the tab's footer (with its

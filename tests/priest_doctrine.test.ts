@@ -139,7 +139,8 @@ describe('Doctrine baseline loop', () => {
 
     sim.drainEvents();
     castOn(sim, priest, dummy, 'scouring_mercy');
-    for (let tick = 0; tick < 100; tick++) sim.tick();
+    // Scouring Mercy is a target-born impact, not a travelling projectile.
+    // Assert before the training dummy's idle reset restores its health.
     expect(dummy.hp).toBeLessThan(enemyBefore);
     expect(
       sim

@@ -7504,9 +7504,9 @@ export class Hud {
   // Slot key DOWN: every slot fires immediately (a tap is down + up, so this
   // is the press).
   pressSlot(slot: number): void {
-    if (this.territoryMap.handleCatapultActionSlot(slot)) return;
-    if (this.territoryMap.handleMortarActionSlot(slot)) return;
-    if (this.territoryMap.handleRamActionSlot(slot)) return;
+    if (this.territoryMap?.handleCatapultActionSlot(slot)) return;
+    if (this.territoryMap?.handleMortarActionSlot(slot)) return;
+    if (this.territoryMap?.handleRamActionSlot(slot)) return;
     if (slot === 0 && this.attackSlotIsAttack()) {
       this.optionsHooks?.syncCombatAim?.();
       this.sim.startAutoAttack();
@@ -7520,7 +7520,7 @@ export class Hud {
   // Slot key UP: release an empowered hold. A non-charging slot already fired
   // on press, so this is a no-op.
   releaseSlot(slot: number): void {
-    if (this.territoryMap.isSiegeWeaponOperating()) return;
+    if (this.territoryMap?.isSiegeWeaponOperating()) return;
     if (slot === 0 && this.attackSlotIsAttack()) {
       this.sim.stopAutoAttack();
       return;

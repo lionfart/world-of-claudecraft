@@ -621,6 +621,7 @@ describe('category policy', () => {
       'props',
       'quest',
       'resources',
+      'siege',
     ]);
     expect([...KTX2_MIP_EXEMPT_MODEL_ROOTS]).toEqual([
       'chars',

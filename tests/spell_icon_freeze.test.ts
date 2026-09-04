@@ -42,7 +42,8 @@ const FROZEN_CLASS_DIRS = [
 ] as const;
 
 // Directories under public/ui/skills that are deliberately OUTSIDE the freeze.
-const EXEMPT_DIRS = new Set(['pet']);
+// Territory contains siege command icons rather than class abilities.
+const EXEMPT_DIRS = new Set(['pet', 'territory']);
 
 // Vacuity floor near the real count (471 at minting time): a manifest that
 // quietly shrank below this is a scan that stopped seeing icons, not a game

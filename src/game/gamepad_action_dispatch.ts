@@ -26,7 +26,7 @@ interface GamepadDispatchHud {
   cancelGroundAim(): boolean;
   closeAll(): boolean;
   toggleOptionsMenu(): void;
-  castSlot(slot: number): void;
+  pressSlot(slot: number): void;
   toggleBags(): void;
   toggleChar(): void;
   toggleSpellbook(): void;
@@ -63,6 +63,7 @@ export interface GamepadActionDeps {
   toggleDiscord(): void;
   openChat(): void;
   toggleActionCamera(): void;
+  dodge(): void;
 }
 
 /** Dispatches controller edge actions through the same handlers used by keyboard input. */
@@ -85,7 +86,7 @@ export function dispatchGamepadAction(id: string, deps: GamepadActionDeps): void
   }
   if (!deps.canUseGameKeys()) return;
   if (id.startsWith('slot')) {
-    hud.castSlot(Number(id.slice(4)));
+    hud.pressSlot(Number(id.slice(4)));
     return;
   }
   hud.cancelGroundAim();
@@ -137,6 +138,9 @@ export function dispatchGamepadAction(id: string, deps: GamepadActionDeps): void
       break;
     case 'toggleActionCamera':
       deps.toggleActionCamera();
+      break;
+    case 'dodge':
+      deps.dodge();
       break;
     case 'talents':
       hud.toggleTalents();

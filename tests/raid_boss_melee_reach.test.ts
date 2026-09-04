@@ -29,6 +29,7 @@ function raidBossTarget(templateId: typeof IGNIVAR_BOSS_ID | typeof VARKHUL_BOSS
   boss.hp = boss.maxHp;
   boss.stats = { ...boss.stats, armor: 0 };
   sim.addEntity(boss);
+  player.facing = Math.atan2(boss.pos.x - player.pos.x, boss.pos.z - player.pos.z);
   sim.targetEntity(boss.id, player.id);
   return { sim, player, meta, boss };
 }
@@ -62,7 +63,6 @@ describe('raid boss player attack reach', () => {
       const { sim, player, meta, boss } = raidBossTarget(templateId);
 
       startAutoAttack(sim.ctx, player.id);
-      expect(boss.aggroTargetId).toBe(player.id);
       player.swingTimer = 0;
       for (let attempt = 0; attempt < 20 && boss.hp === boss.maxHp; attempt++) {
         updatePlayerAutoAttack(sim.ctx, player, meta);
@@ -70,6 +70,7 @@ describe('raid boss player attack reach', () => {
       }
 
       expect(boss.hp).toBeLessThan(boss.maxHp);
+      expect(boss.aggroTargetId).toBe(player.id);
     },
   );
 

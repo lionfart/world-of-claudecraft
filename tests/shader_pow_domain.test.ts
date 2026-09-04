@@ -134,6 +134,7 @@ const POW_SITES_PER_FILE: Record<string, number> = {
   'src/render/pbr_fragment_shader.ts': 1,
   'src/render/post_output_grade.ts': 1,
   'src/render/sky.ts': 1,
+  'src/render/territory_siege_prototype.ts': 1,
   'src/render/water.ts': 1,
   'src/render/weapon_vfx.ts': 4,
   'src/render/worn_stone.ts': 1,

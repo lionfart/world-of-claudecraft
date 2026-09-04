@@ -177,12 +177,16 @@ describeDb('territory persistence (real PostgreSQL)', () => {
     );
     await pool.query(
       `INSERT INTO territory_cells(season_id, cell_id, guild_id, keep_root)
-       VALUES ($1, $2, $3, TRUE), ($1, $4, $5, TRUE)`,
+       VALUES ($1, $2, $3, TRUE), ($1, $4, $5, TRUE)
+       ON CONFLICT (season_id, cell_id) DO UPDATE
+       SET guild_id = EXCLUDED.guild_id, keep_root = TRUE`,
       [season.rows[0].id, attackerCell, attacker.rows[0].id, target.id, defender.rows[0].id],
     );
     await pool.query(
       `INSERT INTO territory_structures(season_id, cell_id, slot, kind, level)
-       VALUES ($1, $2, 'keep_core', 'keep', 3)`,
+       VALUES ($1, $2, 'keep_core', 'keep', 3)
+       ON CONFLICT (season_id, cell_id, slot) DO UPDATE
+       SET kind = EXCLUDED.kind, level = EXCLUDED.level`,
       [season.rows[0].id, target.id],
     );
     const warId = randomUUID();
@@ -253,7 +257,7 @@ describeDb('territory persistence (real PostgreSQL)', () => {
       ALTER TABLE territory_seasons
         DROP CONSTRAINT territory_seasons_radius_check;
       ALTER TABLE territory_seasons
-        ADD CONSTRAINT territory_seasons_radius_check CHECK (radius BETWEEN 63 AND 141);
+        ADD CONSTRAINT territory_seasons_radius_check CHECK (radius BETWEEN 63 AND 141) NOT VALID;
     `);
     const nextNumber = await pool.query<{ value: number }>(
       `SELECT COALESCE(max(season_no), 0)::int + 1 AS value FROM territory_seasons`,

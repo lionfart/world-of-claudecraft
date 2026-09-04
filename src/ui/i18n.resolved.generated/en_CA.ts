@@ -10812,7 +10812,7 @@ export const en_CA: EnTranslations = {
       },
       "smite": {
         "name": "Scouring Hymn",
-        "description": "Deal {damage} Holy damage. Damage increases with Spell Power. Doctrine: heal each linked ally for 30% of the damage. If no ally is linked, heal the lowest-health party member for 15%."
+        "description": "Deal {damage} Holy damage to enemies in a 4-yard area. Damage increases with Spell Power. Doctrine uses the primary impact to heal linked allies."
       },
       "lesser_heal": {
         "name": "Whispered Prayer",
@@ -10836,7 +10836,7 @@ export const en_CA: EnTranslations = {
       },
       "mind_blast": {
         "name": "Mindfracture",
-        "description": "Deal {damage} Shadow damage. Damage increases with Spell Power. Vespers binds a target with your Dirge of Decay as its Effigy, grants 1 Gloomtithe, and echoes 30% of the damage to up to 3 other enemies with your Dirge."
+        "description": "Deal {damage} Shadow damage to enemies in a 4-yard area. Damage increases with Spell Power. Vespers binds the primary impact as its Effigy and resolves its echo once."
       },
       "heal": {
         "name": "Solemn Prayer",
@@ -10868,7 +10868,7 @@ export const en_CA: EnTranslations = {
       },
       "earth_shock": {
         "name": "Earthen Jolt",
-        "description": "Deal {damage} Nature damage. Damage increases with Spell Power. Thundercall: at 5 Thunder, deal 125% more damage and consume all Thunder. Stonebound: force the target to attack you for 3 sec."
+        "description": "Jolt a 4-yard area for {damage} Nature damage. Damage increases with Spell Power. Thundercall: at 5 Thunder, empower the whole impact and consume Thunder once. Stonebound taunts the primary impact."
       },
       "lightning_shield": {
         "name": "Thunder Ward",
@@ -10884,7 +10884,7 @@ export const en_CA: EnTranslations = {
       },
       "frost_shock": {
         "name": "Rime Jolt",
-        "description": "Deal {damage} Frost damage and slow the target by 50% for 8 sec. Damage increases with Spell Power."
+        "description": "Deal {damage} Frost damage and slow enemies in a 3-yard area by 50% for 8 sec. Damage increases with Spell Power."
       },
       "frostbrand_weapon": {
         "name": "Rimebound Weapon",
