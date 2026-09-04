@@ -6630,11 +6630,9 @@
     display: none !important;
   }
 
-  /* ---------- Steam wishlist reminder ---------- */
-  /* One permanently visible ask, never a takeover. src/ui/steam_wishlist.ts owns
-     the store URL and the policy for who must never see it; the reminder repeats
-     on every surface that already carries Donate (homepage header and footer in
-     shell.css, this in-game rail, and the mobile More tray).
+  /* ---------- In-game support reminder ---------- */
+  /* One permanently visible ask, never a takeover. The Donate action now owns
+     the former in-game wishlist slot while keeping the same compact plate.
      What keeps it quiet, and what to preserve if this is ever restyled:
        - it wears the chrome of the rail it sits in, never Steam's blue as a fill,
          and never the gold call-to-action fill this HUD reserves for rewards;
@@ -6643,9 +6641,8 @@
        - its only motion is a single slow sheen that crosses the plate about once
          every 14 seconds and spends the rest of the cycle parked off the left
          edge, so it registers peripherally and never asks to be looked at.
-     Steam's own #66c0f4 arrives on hover and keyboard focus only, identifying the
-     destination the way each sibling link's brand colour already does. */
-  .community-link.steam-wishlist-chip {
+     Donate's pink accent arrives on hover and keyboard focus only. */
+  .community-link.community-support-chip {
     position: relative;
     width: auto;
     gap: 7px;
@@ -6660,11 +6657,11 @@
        fails here; this muted silver holds above 7:1 on both gradient stops. */
     color: #b8bcc8;
   }
-  .community-link.steam-wishlist-chip span {
+  .community-link.community-support-chip span {
     display: inline;
     line-height: 1;
   }
-  .community-link.steam-wishlist-chip .ui-icon {
+  .community-link.community-support-chip .ui-icon {
     width: 17px;
     height: 17px;
   }
@@ -6672,7 +6669,7 @@
      Ambient by definition, so it pauses at the low effects tier and under
      reduced motion, and its duration rides --motion-scale like every other
      ambient loop in this sheet. */
-  .community-link.steam-wishlist-chip::after {
+  .community-link.community-support-chip::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -6684,11 +6681,11 @@
       transparent 64%
     );
     transform: translateX(-140%);
-    animation: steam-wishlist-sheen 14s linear infinite;
+    animation: community-support-sheen 14s linear infinite;
     animation-duration: calc(14s * var(--motion-scale, 1));
     animation-play-state: var(--fx-ambient-anim, running);
   }
-  @keyframes steam-wishlist-sheen {
+  @keyframes community-support-sheen {
     0%,
     88% {
       transform: translateX(-140%);
@@ -6697,10 +6694,10 @@
       transform: translateX(140%);
     }
   }
-  .community-link.steam-wishlist-chip:hover,
-  .community-link.steam-wishlist-chip:focus-visible {
+  .community-link.community-support-chip:hover,
+  .community-link.community-support-chip:focus-visible {
     color: #fff;
-    border-color: #66c0f4;
+    border-color: #ff6b8b;
   }
   /* Two audiences never see the reminder: a player already inside the Steam
      build of the desktop app (body.steam-build, stamped from the shell's own

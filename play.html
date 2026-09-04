@@ -283,13 +283,11 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.5 11.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm9 0a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM1.7 19.6c.5-3.6 2.6-5.5 5.8-5.5s5.3 1.9 5.8 5.5c.1.6-.4 1.1-1 1.1H2.7c-.6 0-1.1-.5-1-1.1Zm9.7-4.6c1.1-.7 2.8-.9 5.1-.9 3.2 0 5.3 1.9 5.8 5.5.1.6-.4 1.1-1 1.1h-6.6c-.3-2.3-1.4-4.2-3.3-5.7Z"/></svg>
         </summary>
         <div class="community-tray">
-          <a class="community-link steam-wishlist steam-wishlist-chip" href="https://store.steampowered.com/app/4897790/World_of_ClaudeCraft/" target="_blank" rel="noopener noreferrer" data-icon="steam" data-i18n-title="hudChrome.steam.wishlistAria" data-i18n-aria="hudChrome.steam.wishlistAria" title="Wishlist on Steam: open the World of ClaudeCraft store page" aria-label="Wishlist on Steam: open the World of ClaudeCraft store page">
-            <span data-i18n="hudChrome.steam.wishlist">Wishlist on Steam</span>
+          <a class="community-link donate community-support-chip" data-donate-sol href="https://solscan.io/account/%VITE_DONATION_ADDRESS%" target="_blank" rel="noopener noreferrer" data-icon="donate" data-i18n-title="a11y.donateProject" data-i18n-aria="a11y.donateProject" title="Support the project" aria-label="Donate to support World of ClaudeCraft">
+            <span data-i18n="nav.donate">Donate</span>
           </a>
-          <!-- No Discord link here: the in-game HUD's single Discord entry point is
-               the Discord (U) icon-rail button (#mm-discord), which opens the richer
-               account-linking/rank panel and (for an unlinked player) still offers a
-               plain "join the server" action, so this tray does not duplicate it. -->
+          <!-- Keep this tray focused on its single support action; social/account
+               surfaces own the Discord linking flow. -->
         </div>
       </details>
     </nav>
@@ -632,7 +630,6 @@
         <button class="micro-btn" id="mm-emote" data-i18n-aria="hudChrome.emoteWheel.label" aria-label="Emotes" data-icon="emote"><span class="keybind">x</span></button>
         <button type="button" class="micro-btn territory-war-launcher" id="mm-territory" data-i18n-title="hudChrome.territoryMap.title" data-i18n-aria="hudChrome.territoryMap.title" title="War Map" aria-label="War Map" aria-controls="map-window territory-war-dock" aria-expanded="false" data-icon="territory"></button>
         <button class="micro-btn" id="mm-social" data-i18n-title="hud.keybinds.actions.social" data-i18n-aria="hud.keybinds.actions.social" title="Friends &amp; Guild" aria-label="Friends &amp; Guild" data-icon="social"><span class="keybind">o</span></button>
-        <button class="micro-btn" id="mm-donate" hidden data-i18n-title="a11y.donateProject" data-i18n-aria="a11y.donateProject" title="Donate" aria-label="Donate" data-icon="donate"></button>
         <button class="micro-btn" id="mm-wiki" data-i18n-title="nav.wiki" data-i18n-aria="nav.wiki" title="Wiki" aria-label="Wiki" data-icon="wiki"></button>
         <button class="micro-btn" id="mm-options" data-i18n-title="hud.options.gameMenu" data-i18n-aria="hud.options.gameMenu" title="Game Menu" aria-label="Game Menu" data-icon="menu"><span class="keybind">esc</span></button>
       </div>

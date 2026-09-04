@@ -1205,42 +1205,19 @@ describe('client HTML shell', () => {
       ['play.html', playHtml],
     ] as const) {
       expect(entry, name).not.toContain('ko-fi.com/worldofclaudecraft');
-      expect(entry.match(/data-donate-sol/g), name).toHaveLength(1);
+      expect(entry.match(/data-donate-sol/g), name).toHaveLength(2);
       expect(entry, name).not.toContain('https://github.com/sponsors/levy-street');
     }
   });
 
-  it('offers a desktop micro-menu Discord entry in BOTH entries (not keybind-only)', () => {
-    // Before this, linking Discord was reachable only via the undocumented 'U'
-    // keybind: no menu item, button, or keybind-list mention told a desktop
-    // player the feature existed. #mm-discord in the micro-menu (alongside
-    // #mm-social, #mm-valecup, ...) gives it a visible, clickable affordance
-    // that mirrors the mobile tray's #mobile-discord button.
+  it('removes the old heart Donate button from the desktop icon rail', () => {
     for (const [name, entry] of [
       ['index.html', html],
       ['play.html', playHtml],
     ] as const) {
-      // Operator fork: the rail's Discord slot is the donate button now.
-      expect(entry, name).toContain('id="mm-donate"');
-      expect(entry, name).toMatch(/id="mm-donate"[^>]*data-icon="donate"/);
-      // Starts hidden; main.ts reveals it at boot on any build with Discord UI
-      // enabled, mirroring #mobile-discord's own gating.
-      expect(entry, name).toMatch(/id="mm-donate"\s+hidden/);
-      // Shows the 'U' default keybind as a discoverability hint, same as every
-      // other micro-menu button (#mm-social shows 'o', #mm-valecup shows 'y').
+      expect(entry, name).not.toContain('id="mm-donate"');
       expect(entry, name).not.toContain('id="mm-discord"');
     }
-    // main.ts wires the click through the Hud's discord hook (attachDiscordHook)
-    // to openDiscordEntry, the SAME entry point the mobile tray uses: it opens
-    // the panel when logged in and falls through to the community invite
-    // otherwise, so the desktop button is a live affordance offline too. The
-    // hook is attached unconditionally (not inside `if (online)`), else the
-    // button would render visible but no-op offline.
-    expect(mainTs).toMatch(
-      /hud\.attachDiscordHook\(\(\) => openDiscordEntry\(\)\);\s*\n\s*if \(online\) \{/,
-    );
-    expect(mainTs).toContain('function syncDiscordEntries(): void {');
-    expect(mainTs).toContain("const desktopBtn = document.getElementById('mm-discord');");
     const mountGameUi = mainTs.slice(
       mainTs.indexOf('function mountGameUi(): void {'),
       mainTs.indexOf('// Shared game wiring'),
@@ -1646,14 +1623,14 @@ describe('client HTML shell', () => {
     expect(mainTs).toContain("classList.toggle('show-actionbar3', visibility.third)");
   });
 
-  it('carries a wishlist-only community tray in BOTH entries, with no duplicate social links', () => {
+  it('carries the single Donate action in the community tray in BOTH entries', () => {
     for (const [name, entry] of [
       ['index.html', html],
       ['play.html', playHtml],
     ] as const) {
-      expect(entry).toContain('<a class="community-link steam-wishlist steam-wishlist-chip"');
+      expect(entry).toContain('<a class="community-link donate community-support-chip"');
       expect(entry).not.toContain('<a class="community-link github"');
-      expect(entry).not.toContain('<a class="community-link donate"');
+      expect(entry).not.toContain('<a class="community-link steam-wishlist steam-wishlist-chip"');
       expect(entry).not.toContain('<a class="community-link discord"');
       expect(entry.match(/<details(?:\s|>)/g) ?? [], name).toHaveLength(
         (entry.match(/<\/details>/g) ?? []).length,
@@ -1750,14 +1727,12 @@ describe('client HTML shell', () => {
     expect(html).toContain('<details id="community-menu">');
     expect(html).toContain('<summary class="community-toggle"');
     expect(html).toContain('<div class="community-tray">');
-    // The tray is wishlist-only now (its GitHub/Donate links were removed,
-    // owner request); the marketing donate-cta above stays.
-    expect(html).toContain('<a class="community-link steam-wishlist steam-wishlist-chip"');
+    // The tray carries the one in-game Donate action in the former wishlist slot.
+    expect(html).toContain('<a class="community-link donate community-support-chip"');
     expect(html).not.toContain('<a class="community-link github"');
-    expect(html).not.toContain('<a class="community-link donate"');
-    // No separate Discord invite link here: it duplicated the Discord (U)
-    // icon-rail button (#mm-discord), the game HUD's single Discord entry
-    // point (see the fix/inspect-camera-talent-overlap-discord-dup PR).
+    expect(html).not.toContain('<a class="community-link steam-wishlist steam-wishlist-chip"');
+    // Social/account surfaces own the Discord linking flow, so the compact
+    // support tray stays a single-purpose action.
     expect(html).not.toContain('<a class="community-link discord"');
     expect(hudMobileCss).toContain('body.mobile-touch.game-active #ui {\n    z-index: 80;\n  }');
     expect(hudMobileCss).toContain('body.mobile-touch #community-hud {\n    display: none;\n  }');

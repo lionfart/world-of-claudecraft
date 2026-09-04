@@ -1222,8 +1222,8 @@ function mountGameUi(): void {
   // earlier, before any world entry) silently no-ops on it. Re-sync now so the
   // desktop micro-menu entry is revealed the moment the in-game HUD actually exists.
   syncDiscordEntries();
-  // #mm-donate also lives inside the lazy template. The boot-time wiring runs
-  // before this clone exists, so re-run it now to reveal and activate the rail.
+  // The in-game Donate anchor also lives inside the lazy template. The boot-time
+  // wiring runs before this clone exists, so re-run it after mounting the HUD.
   wireDonateLinks();
 }
 
@@ -7852,15 +7852,6 @@ function wireDonateLinks(): void {
       continue;
     }
     anchor.href = `https://solscan.io/account/${address}`;
-  }
-  // The icon-rail #mm-donate micro-button (which replaced #mm-discord on this
-  // fork) rides the same address: shown + wired when valid, hidden when not.
-  const railBtn = document.getElementById('mm-donate');
-  if (railBtn) {
-    railBtn.hidden = !valid;
-    railBtn.addEventListener('click', () => {
-      window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
-    });
   }
 }
 

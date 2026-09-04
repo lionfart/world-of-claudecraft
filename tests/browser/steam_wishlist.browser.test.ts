@@ -222,7 +222,7 @@ describe('Steam wishlist responsive shell', () => {
     }
     const header = element('a', 'steam-wishlist-cta', 'Wishlist on Steam');
     const footer = element('a', 'social-link steam-wishlist-social', 'Wishlist on Steam');
-    const chip = element('a', 'community-link steam-wishlist-chip', 'Wishlist on Steam');
+    const chip = element('a', 'community-link donate community-support-chip', 'Donate');
     document.body.append(header, footer, chip);
 
     for (const [control, stops] of [
