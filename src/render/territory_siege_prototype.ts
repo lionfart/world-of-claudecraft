@@ -16,6 +16,7 @@ import {
   TERRITORY_SIEGE_TOWER_X,
   TERRITORY_SIEGE_TOWER_Z,
   TERRITORY_SIEGE_WALL_SCALE_Z,
+  TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
   territorySiegeWallPlacements,
   territorySiegeWallSegmentId,
 } from '../sim/territory_siege_layout';
@@ -531,31 +532,18 @@ function aimCylinder(mesh: THREE.Mesh, from: THREE.Vector3, to: THREE.Vector3): 
   mesh.quaternion.setFromUnitVectors(aimUp, aimDirection.normalize());
 }
 
-function buildDefenderPortal(): {
+const DEFENDER_PORTAL_FACE_CLEARANCE = 0.12;
+
+export function buildTerritorySiegeDefenderPortal(): {
   root: THREE.Group;
   membrane: THREE.ShaderMaterial;
-  innerRing: THREE.Mesh;
+  innerRings: readonly THREE.Mesh[];
 } {
   const root = new THREE.Group();
   root.name = 'territory-siege-defender-portal';
-  root.position.set(TERRITORY_SIEGE_DEFENDER_PORTAL_X, 0, TERRITORY_SIEGE_DEFENDER_PORTAL_Z - 0.72);
+  root.position.set(TERRITORY_SIEGE_DEFENDER_PORTAL_X, 0, TERRITORY_SIEGE_DEFENDER_PORTAL_Z);
   const stone = surfaceMat({ color: 0x555249, roughness: 0.94 });
   const bronze = surfaceMat({ color: 0x73562d, roughness: 0.58, metalness: 0.5 });
-  for (const x of [-1.75, 1.75]) {
-    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4.7, 0.75), stone);
-    pillar.position.set(x, 2.35, 0);
-    pillar.castShadow = true;
-    root.add(pillar);
-    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.38, 0.92), bronze);
-    cap.position.set(x, 4.58, 0);
-    cap.castShadow = true;
-    root.add(cap);
-  }
-  const arch = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.34, 8, 30, Math.PI), stone);
-  arch.position.y = 4.5;
-  arch.rotation.z = Math.PI;
-  arch.castShadow = true;
-  root.add(arch);
   const membrane = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 } },
     vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
@@ -574,22 +562,49 @@ function buildDefenderPortal(): {
     side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
   });
-  const veil = new THREE.Mesh(new THREE.PlaneGeometry(3.25, 4.55), membrane);
-  veil.position.y = 2.25;
-  root.add(veil);
-  const innerRing = new THREE.Mesh(
-    new THREE.TorusGeometry(1.22, 0.07, 6, 28),
-    new THREE.MeshBasicMaterial({
-      color: 0x6dff8c,
-      transparent: true,
-      opacity: 0.72,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    }),
-  );
-  innerRing.position.y = 2.55;
-  root.add(innerRing);
-  return { root, membrane, innerRing };
+  const ringMaterial = new THREE.MeshBasicMaterial({
+    color: 0x6dff8c,
+    transparent: true,
+    opacity: 0.72,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const innerRings: THREE.Mesh[] = [];
+  const faceOffset = TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH + DEFENDER_PORTAL_FACE_CLEARANCE;
+  for (const [side, z] of [
+    ['inside', -faceOffset],
+    ['outside', faceOffset],
+  ] as const) {
+    const face = new THREE.Group();
+    face.name = `territory-siege-defender-portal-face:${side}`;
+    face.position.z = z;
+    for (const x of [-1.75, 1.75]) {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4.7, 0.75), stone);
+      pillar.position.set(x, 2.35, 0);
+      pillar.castShadow = true;
+      face.add(pillar);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.38, 0.92), bronze);
+      cap.position.set(x, 4.58, 0);
+      cap.castShadow = true;
+      face.add(cap);
+    }
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.34, 8, 30, Math.PI), stone);
+    arch.position.y = 4.5;
+    arch.rotation.z = Math.PI;
+    arch.castShadow = true;
+    face.add(arch);
+    const veil = new THREE.Mesh(new THREE.PlaneGeometry(3.25, 4.55), membrane);
+    veil.name = 'territory-siege-defender-portal-veil';
+    veil.position.y = 2.25;
+    face.add(veil);
+    const innerRing = new THREE.Mesh(new THREE.TorusGeometry(1.22, 0.07, 6, 28), ringMaterial);
+    innerRing.name = 'territory-siege-defender-portal-ring';
+    innerRing.position.y = 2.55;
+    face.add(innerRing);
+    innerRings.push(innerRing);
+    root.add(face);
+  }
+  return { root, membrane, innerRings };
 }
 
 /** Asset-backed seasonal siege field using the existing optimized CC0 castle kit. */
@@ -642,7 +657,7 @@ export function buildTerritorySiegePrototype(
     kind: 'gate',
   } satisfies TerritorySiegeObjectiveTarget;
   root.add(fittedGate.root);
-  const defenderPortal = buildDefenderPortal();
+  const defenderPortal = buildTerritorySiegeDefenderPortal();
   root.add(defenderPortal.root);
   model(root, 'castle', [0, 0, -63], [5.3, 4.4, 5.3], Math.PI);
   model(root, 'workshop', [-35, 0, -52], [4.4, 4.4, 4.4], Math.PI / 5);
@@ -1202,7 +1217,7 @@ export function buildTerritorySiegePrototype(
     coreHalo.scale.setScalar(0.92 + state.coreChannelPulse * 0.16);
     defenderPortal.root.visible = !!siege;
     defenderPortal.membrane.uniforms.uTime.value = timeSeconds;
-    defenderPortal.innerRing.rotation.z = timeSeconds * 0.65;
+    for (const innerRing of defenderPortal.innerRings) innerRing.rotation.z = timeSeconds * 0.65;
     const sharedChannels = siege?.coreChannels ?? [];
     const channelSources = sharedChannels.length
       ? sharedChannels

@@ -188,6 +188,10 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
 
   reconnect(session: S): void {
     this.service.reconnectCharacter(session.characterId);
+    this.refreshWarNotice(session);
+  }
+
+  refreshWarNotice(session: S): void {
     void this.service
       .warNoticeForCharacter(session.characterId)
       .then((war) => {
@@ -198,7 +202,7 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
             revision: this.service.currentRevision(),
           });
       })
-      .catch((error) => console.error('territory war notice reconnect failed:', error));
+      .catch((error) => console.error('territory war notice refresh failed:', error));
   }
   disconnect(session: S): void {
     this.service.disconnectCharacter(session.characterId);
@@ -1015,6 +1019,9 @@ export const territoryGame = {
   },
   reconnect(host: object, session: TerritoryGameSession): void {
     installedGame(host).reconnect(session);
+  },
+  refreshWarNotice(host: object, session: TerritoryGameSession): void {
+    installedGame(host).refreshWarNotice(session);
   },
   disconnect(host: object, session: TerritoryGameSession): void {
     installedGame(host).disconnect(session);

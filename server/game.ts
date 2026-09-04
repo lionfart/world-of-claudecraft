@@ -4004,7 +4004,7 @@ export class GameServer {
     // the guild with firstJoin false since the entity already carries it), so
     // the first guild stamp retro-credits an existing member's soc_guild_joined
     // silently instead of firing the live banner.
-    void this.initSocial(session, true);
+    void this.initSocial(session, true).then(() => territoryGame.refreshWarNotice(this, session));
     // Stamp the $WOC holder-tier flair (best-effort: a balance read must never
     // affect joining the world).
     void this.refreshHolderTier(session).catch((err) =>
