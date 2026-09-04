@@ -156,8 +156,34 @@ describe('casting_lifecycle: timed cast start -> progress -> finish', () => {
     expect(secondTarget.hp).toBeLessThan(secondHp0);
   });
 
+  it('keeps a targetless timed projectile cast alive until it launches', () => {
+    const { sim, p, meta } = makeSim('mage', 12);
+    meta.combatAimAngle = 0;
+    meta.combatAimPitch = 0;
+
+    castAbility(sim.ctx, 'fireball', p.id, {
+      x: p.pos.x,
+      z: p.pos.z + 30,
+      pitch: 0,
+    });
+
+    expect(p.targetId).toBeNull();
+    expect(p.castTargetId).toBeNull();
+    expect(p.castingAbility).toBe('fireball');
+    updateCasting(sim.ctx, p, meta);
+    expect(p.castingAbility).toBe('fireball');
+
+    drainCast(sim, p, meta);
+
+    expect(p.castingAbility).toBeNull();
+    expect(sim.ctx.pendingProjectiles).toHaveLength(1);
+    expect(sim.ctx.pendingProjectiles[0]?.kind).toBe('ballistic');
+    expect(sim.drainEvents().some((event) => event.type === 'error')).toBe(false);
+  });
+
   it('cancels a plain timed (non-channel) hostile cast the instant its locked target dies', () => {
     const { sim, p, meta } = makeSim('mage', 12);
+    sim.cfg.playerDirectionalCombat = false;
     const mob = spawnTarget(sim, p, 12, 6);
     sim.drainEvents();
     castAbility(sim.ctx, 'fireball', p.id);
@@ -186,6 +212,7 @@ describe('casting_lifecycle: timed cast start -> progress -> finish', () => {
 
   it('cancels a plain timed hostile cast when its locked target is removed from the world entirely (not merely marked dead)', () => {
     const { sim, p, meta } = makeSim('mage', 12);
+    sim.cfg.playerDirectionalCombat = false;
     const mob = spawnTarget(sim, p, 12, 6);
     castAbility(sim.ctx, 'fireball', p.id);
     expect(p.castTargetId).toBe(mob.id);

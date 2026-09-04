@@ -465,11 +465,14 @@ export function updateCasting(ctx: SimContext, p: Entity, meta: PlayerMeta): voi
       return;
     }
   }
-  // The offensive twin of the mass-rez/combat-res gates above: a hostile (or
-  // any-type) TIMED (non-channel) cast whose locked target dies mid-cast, from
+  // The offensive twin of the mass-rez/combat-res gates above: a legacy
+  // lock-on TIMED (non-channel) cast whose locked target dies mid-cast, from
   // ANY source (another player's finishing blow, a DoT tick, an AoE), cancels
   // now instead of running the rest of a multi-second cast into a certain
-  // finish-side "You have no target." refusal at applyAbility. Channels are
+  // finish-side "You have no target." refusal at applyAbility. Directional
+  // casts are exempt: their launch direction is authoritative and a projectile
+  // must still launch when there was no hard target or that target disappeared.
+  // Channels are
   // exempt: applyChannelTick already re-checks the same locked target on every
   // pulse (a coarser but pre-existing cadence), and folding them in here would
   // pre-empt that path's own completion-time side effects (e.g. Affliction's
@@ -482,7 +485,8 @@ export function updateCasting(ctx: SimContext, p: Entity, meta: PlayerMeta): voi
     !p.channeling &&
     activeCast?.def.requiresTarget &&
     !activeCast.def.targetsDead &&
-    activeCast.def.targetType !== 'friendly'
+    activeCast.def.targetType !== 'friendly' &&
+    !(ctx.playerDirectionalCombat === true && abilityUsesDirectionalHostileAim(activeCast.def))
   ) {
     const liveTarget = p.castTargetId !== null ? (ctx.entities.get(p.castTargetId) ?? null) : null;
     if (!liveTarget || liveTarget.dead) {
