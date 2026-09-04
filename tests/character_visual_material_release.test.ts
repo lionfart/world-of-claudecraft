@@ -12,6 +12,7 @@ import { TINTED_MATERIAL_IDLE_CACHE_MAX } from '../src/render/characters/tinted_
 
 type AssetsModule = typeof import('../src/render/characters/assets');
 type VisualModule = typeof import('../src/render/characters/visual');
+const STREAMED_MODEL = 'models/creatures/mushroom_pixie.glb';
 
 const stubGltf = () => {
   const scene = new THREE.Group();
@@ -31,6 +32,15 @@ async function loadModules(): Promise<{ assets: AssetsModule; visual: VisualModu
   }));
   const assets = (await import('../src/render/characters/assets')) as AssetsModule;
   await assets.charactersReady();
+  await new Promise<void>((resolve) => {
+    let unsubscribe: () => void = () => undefined;
+    unsubscribe = assets.onCharacterAssetReady((url) => {
+      if (url !== STREAMED_MODEL) return;
+      unsubscribe();
+      resolve();
+    });
+    assets.ensureCharacterUrl(STREAMED_MODEL);
+  });
   const visual = (await import('../src/render/characters/visual')) as VisualModule;
   return { assets, visual };
 }

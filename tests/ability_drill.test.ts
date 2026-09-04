@@ -299,6 +299,7 @@ describe('the on-next-swing path credits too', () => {
     const p = standInRing(sim);
     const target = spawnEffigy(sim, 90201, p.pos.x + 1, p.pos.z);
     sim.targetEntity(target.id);
+    p.facing = Math.atan2(target.pos.x - p.pos.x, target.pos.z - p.pos.z);
     const taught = startingAttackFor('warrior').abilityId!;
     expect(ABILITIES[taught].onNextSwing, 'the premise: it queues').toBe(true);
 

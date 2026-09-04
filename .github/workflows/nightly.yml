@@ -69,7 +69,7 @@ jobs:
   # dies.
   targets:
     name: Resolve nightly refs
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       refs: ${{ steps.resolve.outputs.refs }}
@@ -102,7 +102,7 @@ jobs:
   tests:
     name: Nightly tests (${{ matrix.ref }})
     needs: targets
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
     timeout-minutes: 300
     # Same real-SQL wiring as ci.yml's pr-gate (ruling R16): the nightly full
     # suite is the unsharded backstop, so it proves the pg suites daily on
@@ -167,7 +167,7 @@ jobs:
   checks:
     name: Nightly checks (${{ matrix.ref }})
     needs: targets
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -225,7 +225,7 @@ jobs:
   browser:
     name: Nightly browser (${{ matrix.ref }})
     needs: targets
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -298,7 +298,7 @@ jobs:
     name: Report nightly verdict
     needs: [targets, tests, checks, browser]
     if: ${{ always() }}
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     # The one write scope in this workflow, job-scoped: the report job files,
     # updates, and closes the tracking issue. Never widen the workflow level.

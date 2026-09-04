@@ -1,5 +1,9 @@
 import { applyTerritoryDelta, type TerritoryDelta } from '../src/sim/territory_delta';
 import {
+  TERRITORY_SIEGE_RECIPES,
+  type TerritorySiegeCraftKind,
+} from '../src/sim/territory_economy';
+import {
   createTerritorySiege,
   TERRITORY_SIEGE_CATAPULT_ITEM_ID,
   TERRITORY_SIEGE_MORTAR_ITEM_ID,
@@ -26,10 +30,6 @@ import {
   territorySiegeTowerShot,
   territorySiegeViewFor,
 } from '../src/sim/territory_siege';
-import {
-  TERRITORY_SIEGE_RECIPES,
-  type TerritorySiegeCraftKind,
-} from '../src/sim/territory_economy';
 import { territorySiegeBiomeForCell } from '../src/sim/territory_siege_biome';
 import type {
   TerritoryGuildView,
@@ -162,6 +162,7 @@ export class TerritoryService {
     this.configuredSlotCount = config.realmWarSlots;
     this.requirementsEnabled = config.requirementsEnabled;
     this.ready = this.initialize();
+    void this.ready.catch(() => undefined);
   }
 
   private async initialize(): Promise<void> {

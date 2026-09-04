@@ -18,6 +18,8 @@ import {
   updateItemArtAuditVerdict,
 } from '../scripts/lib/item_art_audit.mjs';
 
+sharp.cache(false);
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const temporaryRoots: string[] = [];
 
@@ -94,7 +96,9 @@ async function sheetPins(root: string, paths: string[]): Promise<Array<[string, 
 }
 
 afterEach(() => {
-  for (const root of temporaryRoots.splice(0)) rmSync(root, { recursive: true, force: true });
+  for (const root of temporaryRoots.splice(0)) {
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  }
 });
 
 describe('item-art audit builder', () => {
@@ -746,11 +750,9 @@ describe('item-art audit builder', () => {
     expect(help).toContain('--refresh-verdict');
     expect(help).toContain('tmp/imagegen/item-art-consistency/final-audit');
 
-    // Moved by the Passing Stone icon (the death lesson's rite marker,
-    // rendered from its own shipped world model). `verdict: null` below is
-    // unchanged and is the point: the committed reviewed verdict covers the
-    // art as of its own review, and a newly added icon is deliberately NOT
-    // folded into it. It awaits an owner visual review of its own.
+    // The current digest includes the Passing Stone addition and the seven reviewed painted bag
+    // replacements. `verdict: null` is the point: verify-only validates the live catalog without
+    // rewriting the committed visual verdict.
     const verified = JSON.parse(
       execFileSync(process.execPath, ['scripts/item_art_audit.mjs', '--verify-only'], {
         cwd: repoRoot,
@@ -760,20 +762,20 @@ describe('item-art audit builder', () => {
     ) as Record<string, unknown>;
     expect(verified).toMatchObject({
       catalogPath: 'tmp/imagegen/item-art-consistency/final-audit/catalog.json',
-      catalogSha256: 'ec47b8140b2f19caeddd869ee6a2bcb51f6965294b0fa93a1eeddf06d9c4c914',
-      catalogBytes: 454802,
-      rendererFingerprint: 'fd92c41a206cd55b05a1de94c4789f6eb6ca4200d063f4bbd284c21ae03b6082',
-      catalogCount: 829,
-      liveItemCount: 844,
+      catalogSha256: '8ce28abcae287284a35cf858868047b008d05fe76b21dfcc4dfd9cc5eb479f9a',
+      catalogBytes: 569243,
+      rendererFingerprint: 'd80ff4868f979e1717e106c889b7d6505841caf8d4cf887776ecb60848b1b2b7',
+      catalogCount: 1044,
+      liveItemCount: 1059,
       generatedHeroicDefinitions: 64,
       heroicDefinitionsWithOwnWebp: 48,
       heroicWeaponArtAliases: 16,
       groupCount: 22,
-      sheetPageCount: 26,
-      sheetCount: 208,
-      sheetModeCounts: Object.fromEntries(ITEM_ART_AUDIT_MODES.map((mode) => [mode, 26])),
+      sheetPageCount: 27,
+      sheetCount: 216,
+      sheetModeCounts: Object.fromEntries(ITEM_ART_AUDIT_MODES.map((mode) => [mode, 27])),
       sheetSetSha256: null,
-      shippingCatalogSha256: '92015c29b0abcb6f1fbb4cdeba01917e7fe4ae641df8bcd3076974a19ce56c97',
+      shippingCatalogSha256: '3c06038ee568dbde37eebae3326f2e5ef4204b7fb0172a6f4947efb33b2d95c9',
       machineChecksPassed: true,
       verdict: null,
     });

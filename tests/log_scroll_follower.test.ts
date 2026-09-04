@@ -7,8 +7,16 @@ describe('LogScrollFollower', () => {
     const frames: Array<() => void> = [];
     const scroll = vi.fn();
 
-    follower.requestBottom(() => true, (frame) => frames.push(frame), scroll);
-    follower.requestBottom(() => true, (frame) => frames.push(frame), scroll);
+    follower.requestBottom(
+      () => true,
+      (frame) => frames.push(frame),
+      scroll,
+    );
+    follower.requestBottom(
+      () => true,
+      (frame) => frames.push(frame),
+      scroll,
+    );
 
     expect(frames).toHaveLength(1);
     expect(scroll).not.toHaveBeenCalled();
@@ -32,11 +40,19 @@ describe('LogScrollFollower', () => {
     let active = false;
     const scroll = vi.fn();
 
-    follower.requestBottom(() => active, (frame) => frames.push(frame), scroll);
+    follower.requestBottom(
+      () => active,
+      (frame) => frames.push(frame),
+      scroll,
+    );
     expect(frames).toHaveLength(0);
 
     active = true;
-    follower.requestBottom(() => active, (frame) => frames.push(frame), scroll);
+    follower.requestBottom(
+      () => active,
+      (frame) => frames.push(frame),
+      scroll,
+    );
     active = false;
     frames[0]();
     expect(scroll).not.toHaveBeenCalled();

@@ -13,7 +13,9 @@ import { territorySiegeWallSegmentPlacements } from '../src/sim/territory_siege_
 describe('territory local siege controls', () => {
   it('keeps online display extrapolation off inside server-authoritative siege collisions', () => {
     const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
-    expect(main).toMatch(/!isTerritorySiegePos\(pe\.pos\.x\)/);
+    expect(main).toContain(
+      'selfMotionGateArgs.movementFrozen = movementFrozen() || isTerritorySiegePos(pe.pos.x)',
+    );
   });
 
   it('locks movement only while a siege tool or core channel owns the player', () => {

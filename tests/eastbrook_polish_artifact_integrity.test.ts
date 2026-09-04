@@ -1025,10 +1025,18 @@ const ACCEPTED_POLISH_V2_METADATA_PATH = path.join(REPO_ROOT, POLISH_SEAL_PATH);
 // Re-minted for the v0.40.0 sync merge into the guild pledge branch (the
 // OSSBrain v0.40 batch landed on the release arm; renderer inputs moved on
 // both sides). No capture was retaken.
+// Re-minted for the Ignivar raid consolidation (the v0.41.0 base merge plus
+// the renderer extraction round moved the renderer integration leaf). No
+// capture was retaken.
+// Re-minted for PR #3740's forge-lift room (the lift room render hookup and
+// door-portal arm moved the renderer integration leaf). No capture was
+// retaken.
+// Re-minted for the healer rez parity change (PR 3798): renderer.ts now threads
+// the spellfx school through the temporal glyph. No capture was retaken.
 const ACCEPTED_POLISH_V2_METADATA_SHA256 =
-  'efc7a4d09652f62342027d19391c06255629dec317fddca8b64b0135af2694a6';
+  '6cb9c84e2233b64d306fe01232d9b088d55d220166ff92d739f1d17faf060bf6';
 const ACCEPTED_POLISH_V2_COMPOSITE_PROVENANCE =
-  '58e7d7c0db43a5bd25536286df2026f632ffcf4e25a0a87dcdcd61cd36a06a37';
+  'ee4695f819aa37f856005359060031486618814f17d410b5eec974d1f57fac47';
 const ACCEPTED_POLISH_V2_METADATA = readJsonFile<CaptureMetadata>(ACCEPTED_POLISH_V2_METADATA_PATH);
 const ACCEPTED_POLISH_V2_PROVENANCE = ACCEPTED_POLISH_V2_METADATA.polishProvenance;
 const ACCEPTED_POLISH_V2_TOWN_CONTRACT = ACCEPTED_POLISH_V2_METADATA.records[0]?.townContract;
@@ -2175,10 +2183,16 @@ describe('Eastbrook polish performance and contact evidence', () => {
     // OSSBrain v0.40 batch landed on the release arm; renderer inputs moved on
     // both sides): same order, the composite first, then this seal. No capture
     // was retaken.
+    // Re-minted for PR #3740's forge-lift room: the first-order composite
+    // follows the lift room's renderer.ts hookup, then this second-order
+    // performance seal follows the swept evidence bytes. No capture was
+    // retaken.
     expect(
       fingerprint.digest('hex'),
       `the second-order performance digest moved; if every input moved legitimately, re-mint with: ${REMINT_COMMAND} (it recomputes this literal LAST, from the swept files)`,
-    ).toBe('6cd762415691d3e3c5f10728798e5cc409c3f536c4d9bbd5bdd55500c7b52ee2');
+      // Re-minted for the healer rez parity spellfx school threading: the
+      // composite first, then this seal. No capture was retaken.
+    ).toBe('6e5d651b20dea1750159ad44bbe249f3c229ac85e39deae234e6c06460e9df9c');
   });
 
   it('binds every historical after record to its accepted source and asset provenance', () => {

@@ -47,13 +47,7 @@ export function handleProjectileEventVfx(
       typeof event.y === 'number' && Number.isFinite(event.y)
         ? event.y
         : groundHeight(event.x, event.z, getSeed()) + 0.7;
-    vfx.ballisticImpact(
-      event.trajectoryId,
-      event.x,
-      y,
-      event.z,
-      event.reason,
-    );
+    vfx.ballisticImpact(event.trajectoryId, event.x, y, event.z, event.reason);
     abilityVfx?.handleBallisticImpact(event);
     return true;
   }

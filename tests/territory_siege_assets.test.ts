@@ -104,7 +104,7 @@ describe('territory siege asset kit', () => {
     expect(source).toContain('mortarRecoilStartedAt.set(shot.mortarId, timeSeconds)');
     expect(source).toContain('catapultRecoilStartedAt.set(shot.catapultId, timeSeconds)');
     expect(source).not.toContain('const normalRecoilAge = 7 - view.cooldown');
-    expect(source).toContain('new THREE.DodecahedronGeometry(1.32, 1)');
+    expect(source).toContain('new THREE.DodecahedronGeometry(index === 0 ? 1.35 : 0.62, 0)');
     expect(source).toContain('Math.sin(progress * Math.PI) * 15');
     expect(source).toContain('shell.trail.quaternion.setFromUnitVectors');
     expect(source).toContain('const towerProjectiles = Array.from');

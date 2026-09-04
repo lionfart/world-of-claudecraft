@@ -164,7 +164,7 @@ jobs:
     # in shape to release-i18n's toolchain overhead. 10 gives ample margin
     # over a script that runs in a fraction of a second locally.
     timeout-minutes: 10
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -207,7 +207,7 @@ jobs:
   # this job and never read its output.
   changes:
     name: Classify changes
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
     # Every PR-tier job waits on this one, so a wedged runner must fail fast
     # and be retried, never hang for an hour and a half. 8, not 5: the
     # Phase 6 replay found a healthy 4.42 minute run on this serial critical
@@ -263,7 +263,7 @@ jobs:
     # pass. 15 keeps a margin over browser-gate's 10 minute bound for the extra
     # base-ref resolution step.
     timeout-minutes: 15
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -367,7 +367,7 @@ jobs:
     # stalled run sat 17.5 minutes in checkout inside an 18.4 minute wall
     # (run 31107474546).
     timeout-minutes: 10
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -549,7 +549,7 @@ jobs:
     # simulated 9.79m flat pack against a real 11.21m when one modeling
     # assumption was wrong).
     timeout-minutes: 37
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     # The real-SQL merge bar (ruling R16, recorded in the woc-marketplace
     # hardening state): every shard leg gets its own Postgres so the
@@ -627,6 +627,9 @@ jobs:
             !/docs/screenshots/*/
             /docs/screenshots/admin-cheater-mark/
             /docs/screenshots/admin-guild-bank-panel/
+            /docs/screenshots/armory-purchase-decision/
+            /docs/screenshots/bank-storage-charters/
+            /docs/screenshots/bank-vault-tab/
             /docs/screenshots/deed-border-cartouche/
             /docs/screenshots/eastbrook-grand-armoury/
             /docs/screenshots/eastbrook-vale-rebuild/
@@ -635,12 +638,15 @@ jobs:
             /docs/screenshots/guild-bank-tab/
             /docs/screenshots/guild-pledge-board/
             /docs/screenshots/guild-social-v1/
+            /docs/screenshots/ignivar-raid/
+            /docs/screenshots/ignivar-raid-expansion/
             /docs/screenshots/item-art-consistency-2026-08-09/
             /docs/screenshots/market-house-redesign/
             /docs/screenshots/placeholder-art-completion-2026-08-09/
             /docs/screenshots/r35-admin-professions-inspector/
             /docs/screenshots/release-v036-skill-normalization-2026-08-10/
             /docs/screenshots/release-v039-icon-art-first-pass-2026-08-16/
+            /docs/screenshots/vault-fine-mark/
             /docs/screenshots/wildheart/
             /docs/screenshots/woc-market/
           sparse-checkout-cone-mode: false
@@ -827,7 +833,7 @@ jobs:
     # queue-side ceiling this has to fit under is recorded in
     # docs/merge-queue.md.
     timeout-minutes: 28
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -841,6 +847,9 @@ jobs:
             !/docs/screenshots/*/
             /docs/screenshots/admin-cheater-mark/
             /docs/screenshots/admin-guild-bank-panel/
+            /docs/screenshots/armory-purchase-decision/
+            /docs/screenshots/bank-storage-charters/
+            /docs/screenshots/bank-vault-tab/
             /docs/screenshots/deed-border-cartouche/
             /docs/screenshots/eastbrook-grand-armoury/
             /docs/screenshots/eastbrook-vale-rebuild/
@@ -849,12 +858,15 @@ jobs:
             /docs/screenshots/guild-bank-tab/
             /docs/screenshots/guild-pledge-board/
             /docs/screenshots/guild-social-v1/
+            /docs/screenshots/ignivar-raid/
+            /docs/screenshots/ignivar-raid-expansion/
             /docs/screenshots/item-art-consistency-2026-08-09/
             /docs/screenshots/market-house-redesign/
             /docs/screenshots/placeholder-art-completion-2026-08-09/
             /docs/screenshots/r35-admin-professions-inspector/
             /docs/screenshots/release-v036-skill-normalization-2026-08-10/
             /docs/screenshots/release-v039-icon-art-first-pass-2026-08-16/
+            /docs/screenshots/vault-fine-mark/
             /docs/screenshots/wildheart/
             /docs/screenshots/woc-market/
           sparse-checkout-cone-mode: false
@@ -923,7 +935,7 @@ jobs:
     # Sized with pr-long-sims-a (evidence there, in the lane-diet PR, and in
     # the dated re-derivations the sibling comment carries).
     timeout-minutes: 28
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -937,6 +949,9 @@ jobs:
             !/docs/screenshots/*/
             /docs/screenshots/admin-cheater-mark/
             /docs/screenshots/admin-guild-bank-panel/
+            /docs/screenshots/armory-purchase-decision/
+            /docs/screenshots/bank-storage-charters/
+            /docs/screenshots/bank-vault-tab/
             /docs/screenshots/deed-border-cartouche/
             /docs/screenshots/eastbrook-grand-armoury/
             /docs/screenshots/eastbrook-vale-rebuild/
@@ -945,12 +960,15 @@ jobs:
             /docs/screenshots/guild-bank-tab/
             /docs/screenshots/guild-pledge-board/
             /docs/screenshots/guild-social-v1/
+            /docs/screenshots/ignivar-raid/
+            /docs/screenshots/ignivar-raid-expansion/
             /docs/screenshots/item-art-consistency-2026-08-09/
             /docs/screenshots/market-house-redesign/
             /docs/screenshots/placeholder-art-completion-2026-08-09/
             /docs/screenshots/r35-admin-professions-inspector/
             /docs/screenshots/release-v036-skill-normalization-2026-08-10/
             /docs/screenshots/release-v039-icon-art-first-pass-2026-08-16/
+            /docs/screenshots/vault-fine-mark/
             /docs/screenshots/wildheart/
             /docs/screenshots/woc-market/
           sparse-checkout-cone-mode: false
@@ -1012,7 +1030,7 @@ jobs:
     # purpose. A stalled runner here still dies and reruns instead of
     # holding a required check for hours.
     timeout-minutes: 20
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -1169,7 +1187,7 @@ jobs:
     # 1.37 = 36.0, so 36: the same arithmetic that first produced 35, one
     # minute looser now that the base is measured rather than projected.
     timeout-minutes: 36
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     # Same real-SQL wiring as pr-gate (ruling R16): a per-leg Postgres and
     # TEST_DATABASE_URL so the pg suites run at the release bar too.
@@ -1216,6 +1234,9 @@ jobs:
             !/docs/screenshots/*/
             /docs/screenshots/admin-cheater-mark/
             /docs/screenshots/admin-guild-bank-panel/
+            /docs/screenshots/armory-purchase-decision/
+            /docs/screenshots/bank-storage-charters/
+            /docs/screenshots/bank-vault-tab/
             /docs/screenshots/deed-border-cartouche/
             /docs/screenshots/eastbrook-grand-armoury/
             /docs/screenshots/eastbrook-vale-rebuild/
@@ -1224,12 +1245,15 @@ jobs:
             /docs/screenshots/guild-bank-tab/
             /docs/screenshots/guild-pledge-board/
             /docs/screenshots/guild-social-v1/
+            /docs/screenshots/ignivar-raid/
+            /docs/screenshots/ignivar-raid-expansion/
             /docs/screenshots/item-art-consistency-2026-08-09/
             /docs/screenshots/market-house-redesign/
             /docs/screenshots/placeholder-art-completion-2026-08-09/
             /docs/screenshots/r35-admin-professions-inspector/
             /docs/screenshots/release-v036-skill-normalization-2026-08-10/
             /docs/screenshots/release-v039-icon-art-first-pass-2026-08-16/
+            /docs/screenshots/vault-fine-mark/
             /docs/screenshots/wildheart/
             /docs/screenshots/woc-market/
           sparse-checkout-cone-mode: false
@@ -1292,7 +1316,7 @@ jobs:
     # comment above): the toolchain setup dominates the wall time. 10 mirrors
     # release-version-gate's bound for the same shape.
     timeout-minutes: 10
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     env:
       I18N_RELEASE_TIER: '1'
@@ -1310,6 +1334,9 @@ jobs:
             !/docs/screenshots/*/
             /docs/screenshots/admin-cheater-mark/
             /docs/screenshots/admin-guild-bank-panel/
+            /docs/screenshots/armory-purchase-decision/
+            /docs/screenshots/bank-storage-charters/
+            /docs/screenshots/bank-vault-tab/
             /docs/screenshots/deed-border-cartouche/
             /docs/screenshots/eastbrook-grand-armoury/
             /docs/screenshots/eastbrook-vale-rebuild/
@@ -1318,12 +1345,15 @@ jobs:
             /docs/screenshots/guild-bank-tab/
             /docs/screenshots/guild-pledge-board/
             /docs/screenshots/guild-social-v1/
+            /docs/screenshots/ignivar-raid/
+            /docs/screenshots/ignivar-raid-expansion/
             /docs/screenshots/item-art-consistency-2026-08-09/
             /docs/screenshots/market-house-redesign/
             /docs/screenshots/placeholder-art-completion-2026-08-09/
             /docs/screenshots/r35-admin-professions-inspector/
             /docs/screenshots/release-v036-skill-normalization-2026-08-10/
             /docs/screenshots/release-v039-icon-art-first-pass-2026-08-16/
+            /docs/screenshots/vault-fine-mark/
             /docs/screenshots/wildheart/
             /docs/screenshots/woc-market/
           sparse-checkout-cone-mode: false
@@ -1357,7 +1387,7 @@ jobs:
     # Mirrors pr-checks: same step list (i18n generation, malware gate,
     # typecheck, four builds), so the same 20 minute bound.
     timeout-minutes: 20
-    runs-on: tenki-standard-small-2c-4g
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository

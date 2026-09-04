@@ -5,8 +5,8 @@ import { territoryConstructionDurationMs } from '../src/sim/territory_constructi
 import type { TerritoryDelta } from '../src/sim/territory_delta';
 import {
   TERRITORY_SIEGE_RECIPES,
-  territoryResourceProductionMultiplier,
   type TerritorySiegeCraftKind,
+  territoryResourceProductionMultiplier,
 } from '../src/sim/territory_economy';
 import {
   createTerritoryManifest,

@@ -154,7 +154,7 @@ describe('Vespers baseline loop', () => {
 
     sim.targetEntity(primary.id, priest.id);
     sim.castAbility('mind_blast', priest.id);
-    sim.tick();
+    for (let tick = 0; tick < 200 && priest.castingAbility; tick++) sim.tick();
 
     expect(priest.castingAbility).toBeNull();
     expect(primary.auras.some((aura) => aura.id === 'priest_effigy')).toBe(false);

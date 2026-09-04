@@ -27,6 +27,7 @@
 // `src/sim`-pure: no DOM/Three, no Math.random/Date.now; all randomness is the shared
 // `ctx.rng` stream, drawn in the exact pre-move positions.
 
+import { WARSPIRIT_EMBERSCALE_2PC_CADENCE_STEPS } from '../content/ignivar_set_bonuses';
 import { isArenaPos, MOBS } from '../data';
 import { questGateBlocksAggro } from '../mob/quest_gated_aggro';
 import { forceDismount } from '../mounts';
@@ -77,7 +78,9 @@ import { tryGrantDawnsWrath } from './paladin_dawns_wrath';
 import { tryGrantSolarReprisal } from './paladin_solar_reprisal';
 import { applyRequitalAutoAttack } from './paladin_talents';
 import { isValkyrsCallingAirborne } from './paladin_valkyrs_calling_state';
+import { effectivePlayerAttackRange } from './player_attack_reach';
 import { rangedShotProfile } from './ranged_shot';
+import { wearsSetBonus } from './set_bonus_wearer';
 import { triggerWardCycle } from './shaman_talents';
 import { advanceWarspiritCadence, stoneboundThreatMultiplier } from './shaman_warspirit';
 import { blockedMeleeDamage } from './shield_block';
@@ -214,7 +217,9 @@ function updateLegacyPlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerMe
     p.autoAttack = false;
     return;
   }
-  if (!p.autoAttack || p.castingAbility) return;
+  // An on-next-swing ability owns one swing even when held Basic Attack is off.
+  // It must not restart the repeating auto-attack intent after that swing.
+  if ((!p.autoAttack && !p.queuedOnSwing) || p.castingAbility) return;
   const target = p.targetId !== null ? ctx.entities.get(p.targetId) : null;
   if (!target || target.dead || !ctx.isHostileTo(p, target) || hasEscapeStealth(target)) {
     p.autoAttack = false;
@@ -233,7 +238,7 @@ function updateLegacyPlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerMe
     ctx.breakGhostWolf(p);
     const shot = rangedShotProfile(ranged, p.weapon);
     rangedSwing(ctx, p, target, { ...ranged, min: shot.min, max: shot.max, speed: shot.speed });
-    p.swingTimer = (shot.speed * ctx.swingIntervalMult(p)) / (1 + p.rangedHaste);
+    p.swingTimer = shot.speed * ctx.swingIntervalMult(p, 'ranged');
     return;
   }
   if (distance > MELEE_RANGE) return;
@@ -281,6 +286,7 @@ function updateLegacyPlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerMe
       whiteDualWieldPenalty: dualWieldWhiteMissPenalty && abilityName === null,
       autoAttack: true,
     });
+    if (connected && abilityId) creditAbilityDrill(ctx, p, target, abilityId);
     const extraAttackPct = ctx.playerMods(meta).global.extraAttackPct;
     if (connected && abilityName === null && extraAttackPct > 0 && ctx.rng.chance(extraAttackPct)) {
       meleeSwing(ctx, p, target, 0, null, {
@@ -323,7 +329,7 @@ export function updatePlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerM
     p.autoAttack = false;
     return;
   }
-  if (!p.autoAttack || p.castingAbility) return;
+  if ((!p.autoAttack && !p.queuedOnSwing) || p.castingAbility) return;
   if (p.swingTimer > 0 && (!p.dualWielding || !p.offhandWeapon || p.offhandSwingTimer > 0)) return;
   if (isStunned(p)) return;
   if (isDisarmed(p)) return; // weapon knocked away: no auto-attack swings
@@ -345,15 +351,15 @@ export function updatePlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerM
     const angle = combatAimAngle(p, meta);
     p.facing = angle;
     const rangedProfile = { ...ranged, min: shot.min, max: shot.max, speed: shot.speed };
+    const launchContactHint = selectFirstTargetOnSegment({
+      origin: p.pos,
+      angle,
+      maxDistance: ranged.maxRange,
+      minDistance: ranged.wand ? 0 : ranged.minRange,
+      candidates: autoAttackCandidates(ctx, p, ranged.maxRange),
+    });
     if (ctx.playerDirectionalCombat === false) {
-      const target = selectFirstTargetOnSegment({
-        origin: p.pos,
-        angle,
-        maxDistance: ranged.maxRange,
-        minDistance: ranged.wand ? 0 : ranged.minRange,
-        candidates: autoAttackCandidates(ctx, p, ranged.maxRange),
-      });
-      if (target) rangedSwing(ctx, p, target, rangedProfile);
+      if (launchContactHint) rangedSwing(ctx, p, launchContactHint, rangedProfile);
       else {
         ctx.emit({
           type: 'spellfx',
@@ -365,16 +371,18 @@ export function updatePlayerAutoAttack(ctx: SimContext, p: Entity, meta: PlayerM
         });
       }
     } else {
-      rangedSwing(ctx, p, null, rangedProfile, {
+      // This hint feeds cast-completion proc targeting only. The ballistic
+      // projectile still owns collision and hard-target selection at impact.
+      rangedSwing(ctx, p, launchContactHint, rangedProfile, {
         angle,
         pitch: combatAimPitch(meta),
         maxDistance: ranged.maxRange,
         minDistance: ranged.wand ? 0 : ranged.minRange,
       });
     }
-    // The weapon's speed sets the cadence; ranged haste (item-set bonus) then
-    // shortens the auto-shot interval.
-    p.swingTimer = (shot.speed * ctx.swingIntervalMult(p)) / (1 + p.rangedHaste);
+    // The ranged channel folds weapon/stat/aura haste into the shared additive
+    // haste bucket introduced upstream.
+    p.swingTimer = shot.speed * ctx.swingIntervalMult(p, 'ranged');
     return;
   }
   const targets = selectMeleeConeTargets({
@@ -868,7 +876,15 @@ export function meleeSwing(
   if (attacker.kind === 'player') {
     if (abilityName === null) advanceWarspiritCadence(ctx, attacker, target, dealtAmount, 1);
     else if (abilityName === 'Ancestral Strike') {
-      advanceWarspiritCadence(ctx, attacker, target, dealtAmount, 2);
+      // Warspirit Emberscale 2pc (the Crucible set doc): Ancestral Strike
+      // advances the shared cadence 3 steps instead of 2, a call-site
+      // selection gated on the wearer flag. The Exaltation clamp and Deep
+      // Reservoir's shared-currency interplay are disclosed in the set
+      // record (content/ignivar_set_bonuses.ts). Draws no rng.
+      const steps = wearsSetBonus(ctx, attacker, 'warspirit_emberscale', 2)
+        ? WARSPIRIT_EMBERSCALE_2PC_CADENCE_STEPS
+        : 2;
+      advanceWarspiritCadence(ctx, attacker, target, dealtAmount, steps);
       triggerWardCycle(ctx, attacker);
     }
     onMeleeSwing(ctx, attacker);

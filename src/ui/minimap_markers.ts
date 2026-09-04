@@ -57,6 +57,7 @@ import {
   type StationType,
 } from '../sim/types';
 import type { IWorld } from '../world_api';
+import { dungeonMapActive } from './dungeon_map_view';
 import { viewerUsableToolTier } from './gathering_view';
 import {
   MAP_MARKER_SIZES,
@@ -172,6 +173,7 @@ export type MinimapMode =
   | 'yumiMaze'
   | 'battleground'
   | 'territorySiege'
+  | 'dungeon'
   | 'overworld';
 
 /** The NPC quest glyph: turn-in ready ('?') wins over available ('!'), else neutral. */
@@ -287,6 +289,7 @@ export function minimapMode(world: IWorld): MinimapMode {
   if (isYumiMazePos(world.player.pos.x)) return 'yumiMaze';
   if (isBgPos(world.player.pos.x)) return 'battleground';
   if (isTerritorySiegePos(world.player.pos.x)) return 'territorySiege';
+  if (dungeonMapActive(world)) return 'dungeon';
   return isDelvePos(world.player.pos.x) && world.delveRun ? 'delve' : 'overworld';
 }
 

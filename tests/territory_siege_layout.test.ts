@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { territorySiegeOrigin } from '../src/sim/data';
 import {
-  TERRITORY_SIEGE_DEFENDER_PORTAL_X,
-  TERRITORY_SIEGE_DEFENDER_PORTAL_Z,
   clampTerritorySiegeDestructibleStructures,
   clampTerritorySiegeGate,
   resolveTerritorySiegeDestructibleStructures,
   sealTerritorySiegeGateForSide,
   TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
+  TERRITORY_SIEGE_DEFENDER_PORTAL_X,
+  TERRITORY_SIEGE_DEFENDER_PORTAL_Z,
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
   TERRITORY_SIEGE_GATE_HALF_WIDTH,

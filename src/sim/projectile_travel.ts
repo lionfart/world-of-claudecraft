@@ -22,10 +22,7 @@
 // by TYPE only (no DOM/Three/Math.random/Date.now), so the architecture guard
 // (tests/architecture.test.ts) stays green.
 
-import {
-  BALLISTIC_PROJECTILE_RADIUS,
-  entityCombatRadius,
-} from './combat/directional_attack';
+import { BALLISTIC_PROJECTILE_RADIUS, entityCombatRadius } from './combat/directional_attack';
 import { evadeIncomingAttack } from './player_dodge';
 import type { SimContext } from './sim_context';
 import { DT, type Entity } from './types';
@@ -43,9 +40,11 @@ export const ENTITY_COMBAT_HEIGHT = 2;
  * send a projectile over a small target's server collider. This point is the
  * centre of the same feet-anchored capsule used by swept collision below.
  */
-export function entityCombatAimPoint(
-  entity: Pick<Entity, 'pos' | 'scale'>,
-): { x: number; y: number; z: number } {
+export function entityCombatAimPoint(entity: Pick<Entity, 'pos' | 'scale'>): {
+  x: number;
+  y: number;
+  z: number;
+} {
   const bodyRadius = entityCombatRadius(entity);
   const bodyHeight = Math.max(bodyRadius * 2, ENTITY_COMBAT_HEIGHT * entity.scale);
   return {

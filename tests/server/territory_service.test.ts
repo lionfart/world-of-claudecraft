@@ -422,9 +422,7 @@ describe('territory service hot paths', () => {
         coreLevel: 1,
         attackerHasSiegeWorkshop: false,
         defenseTowerLevel: 0,
-        participants: [
-          { characterId: 11, side: 'attacker', seatNo: 1, active: false },
-        ],
+        participants: [{ characterId: 11, side: 'attacker', seatNo: 1, active: false }],
       },
     ]);
     repository.loadActiveWarRegistrations.mockResolvedValue([{ warId: war.id, characterId: 11 }]);

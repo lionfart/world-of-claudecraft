@@ -1198,6 +1198,8 @@ describe('client HTML shell', () => {
     expect(mainTs).toContain(
       "onDonate: () => window.open(DONATE_URL, '_blank', 'noopener,noreferrer'),",
     );
+    // The operator fork routes donations through its Solana test flow; the
+    // upstream Ko-fi and GitHub Sponsors destinations must not return.
     for (const [name, entry] of [
       ['index.html', html],
       ['play.html', playHtml],
@@ -1644,12 +1646,12 @@ describe('client HTML shell', () => {
     expect(mainTs).toContain("classList.toggle('show-actionbar3', visibility.third)");
   });
 
-  it('ships no community tray on the operator fork (donations ride #mm-donate)', () => {
+  it('carries a wishlist-only community tray in BOTH entries, with no duplicate social links', () => {
     for (const [name, entry] of [
       ['index.html', html],
       ['play.html', playHtml],
     ] as const) {
-      expect(entry).not.toContain('id="community-hud"');
+      expect(entry).toContain('<a class="community-link steam-wishlist steam-wishlist-chip"');
       expect(entry).not.toContain('<a class="community-link github"');
       expect(entry).not.toContain('<a class="community-link donate"');
       expect(entry).not.toContain('<a class="community-link discord"');
@@ -1745,13 +1747,17 @@ describe('client HTML shell', () => {
     // its two-person toggle icon under the minimap masqueraded as a Friends
     // button next to the real Social button in the top-left trio.
     expect(html).toContain('<a class="donate-cta"');
-    // Operator fork: the whole community rail is gone (donations ride the
-    // #mm-donate icon-rail button; GitHub/Discord were removed).
-    expect(html).not.toContain('<details id="community-menu">');
-    expect(html).not.toContain('<summary class="community-toggle"');
-    expect(html).not.toContain('<div class="community-tray">');
+    expect(html).toContain('<details id="community-menu">');
+    expect(html).toContain('<summary class="community-toggle"');
+    expect(html).toContain('<div class="community-tray">');
+    // The tray is wishlist-only now (its GitHub/Donate links were removed,
+    // owner request); the marketing donate-cta above stays.
+    expect(html).toContain('<a class="community-link steam-wishlist steam-wishlist-chip"');
     expect(html).not.toContain('<a class="community-link github"');
     expect(html).not.toContain('<a class="community-link donate"');
+    // No separate Discord invite link here: it duplicated the Discord (U)
+    // icon-rail button (#mm-discord), the game HUD's single Discord entry
+    // point (see the fix/inspect-camera-talent-overlap-discord-dup PR).
     expect(html).not.toContain('<a class="community-link discord"');
     expect(hudMobileCss).toContain('body.mobile-touch.game-active #ui {\n    z-index: 80;\n  }');
     expect(hudMobileCss).toContain('body.mobile-touch #community-hud {\n    display: none;\n  }');
@@ -1859,6 +1865,12 @@ describe('client HTML shell', () => {
     );
     expect(hudMobileCss).toContain(
       'body.mobile-touch #player-frame::before {\n      left: -5px;\n      top: -5px;\n      width: 73px;\n      height: 73px;',
+    );
+    // The always-visible XP percent badge, captioned just under the ring
+    // (never over the portrait face): reads the SAME data-percent attribute
+    // xp_bar_painter.ts writes onto #player-frame alongside --xp-fill.
+    expect(hudMobileCss).toContain(
+      'body.mobile-touch #player-frame::after {\n    content: attr(data-percent);',
     );
     expect(hudMobileCss).toContain(
       'body.mobile-touch #target-frame {\n    left: max(20px, calc(env(safe-area-inset-left) + 10px));\n    top: max(8px, env(safe-area-inset-top));',
@@ -2897,7 +2909,7 @@ describe('client HTML shell', () => {
     // The pet frame joins the same nudge: it shares the bottom-centre column with
     // the player frame and the two bars, so it has to travel with them.
     expect(hudMobileCss).toContain(
-      'body.mobile-touch.hud-mobile-compact #castbar,\n  body.mobile-touch.hud-mobile-compact #swingbar,\n  body.mobile-touch.hud-mobile-compact #pet-frame {\n    left: calc(50% - 15px);\n  }',
+      'body.mobile-touch.hud-mobile-compact #castbar,\n  body.mobile-touch.hud-mobile-compact #swingbar,\n  body.mobile-touch.hud-mobile-compact #swingbar-offhand,\n  body.mobile-touch.hud-mobile-compact #pet-frame {\n    left: calc(50% - 15px);\n  }',
     );
     // Left-handed mode mirrors the floating capture zone; the autorun target is
     // a child of the move joystick, so it follows that mirror without its own

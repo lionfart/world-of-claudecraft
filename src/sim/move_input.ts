@@ -55,9 +55,7 @@ export function normalizeMoveFacing(raw: unknown): number | null {
 }
 
 export function sanitizeCombatAimPitch(raw: unknown): number | null {
-  return typeof raw === 'number' &&
-    Number.isFinite(raw) &&
-    Math.abs(raw) < Math.PI / 2
+  return typeof raw === 'number' && Number.isFinite(raw) && Math.abs(raw) < Math.PI / 2
     ? raw
     : null;
 }
@@ -67,6 +65,7 @@ export interface MoveInputFrame {
   facing: number | null;
   combatAimAngle?: number | null;
   combatAimPitch?: number | null;
+  ct: number | null;
 }
 
 export function parseMoveInputFrame(raw: unknown): MoveInputFrame {
@@ -76,6 +75,7 @@ export function parseMoveInputFrame(raw: unknown): MoveInputFrame {
       facing: null,
       combatAimAngle: null,
       combatAimPitch: null,
+      ct: null,
     };
   }
   return {
@@ -83,5 +83,6 @@ export function parseMoveInputFrame(raw: unknown): MoveInputFrame {
     facing: sanitizeMoveFacing(raw.facing),
     combatAimAngle: normalizeMoveFacing(raw.combatAimAngle ?? raw.aim),
     combatAimPitch: sanitizeCombatAimPitch(raw.combatAimPitch ?? raw.aimPitch),
+    ct: Number.isSafeInteger(raw.ct) && Number(raw.ct) >= 0 ? Number(raw.ct) : null,
   };
 }

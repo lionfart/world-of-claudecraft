@@ -23,8 +23,7 @@ describe('combat aim controller', () => {
       },
       player: () => ({ pos: { x: 0, y: 2, z: 0 }, facing: 0.25 }),
       groundPoint,
-      screenRayDirection: (_x, y) =>
-        y === 90 ? { x: 0, y: 0.5, z: 1 } : { x: 0, y: 0, z: 1 },
+      screenRayDirection: (_x, y) => (y === 90 ? { x: 0, y: 0.5, z: 1 } : { x: 0, y: 0, z: 1 }),
       entityAimPoint: () => null,
       projectileLaunchHeight: 0.7,
       offlineMeta: () => meta,
@@ -70,7 +69,12 @@ describe('combat aim controller', () => {
     });
 
     expect(controller.screenPoint()).toEqual({ x: 200, y: 95.6 });
-    expect(controller.current()).toMatchObject({ source: 'facing', angle: 1.2, pitch: 0, point: null });
+    expect(controller.current()).toMatchObject({
+      source: 'facing',
+      angle: 1.2,
+      pitch: 0,
+      point: null,
+    });
     controller.sync();
     expect(online.setMouselookFacing).toHaveBeenCalledWith(1.2);
   });

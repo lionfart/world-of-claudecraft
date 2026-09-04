@@ -1,8 +1,8 @@
 import { territorySiegeOrigin, territorySiegeOriginAt } from '../sim/data';
 import { territoryCellClaimable, territoryResourceProfile } from '../sim/territory_biome';
+import { TERRITORY_SIEGE_RECIPES, type TerritorySiegeCraftKind } from '../sim/territory_economy';
 import { createTerritoryManifest, type TerritoryResourceKind } from '../sim/territory_manifest';
 import { territorySiegeBiomeForCell } from '../sim/territory_siege_biome';
-import { TERRITORY_SIEGE_RECIPES, type TerritorySiegeCraftKind } from '../sim/territory_economy';
 import {
   territorySiegeActionPoint,
   territorySiegeDefenderPortalDestination,
