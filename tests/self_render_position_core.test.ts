@@ -271,10 +271,7 @@ describe('updateSelfRenderPosition predictor path', () => {
     // enterSiege increments the server movement-override epoch. The v2
     // pipeline therefore returns null for this handoff frame while ClientWorld
     // already contains the authoritative siege position.
-    const siege = playerAt(
-      { x: 134_793.6, y: 0, z: -1_472 },
-      { x: 134_793.6, y: 0, z: -1_472 },
-    );
+    const siege = playerAt({ x: 134_793.6, y: 0, z: -1_472 }, { x: 134_793.6, y: 0, z: -1_472 });
     updateSelfRenderPosition(state, siege, SEED, 1, FRAME_DT, 0.2, null, false);
 
     expect(state.active).toBe(false);
