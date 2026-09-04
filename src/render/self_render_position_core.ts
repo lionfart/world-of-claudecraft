@@ -6,6 +6,7 @@
 
 import type { Entity } from '../sim/types';
 import {
+  SELF_MOTION_SNAP_DIST_SQ,
   type SelfMotionFrame,
   SelfMotionPredictor,
   updateSelfRenderFallback,
@@ -145,7 +146,23 @@ export function updateSelfRenderPosition(
   const px = p.prevPos.x + (p.pos.x - p.prevPos.x) * playerAlpha;
   const py = p.prevPos.y + (p.pos.y - p.prevPos.y) * playerAlpha;
   const pz = p.prevPos.z + (p.pos.z - p.prevPos.z) * playerAlpha;
-  if (authoritativeDiscontinuity) {
+  // A v2 movement-override epoch (teleport, siege entry, GM move) suspends the
+  // reconciled predictor for one frame. That makes this branch the handoff
+  // from an active predicted pose to the freshly teleported authoritative
+  // pose. Do not turn a world-scale teleport into a handoff offset: the
+  // bounded rewind below would then move the avatar/camera toward the new
+  // region at 12 yd/s for hours. The ordinary fallback path already uses this
+  // same six-yard rule; apply it before the predictor-handoff arm as well.
+  const handoffDx = px - state.position.x;
+  const handoffDy = py - state.position.y;
+  const handoffDz = pz - state.position.z;
+  const predictorHandoffTeleport =
+    predictorWasActive &&
+    state.ready &&
+    handoffDx * handoffDx + handoffDy * handoffDy + handoffDz * handoffDz >
+      SELF_MOTION_SNAP_DIST_SQ;
+  const fallbackDiscontinuity = authoritativeDiscontinuity || predictorHandoffTeleport;
+  if (fallbackDiscontinuity) {
     state.offset.x = 0;
     state.offset.y = 0;
     state.offset.z = 0;
@@ -155,7 +172,7 @@ export function updateSelfRenderPosition(
     state.offset.z = state.position.z - pz;
   }
   if (
-    !authoritativeDiscontinuity &&
+    !fallbackDiscontinuity &&
     (predictorWasActive || state.offset.x !== 0 || state.offset.y !== 0 || state.offset.z !== 0)
   ) {
     const previousX = state.position.x;
@@ -194,7 +211,7 @@ export function updateSelfRenderPosition(
     state.ready,
     dt,
     selfAlphaLead > 0,
-    authoritativeDiscontinuity,
+    fallbackDiscontinuity,
   );
   state.ready = true;
   return state.position;

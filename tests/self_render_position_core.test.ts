@@ -253,6 +253,35 @@ describe('updateSelfRenderPosition predictor path', () => {
     expect(state.position.x).toBeGreaterThan(0);
   });
 
+  it('snaps a world teleport when a v2 override suspends the active predictor', () => {
+    const state = createSelfRenderPositionState();
+    const overworld = playerAt({ x: 12, y: 0, z: 18 }, { x: 12, y: 0, z: 18 });
+    updateSelfRenderPosition(
+      state,
+      overworld,
+      SEED,
+      1,
+      FRAME_DT,
+      0.2,
+      { kind: 'reconciled', position: { x: 12.5, y: 0, z: 18 }, residual: null },
+      false,
+    );
+    expect(state.active).toBe(true);
+
+    // enterSiege increments the server movement-override epoch. The v2
+    // pipeline therefore returns null for this handoff frame while ClientWorld
+    // already contains the authoritative siege position.
+    const siege = playerAt(
+      { x: 134_793.6, y: 0, z: -1_472 },
+      { x: 134_793.6, y: 0, z: -1_472 },
+    );
+    updateSelfRenderPosition(state, siege, SEED, 1, FRAME_DT, 0.2, null, false);
+
+    expect(state.active).toBe(false);
+    expect(state.offset).toEqual({ x: 0, y: 0, z: 0 });
+    expect(state.position).toEqual({ x: 134_793.6, y: 0, z: -1_472 });
+  });
+
   it('bounds the total rewind when the fallback base also retreats', () => {
     const state = createSelfRenderPositionState();
     updateSelfRenderPosition(
