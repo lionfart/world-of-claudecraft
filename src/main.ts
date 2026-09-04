@@ -70,7 +70,7 @@ import {
   readDiscordChoice,
 } from './game/discord_login_choice';
 import { desktopPresenceOnFrame, pushDiscordPresenceEnabled } from './game/discord_presence';
-import { heldDodgeDirection, localDodgeToWorld } from './game/dodge_input';
+import { aimedDodgeToWorld, heldInputDodgeToWorld } from './game/dodge_input';
 import { cycleHudFocus } from './game/dpad_focus_nav';
 import { takeEditorPlaytestRequest } from './game/editor_playtest';
 import {
@@ -1914,10 +1914,7 @@ async function startGame(
         world.stopAutoAttack();
       },
       onToggleActionCamera: () => applySetting('actionCamera', !settings.get('actionCamera')),
-      onDodge: (direction) => {
-        const facing = input.combatAimUsesFacing() ? input.camYaw : world.player.facing;
-        world.dodge(localDodgeToWorld(direction, facing));
-      },
+      onDodge: (direction) => world.dodge(aimedDodgeToWorld(direction, input, world.player.facing)),
       onRightMouseRelease: () => hud.cancelGroundAim(),
       onInputIntent: (kind) => perf.markInputIntent(kind),
       onUiKey: (key) => {
@@ -2232,10 +2229,7 @@ async function startGame(
     toggleDiscord: toggleDiscordPanel,
     openChat,
     toggleActionCamera: () => applySetting('actionCamera', !settings.get('actionCamera')),
-    dodge: () => {
-      const facing = input.combatAimUsesFacing() ? input.camYaw : world.player.facing;
-      world.dodge(localDodgeToWorld(heldDodgeDirection(input.readMoveInput()), facing));
-    },
+    dodge: () => world.dodge(heldInputDodgeToWorld(input, world.player.facing)),
   };
   const syncXhbPadMode = () => crossHotbar.syncPadMode(gamepad);
   const gamepad = new GamepadManager(input, gamepadBindings, {

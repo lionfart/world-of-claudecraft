@@ -125,8 +125,13 @@ function canonicalSha256(value: unknown): string {
     .digest('hex');
 }
 
+// Territory siege commands share the skills asset root for action-bar rendering,
+// but they are not class abilities and have their own runtime registry.
 const webpFiles = (): string[] =>
-  walk(skillsDir).filter((p) => path.extname(p).toLowerCase() === '.webp');
+  walk(skillsDir).filter(
+    (p) =>
+      path.extname(p).toLowerCase() === '.webp' && path.basename(path.dirname(p)) !== 'territory',
+  );
 
 function registeredSkillUrls(): string[] {
   const abilityUrls = [...ABILITY_IMAGE_IDS].map((id) => {

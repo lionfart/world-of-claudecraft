@@ -69,14 +69,16 @@ export class DodgeDoubleTapTracker {
   }
 }
 
-export function heldDodgeDirection(input: {
+export interface DodgeMoveInput {
   forward: boolean;
   back: boolean;
   turnLeft: boolean;
   turnRight: boolean;
   strafeLeft: boolean;
   strafeRight: boolean;
-}): DodgeLocalDirection {
+}
+
+export function heldDodgeDirection(input: Readonly<DodgeMoveInput>): DodgeLocalDirection {
   const x =
     Number(input.turnRight || input.strafeRight) - Number(input.turnLeft || input.strafeLeft);
   const z = Number(input.forward) - Number(input.back);
@@ -99,4 +101,36 @@ export function localDodgeToWorld(
   const sin = Math.sin(facing);
   const cos = Math.cos(facing);
   return { x: z * sin - x * cos, z: z * cos + x * sin };
+}
+
+export function heldDodgeToWorld(
+  input: Readonly<DodgeMoveInput>,
+  facing: number,
+): DodgeLocalDirection {
+  return localDodgeToWorld(heldDodgeDirection(input), facing);
+}
+
+export interface DodgeFacingInput {
+  readonly camYaw: number;
+  combatAimUsesFacing(): boolean;
+}
+
+export function aimedDodgeToWorld(
+  direction: Readonly<DodgeLocalDirection>,
+  input: Readonly<DodgeFacingInput>,
+  fallbackFacing: number,
+): DodgeLocalDirection {
+  const facing = input.combatAimUsesFacing() ? input.camYaw : fallbackFacing;
+  return localDodgeToWorld(direction, facing);
+}
+
+export interface HeldDodgeInput extends DodgeFacingInput {
+  readMoveInput(): DodgeMoveInput;
+}
+
+export function heldInputDodgeToWorld(
+  input: Readonly<HeldDodgeInput>,
+  fallbackFacing: number,
+): DodgeLocalDirection {
+  return aimedDodgeToWorld(heldDodgeDirection(input.readMoveInput()), input, fallbackFacing);
 }

@@ -30,8 +30,15 @@ describe('character shadow proxy', () => {
       releaseGltf: vi.fn(),
     }));
 
-    const { charactersReady, prepareVisual } = await import('../src/render/characters/assets');
+    const { charactersReady, ensureCharacterUrl, prepareVisual } = await import(
+      '../src/render/characters/assets'
+    );
+    const { VISUALS } = await import('../src/render/characters/manifest');
     await charactersReady();
+    for (const url of [VISUALS.mob_elemental.url, ...(VISUALS.mob_elemental.animUrls ?? [])]) {
+      ensureCharacterUrl(url);
+    }
+    await Promise.resolve();
     const prep = prepareVisual('mob_elemental');
     expect(prep.idleGeo).not.toBeNull();
     expect(prep.shadowGeo).not.toBeNull();
@@ -69,8 +76,15 @@ describe('character shadow proxy', () => {
       releaseGltf: vi.fn(),
     }));
 
-    const { charactersReady, prepareVisual } = await import('../src/render/characters/assets');
+    const { charactersReady, ensureCharacterUrl, prepareVisual } = await import(
+      '../src/render/characters/assets'
+    );
+    const { VISUALS } = await import('../src/render/characters/manifest');
     await charactersReady();
+    for (const url of [VISUALS.mob_elemental.url, ...(VISUALS.mob_elemental.animUrls ?? [])]) {
+      ensureCharacterUrl(url);
+    }
+    await Promise.resolve();
     const prep = prepareVisual('mob_elemental');
     expect(prep.shadowGeo).toBe(prep.idleGeo);
 

@@ -248,8 +248,11 @@ describe('Ignivar arena atmosphere', () => {
 
     // The fog resolution and presets moved to fog_scene_state.ts; the renderer
     // stays the thin caller that owns the settle edge.
+    expect(source).toMatch(
+      /const fogScene = resolveFogScene\(\s*inside && !inTerritorySiege,\s*px,\s*camY,\s*this\.camera\.position,\s*this\.sim\.cfg\.seed,\s*\);/,
+    );
     expect(source).toContain(
-      'const fogScene = resolveFogScene(inside, px, camY, this.camera.position, this.sim.cfg.seed);',
+      "const desired = inTerritorySiege ? 'battleground' : fogScene.desired;",
     );
     expect(source).toContain('applyFogScenePreset(desired, fog, () => this.outdoorFogPreset());');
     expect(fogScene).toContain('ignivarRaidFogStateForInterior(interior ?? null)');

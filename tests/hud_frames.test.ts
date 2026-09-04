@@ -1,7 +1,7 @@
 // Tests for the pure unitFrameCurrentMaxText formatter (hud_frames.ts), which
 // the player / target / target-of-target unit frames in hud.ts use for their
 // "current / max" hp and resource text, replacing the raw template-literal
-// interpolation those five sites used to bypass formatNumber with (unlike
+// interpolation those six sites used to bypass formatNumber with (unlike
 // party frames, which already routed through it via partyFrameHealthText).
 
 import { readFileSync } from 'node:fs';
@@ -31,8 +31,8 @@ describe('unitFrameCurrentMaxText', () => {
 // "current / max" via raw template-literal interpolation (the defect this fix
 // closes). A source scan, not a behavioral diff, because a raw `${hp} / ${maxHp}`
 // and unitFrameCurrentMaxText's useGrouping:false output are byte-identical for
-// English, so only the source itself proves the five sites route through
-// formatNumber; this failed before the fix (no import, five raw templates) and
+// English, so only the source itself proves the six sites route through
+// formatNumber; this failed before the fix (no import, six raw templates) and
 // passes after it.
 describe('hud.ts unit-frame text sites route through unitFrameCurrentMaxText', () => {
   const src = readFileSync(new URL('../src/ui/hud.ts', import.meta.url), 'utf8');
@@ -41,11 +41,11 @@ describe('hud.ts unit-frame text sites route through unitFrameCurrentMaxText', (
     expect(src).toContain("import { unitFrameCurrentMaxText } from './hud_frames';");
   });
 
-  // Player hp/resource, target hp/resource, target-of-target hp: the five
+  // Player hp/resource, target hp/resource, target-of-target hp, and the shared target frame: six
   // "current / max" sites the player/target/target-of-target unit frames paint.
-  it('calls unitFrameCurrentMaxText at all five player/target/target-of-target sites', () => {
+  it('calls unitFrameCurrentMaxText at all six unit-frame sites', () => {
     const calls = src.match(/unitFrameCurrentMaxText\(/g) ?? [];
-    expect(calls.length).toBe(5);
+    expect(calls.length).toBe(6);
   });
 
   it('never rebuilds a unit-frame "current / max" string via raw template interpolation', () => {

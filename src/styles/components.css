@@ -12032,7 +12032,7 @@
   #territory-war-notice-toggle:focus-visible {
     color: #fff0bd;
     border-color: var(--gold);
-    outline: 2px solid #d6a64033;
+    outline: 2px solid var(--color-border-focus);
   }
   #territory-war-notice.is-collapsed #territory-war-notice-body {
     display: none;
@@ -12139,7 +12139,7 @@
   #territory-war-action:hover,
   #territory-war-action:focus-visible {
     border-color: var(--gold);
-    outline: 2px solid #d6a64033;
+    outline: 2px solid var(--color-border-focus);
   }
   #territory-war-notice.is-empty .territory-war-notice-meta,
   #territory-war-notice.is-empty #territory-war-countdown,
@@ -12225,7 +12225,7 @@
   #territory-leave-siege:focus-visible {
     color: var(--color-text);
     border-color: #a76d3b;
-    outline: 1px solid #a76d3b55;
+    outline: 1px solid var(--color-border-focus);
   }
   body.territory-siege-control-locked #actionbar-stack,
   body.territory-siege-control-locked #mobile-action-page {

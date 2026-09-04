@@ -7,14 +7,17 @@ const stripComments = (source: string): string =>
   source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const mainSource = stripComments(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'));
+const dispatchSource = stripComments(
+  readFileSync(new URL('../src/game/gamepad_action_dispatch.ts', import.meta.url), 'utf8'),
+);
 
 describe('pad cast main wiring', () => {
   it('routes flat slot presses through the hold-aware HUD entry point', () => {
-    const start = mainSource.indexOf('function dispatchGamepadAction(id: string): void {');
-    const end = mainSource.indexOf('const gamepad = new GamepadManager', start);
+    const start = dispatchSource.indexOf('export function dispatchGamepadAction(');
+    const end = dispatchSource.indexOf('\n}', start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
-    const dispatch = mainSource.slice(start, end);
+    const dispatch = dispatchSource.slice(start, end);
 
     expect(dispatch).toContain("if (id.startsWith('slot')) {");
     expect(dispatch).toContain('hud.pressSlot(Number(id.slice(4)));');

@@ -1034,9 +1034,9 @@ const ACCEPTED_POLISH_V2_METADATA_PATH = path.join(REPO_ROOT, POLISH_SEAL_PATH);
 // Re-minted for the healer rez parity change (PR 3798): renderer.ts now threads
 // the spellfx school through the temporal glyph. No capture was retaken.
 const ACCEPTED_POLISH_V2_METADATA_SHA256 =
-  '6cb9c84e2233b64d306fe01232d9b088d55d220166ff92d739f1d17faf060bf6';
+  'a1c3070108be8ac2271d15028312f1e2d1bb37223898480198b638ba81ba1404';
 const ACCEPTED_POLISH_V2_COMPOSITE_PROVENANCE =
-  'ee4695f819aa37f856005359060031486618814f17d410b5eec974d1f57fac47';
+  '96b77cb734d346b2034bc8dfbcc0b06caeafb0b5912df89be3ad94c3b18c48aa';
 const ACCEPTED_POLISH_V2_METADATA = readJsonFile<CaptureMetadata>(ACCEPTED_POLISH_V2_METADATA_PATH);
 const ACCEPTED_POLISH_V2_PROVENANCE = ACCEPTED_POLISH_V2_METADATA.polishProvenance;
 const ACCEPTED_POLISH_V2_TOWN_CONTRACT = ACCEPTED_POLISH_V2_METADATA.records[0]?.townContract;
@@ -2192,7 +2192,7 @@ describe('Eastbrook polish performance and contact evidence', () => {
       `the second-order performance digest moved; if every input moved legitimately, re-mint with: ${REMINT_COMMAND} (it recomputes this literal LAST, from the swept files)`,
       // Re-minted for the healer rez parity spellfx school threading: the
       // composite first, then this seal. No capture was retaken.
-    ).toBe('6e5d651b20dea1750159ad44bbe249f3c229ac85e39deae234e6c06460e9df9c');
+    ).toBe('309e11b343fd5255a2120d949f35100f940d2a25d799358897455c02a95d6309');
   });
 
   it('binds every historical after record to its accepted source and asset provenance', () => {

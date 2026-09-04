@@ -189,7 +189,10 @@ function hashOwners(dir: string): Map<string, string[]> {
   const owners = new Map<string, string[]>();
   for (const file of filesUnder(dir)) {
     const hash = hashFile(file);
-    owners.set(hash, [...(owners.get(hash) ?? []), path.relative(repoRoot, file)]);
+    owners.set(hash, [
+      ...(owners.get(hash) ?? []),
+      path.relative(repoRoot, file).split(path.sep).join('/'),
+    ]);
   }
   return owners;
 }
@@ -444,6 +447,8 @@ describe('release v0.34 additional painted art', () => {
     const skillsDir = path.join(repoRoot, 'public/ui/skills');
     for (const directory of readdirSync(skillsDir, { withFileTypes: true })) {
       if (!directory.isDirectory()) continue;
+      // Siege commands are not class abilities and use a separate mapping schema.
+      if (directory.name === 'territory') continue;
       const mappingPath = path.join(skillsDir, directory.name, 'mapping.json');
       if (!existsSync(mappingPath)) continue;
       const mapping = JSON.parse(readFileSync(mappingPath, 'utf8')) as {

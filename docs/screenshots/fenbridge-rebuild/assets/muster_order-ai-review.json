@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "assetId": "muster_order",
-  "sourceFingerprint": "4a6aa48aac7476f43755ba5b55b223fb06d3cd12d9cc242c28f655ee931709e9",
+  "sourceFingerprint": "c6968b5f8d2aaddbf4c5f9a0229979f6effe03c56657f800872de17eeb619dc3",
   "reference": "docs/design/fenbridge-rebuild/references/muster-order-turnaround.png",
   "minimumOverallScore": 0.7,
   "requiredViews": [

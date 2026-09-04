@@ -248,6 +248,10 @@ describe('retention sweep wiring in server/main.ts', () => {
       'woc_market_directed_offers',
       'woc_market_custody_claims',
       'woc_market_stepup_challenges',
+      'territory_changes',
+      'territory_closed_live_state',
+      'territory_war_participants',
+      'territory_war_and_audit_history',
       'mail_custody_parcels',
       'woc_market_listings',
     ]);

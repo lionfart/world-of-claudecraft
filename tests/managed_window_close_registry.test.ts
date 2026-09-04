@@ -67,11 +67,6 @@ const CLOSED_BEFORE_THE_SCAN: Record<string, string> = {
  * author checked, not a leftover.
  */
 const NO_MANAGED_TEARDOWN: Record<string, string> = {
-  'map-window':
-    "#map-close's own handler is the identical hide + hideTooltip, and closeManagedWindow " +
-    'adds the same syncAnyWindowOpenState. No trap, no timer: updateMapWindow is driven by ' +
-    "Hud.update()'s mediumHud band behind a display === 'block' gate, so the hide stops it, " +
-    'and the mapPing / mapZoneOverride the toggle clears are re-seeded by the next open.',
   'report-window':
     "Its X and Cancel buttons are literally `el.style.display = 'none'` and nothing else, so " +
     'the default arm is a strict superset of its own close path. No trap, no timer, and the ' +

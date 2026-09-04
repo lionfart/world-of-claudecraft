@@ -348,7 +348,7 @@ interface AttributionTargetFixture {
 // Re-minted for the healer rez parity change (PR 3798): renderer.ts now threads
 // the spellfx school through the temporal glyph. No capture was retaken.
 const PINNED_POLISH_COMPOSITE_FINGERPRINT =
-  'ee4695f819aa37f856005359060031486618814f17d410b5eec974d1f57fac47';
+  '96b77cb734d346b2034bc8dfbcc0b06caeafb0b5912df89be3ad94c3b18c48aa';
 
 function validPolishAttributionTargets(): AttributionTargetFixture[] {
   return [
