@@ -61,14 +61,12 @@ export class TerritorySiegeBand {
       if (
         Math.abs(x - origin.x) >=
           TERRITORY_SIEGE_FIELD_HALF_X + TERRITORY_SIEGE_VISUAL_MARGIN + 20 ||
-        Math.abs(z - origin.z) >=
-          TERRITORY_SIEGE_FIELD_HALF_Z + TERRITORY_SIEGE_VISUAL_MARGIN + 20
+        Math.abs(z - origin.z) >= TERRITORY_SIEGE_FIELD_HALF_Z + TERRITORY_SIEGE_VISUAL_MARGIN + 20
       )
         continue;
       if (!biome) continue;
       const existing = this.views.get(slot);
-      if (existing && existing.biome === biome && existing.kind === kind)
-        continue;
+      if (existing && existing.biome === biome && existing.kind === kind) continue;
       if (existing) {
         this.scene.remove(existing.view.group);
         this.views.delete(slot);
@@ -109,7 +107,8 @@ export class TerritorySiegeBand {
       let object: THREE.Object3D | null = hit.object;
       while (object) {
         const objective = object.userData.territorySiegeObjective as
-          TerritorySiegeObjectiveTarget | undefined;
+          | TerritorySiegeObjectiveTarget
+          | undefined;
         if (
           objective &&
           object.visible &&
@@ -126,10 +125,7 @@ export class TerritorySiegeBand {
   }
 
   setSelectedObjective(target: TerritorySiegeObjectiveTarget | null): void {
-    this.selectedObjective = territorySiegeObjectiveSelectable(
-      this.state().siege,
-      target,
-    )
+    this.selectedObjective = territorySiegeObjectiveSelectable(this.state().siege, target)
       ? target
       : null;
   }
@@ -137,7 +133,6 @@ export class TerritorySiegeBand {
   private rebuildObjectiveTargets(): void {
     this.objectiveTargets.length = 0;
     for (const entry of this.views.values())
-      if (entry.kind === 'siege')
-        this.objectiveTargets.push(...entry.view.objectiveTargets);
+      if (entry.kind === 'siege') this.objectiveTargets.push(...entry.view.objectiveTargets);
   }
 }

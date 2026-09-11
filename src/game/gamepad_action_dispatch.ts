@@ -1,6 +1,8 @@
 import type { InvSlot } from '../sim/types';
+import { dispatchCollectionAction } from '../ui/collection_actions_core';
 import { GAMEPAD_CANCEL, GAMEPAD_CYCLE_HUD, GAMEPAD_SUBCOMMANDS } from './gamepad_map';
 import { padReelItemId } from './pad_reel';
+import { toggleSheatheWithCue } from './sheathe_toggle';
 
 interface GamepadDispatchPlayer {
   castingAbility: string | null;
@@ -42,6 +44,10 @@ interface GamepadDispatchHud {
   toggleDeeds(): void;
   toggleProfessions(): void;
   toggleReliquary(): void;
+  toggleCosmetics(): void;
+  toggleHarvestJournal(): void;
+  togglePerfecting(): void;
+  toggleLootExplorer(): void;
   toggleCrafting(): void;
   targetOwnPet(): void;
   toggleDungeonFinder(): void;
@@ -90,6 +96,7 @@ export function dispatchGamepadAction(id: string, deps: GamepadActionDeps): void
     return;
   }
   hud.cancelGroundAim();
+  if (dispatchCollectionAction(id, hud)) return;
   switch (id) {
     case 'target':
       world.tabTarget();
@@ -206,12 +213,7 @@ export function dispatchGamepadAction(id: string, deps: GamepadActionDeps): void
       hud.toggleDungeonFinder();
       break;
     case 'sheathe': {
-      const wasStowed = world.player.weaponStowed;
-      world.toggleWeaponStow();
-      if (world.player.weaponStowed !== wasStowed) {
-        if (world.player.weaponStowed) audio.weaponSheathe();
-        else audio.weaponUnsheathe();
-      }
+      toggleSheatheWithCue(world, audio);
       break;
     }
     case 'chat':

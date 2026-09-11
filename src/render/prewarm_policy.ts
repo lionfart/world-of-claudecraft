@@ -25,6 +25,7 @@ export const CONSTRAINED_PREWARM_KEEP: readonly string[] = [
   'views.persistent-portals',
   'views.nearby',
   'world.settle-state',
+  'post.initial-frame',
   'textures.scene',
   'programs.compile',
   'world.initial-frame',
@@ -350,7 +351,7 @@ const PREWARM_DEBT_RESUME_IDS: ReadonlySet<string> = new Set([
 
 /** True when a dropped entry's resume units are hitch-causing debt. */
 export function prewarmResumeIsDebt(entryId: string): boolean {
-  return PREWARM_DEBT_RESUME_IDS.has(entryId);
+  return PREWARM_DEBT_RESUME_IDS.has(entryId) || entryId.startsWith('programs.');
 }
 
 /** Only roots in the settled, visible scene are presentation-critical before

@@ -11,18 +11,17 @@ const repoRoot = join(__dirname, '..');
 
 function steamGroupBlock(file: string): string {
   const html = readFileSync(join(repoRoot, file), 'utf8');
-  const start = html.indexOf('<div class="cs-wallet cs-steam-group"');
+  const opening = /<div\s+[^>]*class="cs-wallet cs-steam-group"[^>]*id="cs-steam-group"[^>]*>/.exec(
+    html,
+  );
+  const start = opening?.index ?? -1;
   expect(start, `${file} is missing the #cs-steam-group card`).toBeGreaterThan(-1);
   // The card is a fixed-depth block: capture through its closing help div and
   // the two wrapper closes that follow it.
   const helpEnd = html.indexOf('</div>', html.indexOf('id="steam-help"', start));
   expect(helpEnd, `${file} steam card is missing its help line`).toBeGreaterThan(-1);
   const end = html.indexOf('</div>', html.indexOf('</div>', helpEnd + 1) + 1);
-  return html
-    .slice(start, end)
-    .split('\n')
-    .map((line) => line.trim())
-    .join('\n');
+  return html.slice(start, end).replace(/\s+/g, ' ').trim();
 }
 
 describe('character-select Steam card entry parity', () => {

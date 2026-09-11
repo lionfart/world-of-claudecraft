@@ -63,7 +63,7 @@ describe('Deed Heraldry plaque silhouette core', () => {
 describe('Deed Heraldry plaque surface family', () => {
   it('uses the shared compact and mirrored plaque hosts on both game entries', () => {
     for (const rel of ['index.html', 'play.html']) {
-      const html = read(rel);
+      const html = read(rel).replace(/\s+/g, ' ');
       expect(html).toMatch(/class="uf-name-header deed-heraldry-plaque" id="pf-name-header"/);
       expect(html).toMatch(
         /class="uf-name-header deed-heraldry-plaque deed-heraldry-plaque-mirror" id="tf-name-header"/,

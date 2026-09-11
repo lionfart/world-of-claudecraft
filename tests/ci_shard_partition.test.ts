@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   assertPartitionCompleteness,
@@ -10,29 +10,21 @@ import {
   partitionForCi,
   weightForTestFile,
 } from '../scripts/ci_shard_partition.mjs';
+// The walk is SHARED with the shard-weight harvester: the population this pin
+// grades and the population local-missing carry enumerates must be identical.
+import { walkShardTestFiles } from '../scripts/lib/ci_shard_walk.mjs';
+// The carried-weight contract (the machine-readable half of the table's
+// provenance); the fixture arms live in tests/ci_shard_weight_carry.test.ts,
+// this file applies it to the COMMITTED table.
+import {
+  applyLocalCarry,
+  carriedDefects,
+  carriedRows,
+  tableRows,
+} from '../scripts/lib/ci_shard_weight_carry.mjs';
 
 const SHARD_N = 8;
 const root = join(import.meta.dirname, '..');
-
-function walkTestFiles(dir: string, out: string[] = []): string[] {
-  for (const ent of readdirSync(dir, { withFileTypes: true })) {
-    if (
-      ent.name === 'node_modules' ||
-      ent.name === 'dist' ||
-      ent.name === 'browser' ||
-      ent.name.startsWith('.')
-    ) {
-      continue;
-    }
-    const p = join(dir, ent.name);
-    if (ent.isDirectory()) {
-      walkTestFiles(p, out);
-    } else if (ent.name.endsWith('.test.ts') && !ent.name.endsWith('.browser.test.ts')) {
-      out.push(p);
-    }
-  }
-  return out;
-}
 
 describe('ci_shard_partition (D11 path-matrix)', () => {
   it('LPT packs are a complete disjoint partition of the input keys', () => {
@@ -257,13 +249,14 @@ describe('ci_shard_partition (D11 path-matrix)', () => {
   });
 
   it('partitions the real tests/ tree into N complete packs (suite completeness)', () => {
-    const absFiles = walkTestFiles(join(root, 'tests'));
-    expect(absFiles.length).toBeGreaterThan(1000);
-    const items = absFiles.map((abs) => {
-      const key = `/${relative(root, abs).split('\\').join('/')}`;
+    const relFiles = walkShardTestFiles(root);
+    expect(relFiles.length).toBeGreaterThan(1000);
+    const items = relFiles.map((rel) => {
+      const key = `/${rel}`;
+      const abs = join(root, rel);
       const body = readFileSync(abs, 'utf8');
       const size = statSync(abs).size;
-      return { id: key, key, weight: weightForTestFile(key.slice(1), body, size) };
+      return { id: key, key, weight: weightForTestFile(rel, body, size) };
     });
     // Active CI strategy (LPT over measured weights).
     const packs = partitionForCi(items, SHARD_N);
@@ -282,10 +275,9 @@ describe('ci_shard_partition (D11 path-matrix)', () => {
     const mid = Math.floor(loads.length / 2);
     const median = loads.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
     expect(Math.max(...loads) / median).toBeLessThanOrEqual(1.15);
-    // Table coverage over the real walked tree: staleness shows up as
-    // fallback churn. The table is refreshed only from a completed all-green
-    // CI harvest, so release-side suite growth rides the measured-median
-    // fallback until the next harvest rather than inventing local weights.
+    // Table coverage over the real walked tree: staleness shows up as fallback
+    // churn. A full CI harvest refreshes the table wholesale; the carried-row
+    // contract below covers locally measured rows between harvests.
     const covered = items.filter((i) => MEASURED_WEIGHTS[i.key.slice(1)] !== undefined).length;
     // The downstream Territory and directional-combat suites landed after the
     // upstream all-green duration harvest. Their unknown rows deliberately use

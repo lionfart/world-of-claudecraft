@@ -20,10 +20,12 @@ function harness(
   usedItems: string[];
   gatherToolCalls: ItemDef[];
   territoryRamCalls: string[];
+  feastPlacements: number[];
 } {
   const usedItems: string[] = [];
   const gatherToolCalls: ItemDef[] = [];
   const territoryRamCalls: string[] = [];
+  const feastPlacements: number[] = [];
   const world = {
     inventory,
     bags: [null, null, null, null],
@@ -31,6 +33,9 @@ function harness(
     copper: 0,
     useItem: (itemId: string) => {
       usedItems.push(itemId);
+    },
+    placeFeast: () => {
+      feastPlacements.push(1);
     },
   } as unknown as IWorld;
   const root = document.createElement('div');
@@ -93,7 +98,7 @@ function harness(
     openItemActionMenu: noop,
   };
   new BagsWindow(deps).render();
-  return { root, usedItems, gatherToolCalls, territoryRamCalls };
+  return { root, usedItems, gatherToolCalls, territoryRamCalls, feastPlacements };
 }
 
 function clickFirstCell(root: HTMLElement): void {
@@ -167,5 +172,19 @@ describe('bags use-click gathering-tool routing (#2343)', () => {
     clickFirstCell(root);
     expect(gatherToolCalls.map((i) => i.id)).toEqual(['baked_bread']);
     expect(usedItems).toEqual(['baked_bread']);
+  });
+
+  it('a feast click reaches world.placeFeast once, never useItem (Farming Phase 12)', () => {
+    // The behavioral half the source pin in bags_window.test.ts cannot see:
+    // a REAL click on the feast cell must route to the placeFeast case, not
+    // the 'use' ladder (no gathering-tool probe, no useItem fallback).
+    const { root, usedItems, gatherToolCalls, feastPlacements } = harness(
+      [{ itemId: 'harvest_feast', count: 1 }],
+      () => false,
+    );
+    clickFirstCell(root);
+    expect(feastPlacements, 'exactly one placement').toHaveLength(1);
+    expect(usedItems).toEqual([]);
+    expect(gatherToolCalls).toEqual([]);
   });
 });

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
+  resolveTerritorySiegeCitadelElevationTransitionLocal,
   TERRITORY_SIEGE_CITADEL_INNER_BACK_Z,
   TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z,
   TERRITORY_SIEGE_CITADEL_INNER_HALF_X,
+  TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_JOIN_OVERLAP,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
@@ -13,7 +14,6 @@ import {
   TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
   TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT,
   TERRITORY_SIEGE_STONE_LANE_HEIGHT,
-  resolveTerritorySiegeCitadelElevationTransitionLocal,
   territorySiegeGroundLiftForCastleLocal,
 } from '../src/sim/territory_siege_ground';
 
@@ -43,22 +43,12 @@ describe('territory siege level-four citadel traversal', () => {
     expect(rampMiddle).toBeLessThan(rampTop);
     expect(rampTop).toBe(TERRITORY_SIEGE_CITADEL_INNER_HEIGHT);
     expect(
-      territorySiegeGroundLiftForCastleLocal(
-        -TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
-        -43,
-        4,
-      ),
+      territorySiegeGroundLiftForCastleLocal(-TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X, -43, 4),
     ).toBe(TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT);
     expect(
-      territorySiegeGroundLiftForCastleLocal(
-        TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
-        -43,
-        4,
-      ),
+      territorySiegeGroundLiftForCastleLocal(TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X, -43, 4),
     ).toBe(TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT);
-    expect(
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH * 2,
-    ).toBeGreaterThanOrEqual(5.5);
+    expect(TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH * 2).toBeGreaterThanOrEqual(5.5);
     expect(
       territorySiegeGroundLiftForCastleLocal(
         TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X -
@@ -75,27 +65,11 @@ describe('territory siege level-four citadel traversal', () => {
       TERRITORY_SIEGE_STONE_LANE_HEIGHT,
     );
     expect(
-      territorySiegeGroundLiftForCastleLocal(
-        0,
-        -46,
-        4,
-        TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
-      ),
+      territorySiegeGroundLiftForCastleLocal(0, -46, 4, TERRITORY_SIEGE_CITADEL_INNER_HEIGHT),
     ).toBe(TERRITORY_SIEGE_CITADEL_INNER_HEIGHT);
     expect(
-      territorySiegeGroundLiftForCastleLocal(
-        TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
-        -43,
-        4,
-        0,
-      ),
-    ).toBe(
-      territorySiegeGroundLiftForCastleLocal(
-        TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
-        -43,
-        3,
-      ),
-    );
+      territorySiegeGroundLiftForCastleLocal(TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X, -43, 4, 0),
+    ).toBe(territorySiegeGroundLiftForCastleLocal(TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X, -43, 3));
     expect(
       territorySiegeGroundLiftForCastleLocal(
         TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
@@ -111,17 +85,13 @@ describe('territory siege level-four citadel traversal', () => {
     expect(TERRITORY_SIEGE_CITADEL_INNER_BACK_Z).toBeLessThan(-64.5);
     expect(TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z).toBeGreaterThan(-23.5);
     expect(
-      TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z -
-        TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
+      TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z - TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
     ).toBeCloseTo(TERRITORY_SIEGE_CITADEL_INNER_STAIR_JOIN_OVERLAP, 8);
     expect(
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X +
-        TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
+      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
     ).toBeGreaterThanOrEqual(42.7);
     expect(TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z).toBeLessThanOrEqual(-71);
-    expect(TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z).toBeGreaterThanOrEqual(
-      -18,
-    );
+    expect(TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z).toBeGreaterThanOrEqual(-18);
   });
 
   it('allows gradual stair travel but rejects climbing a platform from its side', () => {
@@ -136,8 +106,7 @@ describe('territory siege level-four citadel traversal', () => {
     ).toEqual({ x: 0, z: TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z });
 
     const stairMidZ =
-      (TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z +
-        TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z) /
+      (TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z + TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z) /
       2;
     const blocked = resolveTerritorySiegeCitadelElevationTransitionLocal(
       6,
@@ -157,8 +126,6 @@ describe('territory siege level-four citadel traversal', () => {
       4,
       0,
     );
-    expect(underWallRamp.z).toBeGreaterThan(
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
-    );
+    expect(underWallRamp.z).toBeGreaterThan(TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z);
   });
 });

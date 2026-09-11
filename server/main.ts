@@ -61,6 +61,7 @@ import {
   withAccountWealthSweepLock,
 } from './account_wealth_db';
 import {
+  adminAnalyticsMemoStats,
   configureAdminGuildBoardCacheBust,
   configureAdminPlayersCap,
   configureAdminRuntime,
@@ -75,6 +76,11 @@ import {
   pruneSitePresenceSessionsBatch,
   recordSitePresenceSample,
 } from './admin_db';
+import {
+  buildAdminMarketMetrics,
+  configureAdminMarketMetrics,
+  configureAdminMarketSoldVolume,
+} from './admin_market_metrics';
 import { permissionsForRoles } from './admin_permissions';
 import { loadAntibotConfig } from './antibot_config_db';
 import {
@@ -92,13 +98,15 @@ import {
   normalizeCharName,
   normalizeEmail,
   offensiveName,
+  usernameBanlistBootLine,
+  usernameBanlistFileLoaded,
   validUsernameShape,
   verifyPassword,
+  warmUsernameBanlist,
 } from './auth';
 import { configureAuthRuntime } from './auth_routes';
 import { createBackgroundDbGate } from './background_db_gate';
 import { computeBankBonus } from './bank_entitlements';
-import { donationRedirectLocation } from './donation_redirect';
 import { BANK_LEDGER_SHUTDOWN_DRAIN_MS, bankLedgerIdle, bankLedgerTailStats } from './bank_ledger';
 import { createBankLedgerGrowthMonitor } from './bank_ledger_growth_monitor';
 import { configureBattlegroundRuntime, readBgLeaderboard } from './battleground';
@@ -109,6 +117,11 @@ import {
   pruneBugReportsBatch,
 } from './bug_report_db';
 import { createCachedRead } from './cached_read';
+import {
+  characterBlobBytesHighWater,
+  characterBlobBytesP99,
+  flushQueuedCharacterBlobWarnings,
+} from './character_blob_size';
 import {
   characterDeleteGateStats,
   configureCharacterDeleteBackgroundGate,
@@ -196,6 +209,7 @@ import {
   renameCharacter,
   revokeCompanionToken,
   runConcurrentIndexMigrations,
+  runWithStatementTimeout,
   saveToken,
   saveWorldState,
   scopeAllowsMutation,
@@ -241,6 +255,7 @@ import {
   handleNativeDiscordExchange,
 } from './discord';
 import { pruneDiscordOAuthStates, pruneDiscordPendingLogins } from './discord_db';
+import { donationRedirectLocation } from './donation_redirect';
 import { emailAccountCreated } from './email';
 import { stopEpicMirror } from './epic/mirror';
 import { GameServer } from './game';
@@ -329,6 +344,18 @@ import {
   mapsListMineCore,
   mapsPublicListCore,
 } from './maps_routes';
+import {
+  configureMarketSoldVolume,
+  MARKET_SOLD_VOLUME_SHUTDOWN_DRAIN_MS,
+  soldVolumeTailStats,
+  soldVolumeWriterIdle,
+} from './market_sold_volume';
+import {
+  MARKET_SOLD_VOLUME_WINDOW_DAYS,
+  marketSoldVolumeRetentionTable,
+  readMarketSoldVolumeSince,
+  recordMarketSoldVolumeRowBounded,
+} from './market_sold_volume_db';
 import { metaEventSourceUrl, metaRequestUserData, trackAccountCreated } from './meta_capi';
 import {
   cleanReportReason,
@@ -378,6 +405,7 @@ import {
 } from './ratelimit';
 import { createPgRateLimitStore } from './ratelimit_db';
 import { isPublicCorsPath, publicOriginFromRequest, REALM, REALM_DIRECTORY } from './realm';
+import { publishRealmBuilderRoll } from './realm_builder';
 import { configureReliquaryRuntime } from './reliquary';
 import { reliquaryRarityCounts } from './reliquary_rarity_db';
 import { resolveReportTarget } from './report_target';
@@ -604,7 +632,15 @@ function initialCharacterState(
   name: string,
   skin: number,
 ): import('../src/sim/sim').CharacterState {
-  const sim = new Sim({ seed: WORLD_SEED, playerClass: cls, playerName: name });
+  // Wall-clock injection is load-bearing for persistence: every blob that
+  // reaches Postgres must be written on the epoch base (farm_persist.ts
+  // clock-base doctrine), never the sim-clock default that starts at zero.
+  const sim = new Sim({
+    seed: WORLD_SEED,
+    playerClass: cls,
+    playerName: name,
+    lockoutNowMs: () => Date.now(),
+  });
   sim.setPlayerSkin(sim.playerId, skin);
   const character = sim.serializeCharacter(sim.playerId);
   if (!character) throw new Error('failed to serialize initial character');
@@ -3131,6 +3167,11 @@ configureInternalWocMarketStuckRead(async () => ({
   // surface): eviction thrash or a bust storm is a DB-load incident in the
   // making, and this readout is where an operator already looks.
   readCaches: wocMarketReadCache.stats(),
+  // The admin analytics serialize-once memos (activity, market metrics): the
+  // serve/stringify pair per route. Stringifies tracking serves means the memo
+  // stopped hitting (a cache turning over per request, or an unstable key),
+  // the regression nothing else in the process would surface.
+  adminAnalyticsMemo: adminAnalyticsMemoStats(),
   // The auth-guard cache readout: both arms (token rows, moderation rows)
   // plus the soft-bounded internals (account index, recent-bust ledger) and
   // the join-veto refetch counter; a bust storm or eviction thrash here is
@@ -3143,7 +3184,9 @@ configureInternalWocMarketStuckRead(async () => ({
   storageRecovery: storagePurchaseRecoveryMetrics(),
   // The price cache's memo ages (null on the dev economy, which has no
   // cache): a stale-served or blanked price during a brownout is a NUMBER
-  // here, not an invisible state the module never logs.
+  // here, not an invisible state the module never logs. failureAgeMs also
+  // counts a reachable service answering unhealthy (a deliberate operator
+  // pause), so it is an outage-OR-pause number, never a brownout alarm alone.
   priceCache: wocMarketEconomy.priceCacheAges?.() ?? null,
   // Guard transactions the idle bound killed (25P03), each destroying its
   // pooled client: the retrofit's false-fire rate as a counter.
@@ -3327,6 +3370,7 @@ configureStoragePurchaseRuntime(storagePurchaseHost);
 configureClaudiumRuntime({
   grantWeaponSkins: (accountId, skinIds) =>
     liveGame().grantWeaponSkinsToAccount(accountId, skinIds),
+  grantMountSkins: (accountId, skinIds) => liveGame().grantMountSkinsToAccount(accountId, skinIds),
   storagePurchase: (input) => executeStoragePurchase(storagePurchaseHost(), input),
 });
 
@@ -3652,6 +3696,18 @@ export async function startServer(): Promise<http.Server> {
   // (unlike AdminRuntime), so it rides its own seam, fed the SAME canonical source
   // /api/status uses, keeping the cap byte-identical across the status and overview reads.
   configureAdminPlayersCap(canonicalPlayersCap);
+  // The market metrics dashboard reads the live listing book through the pure
+  // builder; the module-side cache is TTL-only by design (see its header).
+  configureAdminMarketMetrics(() => buildAdminMarketMetrics(game.sim.marketListings, REALM));
+  // The sold-volume half of the market dashboard (qr-19-sold-volume-four-seam-wiring):
+  // the observer's durable write is a bounded single-row upsert, and the admin
+  // read is this realm's trailing window. Both realm-scoped like everything else.
+  configureMarketSoldVolume((entry) =>
+    recordMarketSoldVolumeRowBounded(runWithStatementTimeout, REALM, entry),
+  );
+  configureAdminMarketSoldVolume(() =>
+    readMarketSoldVolumeSince(pool, REALM, MARKET_SOLD_VOLUME_WINDOW_DAYS),
+  );
   configureAdminGuildBoardCacheBust(bustBoardCaches);
   configureInternalRuntime(game);
   // Bot detector: replay this realm's saved config overrides onto the fresh
@@ -3664,6 +3720,19 @@ export async function startServer(): Promise<http.Server> {
       : {};
   for (const error of game.applyAntibotConfig(antibotOverrides).errors) {
     console.warn(`bot-detector config override skipped: ${error}`);
+  }
+  // The Realm Builder of the Month roll: hand this realm's records to the sim
+  // before any player can inspect the monument, so the plaque never spends the
+  // first minutes of a boot naming the shipped placeholder. Every admin write
+  // re-publishes through the same call (server/realm_builder.ts).
+  //
+  // NON-FATAL on purpose. This is one cosmetic name on one statue; a transient
+  // read failure here must not cost the realm its boot. The sim keeps the
+  // shipped placeholder, and the first admin save republishes.
+  try {
+    await publishRealmBuilderRoll();
+  } catch (err) {
+    console.warn('realm builder roll not published at boot:', err);
   }
   const orphans = await closeOrphanSessions();
   if (orphans > 0) console.log(`closed ${orphans} orphaned play session(s) from a previous run`);
@@ -3783,14 +3852,7 @@ export async function startServer(): Promise<http.Server> {
     maxPlayersPerRealm: config.maxPlayersPerRealm,
     acquireCharacterLease,
     releaseCharacterLease,
-    bankBonusForAccount: async (id) => {
-      // One round trip serves both fresh-join account facts: the entitlement
-      // inputs and the tutorial greeting's character count (PR #3467 review:
-      // a separate characterCountForAccount await lengthened every handshake
-      // for a fact only newborn characters use).
-      const facts = await bankBonusFactsForAccount(id);
-      return { ...computeBankBonus(facts), characterCount: facts.characterCount };
-    },
+    bankBonusForAccount: async (id) => computeBankBonus(await bankBonusFactsForAccount(id)),
   });
   wsAuth.attachUpgrade(server, wss);
 
@@ -3800,6 +3862,9 @@ export async function startServer(): Promise<http.Server> {
   // gauges read live state at scrape time; ws_connections is the raw open-socket
   // count (joined or not), distinct from players_online (joined sessions).
   const gameStateSource: GameStateSource = {
+    usernameBanlistLoaded: usernameBanlistFileLoaded,
+    characterBlobBytesHighWater,
+    characterBlobBytesP99,
     playersOnline: () => game.clients.size,
     accountsOnline: () => game.liveAccountIds().size,
     wsConnections: () => wss.clients.size,
@@ -3825,6 +3890,7 @@ export async function startServer(): Promise<http.Server> {
     }),
     dbBackendCancels: () => getBackendCancelCounts(),
     bankLedgerTail: () => bankLedgerTailStats(),
+    soldVolumeTail: () => soldVolumeTailStats(),
     generalChatQuotaInFlight: () => game.generalChatQuotaInFlight(),
     generalChatQuotaCachedAccounts: () => game.generalChatQuotaCachedAccounts(),
     generalChatQuotaDbPool: () => generalChatQuotaDbPoolState(),
@@ -3865,10 +3931,13 @@ export async function startServer(): Promise<http.Server> {
   const businessMetrics = registerBusinessMetrics(httpMetrics.registry);
   businessMetrics.start();
 
+  // Warm this before the realm loop starts so a slow filesystem cannot stall a live tick.
+  const banlist = warmUsernameBanlist();
   await closeStartupProbe(startupProbe);
   game.start();
   server.listen(config.port, () => {
     console.log(`World of ClaudeCraft server listening on http://localhost:${config.port}`);
+    if (banlist.file) console.log(usernameBanlistBootLine(banlist));
     console.log(`  REST: /api/register /api/login /api/characters /api/status`);
     console.log(`  WS:   /ws, then first message {t:"${ONLINE_WORLD_AUTH_TYPE}",token,character}`);
   });
@@ -3945,6 +4014,7 @@ export async function startServer(): Promise<http.Server> {
     // reads this table hot.
     tables: [
       { name: 'chat_logs', pruneBatch: (n) => pruneChatLogsBatch(config.chatLogRetentionDays, n) },
+      marketSoldVolumeRetentionTable(pool),
       {
         name: 'client_perf_reports',
         pruneBatch: (n) => pruneClientPerfReportsBatch(config.perfReportRetentionDays, n),
@@ -4244,6 +4314,14 @@ export async function startServer(): Promise<http.Server> {
     // unlike deeds these rows have no reconcile heal path, so a row dropped by
     // pool.end() is gone. Rejections log inside the writer; never throws.
     await progressEventsIdle();
+    // Drain the market sold-volume FIFO too (qr-19-sold-volume-four-seam-wiring):
+    // each queued accumulator entry stands for many coalesced sales, and an entry
+    // still on the tail would be rejected by pool.end() with a burst of failure
+    // lines. BOUNDED, unlike the shape progressEventsIdle uses: this drain sits
+    // ahead of the lease sweep, so a wedged database must not hold it long enough
+    // to skip that sweep. A dropped observation on a hard shutdown is acceptable.
+    const soldVolumeDrained = await soldVolumeWriterIdle(MARKET_SOLD_VOLUME_SHUTDOWN_DRAIN_MS);
+    if (!soldVolumeDrained) console.warn('market sold-volume drain deadline reached');
     // Stop accepted /unstuck report intake and drain only to a finite deadline.
     // Per-query timeouts bound an active write; deadline expiry aborts retry
     // delays and drops queued telemetry before the shared pool closes.
@@ -4272,6 +4350,12 @@ export async function startServer(): Promise<http.Server> {
     await closeGeneralChatQuotaPool();
     await closeBackendCancelPool();
     await pool.end();
+    // The last drain, and a synchronous one: a save-size warn line queued by
+    // any shutdown-path save above (saveAll, the leave flushes) waits on a
+    // setImmediate that process.exit would discard. No deadline needed, it is
+    // a console write; the deferral exists only to keep the line off a lock
+    // hold, which no longer matters here.
+    flushQueuedCharacterBlobWarnings();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);

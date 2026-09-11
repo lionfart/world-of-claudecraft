@@ -321,7 +321,7 @@ describe('the manifest wiring (source pins)', () => {
 
   it('links the real visual group explicitly before the first cast can reveal it', () => {
     expect(renderer).toContain(
-      "const abilityMaterialSlot = createVariantPrewarmSlot(\n      variantSlotHost,\n      'ability-materials',\n      buildAbilityMaterialPrewarmGroup,\n    );",
+      "const abilityMaterialSlot = createVariantPrewarmSlot(\n      variantSlotHost,\n      'ability-materials',\n      () => {\n        const group = buildAbilityMaterialPrewarmGroup();\n        this.abilityMaterialStandIns = abilityMaterialPrewarmMaterials(group);\n        return group;\n      },\n    );",
     );
     expect(entry).toContain('...groups.map(options.compileColorPrograms),');
     expect(renderer).toContain(

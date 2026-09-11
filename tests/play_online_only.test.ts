@@ -12,6 +12,8 @@ const read = (p: string) =>
   readFileSync(new URL(`../${p}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const playHtml = read('play.html');
 const indexHtml = read('index.html');
+const flatPlayHtml = playHtml.replace(/\s+/g, ' ');
+const flatIndexHtml = indexHtml.replace(/\s+/g, ' ');
 const mainTs = read('src/main.ts');
 const playExtraCss = read('src/styles/play.extra.css');
 
@@ -89,8 +91,8 @@ describe('/play uses the landing hero backdrop', () => {
     expect(playHtml).toContain('data-trailer-src="/home-bg.mp4"');
     expect(playHtml).toContain('poster="/home-bg.png"');
     expect(playHtml).not.toContain('<source src="/home-bg.mp4"');
-    const playVideoTag = /<video id="bg-home"[^>]*>/.exec(playHtml)?.[0] ?? '';
-    const indexVideoTag = /<video id="bg-home"[^>]*>/.exec(indexHtml)?.[0] ?? '';
+    const playVideoTag = /<video id="bg-home"[^>]*>/.exec(flatPlayHtml)?.[0] ?? '';
+    const indexVideoTag = /<video id="bg-home"[^>]*>/.exec(flatIndexHtml)?.[0] ?? '';
     expect(playVideoTag).not.toContain('autoplay');
     expect(playVideoTag).toContain('preload="none"');
     expect(playVideoTag).toBe(indexVideoTag);
@@ -100,8 +102,10 @@ describe('/play uses the landing hero backdrop', () => {
 describe('/play keeps its tracking and SEO head', () => {
   it('play.html keeps the Google tag with the localhost guard', () => {
     expect(playHtml).toContain('googletagmanager.com/gtag/js?id=G-BR5Z7GT7C2');
-    expect(playHtml).toContain("gtag('config', 'G-BR5Z7GT7C2')");
-    expect(playHtml).toContain("['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)");
+    expect(playHtml).toMatch(/gtag\(["']config["'], ["']G-BR5Z7GT7C2["']\)/);
+    expect(playHtml).toMatch(
+      /\[["']localhost["'], ["']127\.0\.0\.1["'], ["']\[::1\]["']\]\.includes\(location\.hostname\)/,
+    );
   });
 
   it('play.html keeps its canonical /play SEO surface', () => {

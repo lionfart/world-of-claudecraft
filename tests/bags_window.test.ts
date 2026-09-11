@@ -408,7 +408,11 @@ describe('bags_window: bank-deposit mode wiring', () => {
       /\(key === 'hudChrome\.bank\.depositHint' \|\|\s*key === 'hudChrome\.bank\.guildDepositHint' \|\|\s*key === 'hudChrome\.bank\.vaultDepositHint'\) &&\s*bankDepositOpensPrompt\(s\)/,
     );
     expect(code).toContain("t('hudChrome.bank.depositPartialHint')");
-    expect(code).toContain('+ extra + partial + equipDrag + destroy + link');
+    // Whitespace-tolerant: the composition now carries materialSourcesForDisplay(s)
+    // as a third itemTooltip argument and is Biome-wrapped across several lines,
+    // so an exact single-line substring can no longer match; the CONJUNCTION of
+    // all five hint fragments in order is what is load-bearing here.
+    expect(code).toMatch(/\+\s*extra\s*\+\s*partial\s*\+\s*equipDrag\s*\+\s*destroy\s*\+\s*link/);
   });
 });
 
@@ -571,7 +575,21 @@ describe('bags_window: right-click uses, dragging destroys/equips', () => {
   });
 
   it('the world drop opens the destroy prompt and honors the noDiscard refusal', () => {
-    expect(painter).toContain('promptDestroy(itemId: string, count: number): void');
+    // The prompt takes the dragged COPY's identity (its pick-up index plus its
+    // pin), not a bare index: the bags shift mid-drag, and an index alone can
+    // come to name a different copy of the same id by the time the drop lands.
+    expect(painter).toContain(
+      'promptDestroy(itemId: string, count: number, ref: DraggedCopyRef | null = null): void',
+    );
+    // The touch drag ghost carries the copy's rim too (never exercised by the
+    // marker rig, whose render does not start a drag, so pinned here over
+    // COMMENT-STRIPPED source: it is the only coverage of that read, and a
+    // commented-out arrow must not satisfy it). The destroy prompt's TARGETED
+    // single-copy arm is behavioral (tests/bags_vendor_sell_confirm.test.ts).
+    const ghostCode = painter.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    expect(ghostCode).toMatch(
+      /ghostHtml: \(\) =>\s*this\.deps\.itemIcon\(item, wornItemCellParts\(item, s\.instance\)\.quality\),/,
+    );
     expect(painter).toContain('destroyAction(itemId: string): BagDestroyAction');
     expect(painter).toContain("t('hudChrome.bags.cannotDestroy')");
     // The HUD installs the canvas as the world drop target with exactly those seams.
@@ -622,10 +640,11 @@ describe('bags_window: a vendor click confirms before selling anything but true 
   });
 
   it('the confirm prompt re-resolves the live slot at submit and refuses on a mismatch', () => {
-    const body = painter.slice(
-      painter.indexOf('private showSellConfirmPrompt('),
-      painter.indexOf('private showSellConfirmPrompt(') + 2200,
-    );
+    // Comment-stripped source (the source-text pin trap), sliced to the next
+    // method boundary rather than a magic length that rots on every edit.
+    const stripped = painter.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const start = stripped.indexOf('private showSellConfirmPrompt(');
+    const body = stripped.slice(start, stripped.indexOf('\n  private ', start + 1));
     // Re-resolved by reference identity at SUBMIT time, not the index captured
     // when the dialog opened: the whole point of this fix is that a stale
     // selection must REFUSE rather than fall back to an itemId-only sellItem
@@ -667,13 +686,19 @@ describe('bags_window: styles for the drag affordances', () => {
 });
 
 describe('bags_window: per-copy instance tooltip forwarding (Professions 2.0)', () => {
-  it("forwards the slot's instance payload into the widened itemTooltip dep", () => {
+  it("forwards the slot's instance payload AND its material composition into the widened itemTooltip dep", () => {
     // The bank arm has a model-level pin (bank_view.test.ts BankSlotModel
     // .instance passthrough); the bags arm is a direct painter call, so the
     // call site itself is the load-bearing surface: dropping `s.instance`
     // reverts every bag tooltip to def-only while all pure-core suites stay
     // green (the exact regression class the widened dep was added for).
-    expect(painter).toContain('this.deps.itemTooltip(item, s.instance)');
+    // The call now also carries materialSourcesForDisplay(s), the per-unit
+    // provenance a material stack's tooltip needs (the source-count algebra):
+    // dropping that third argument would silently blind every material
+    // tooltip to who gathered/signed the units it holds.
+    expect(painter).toContain(
+      'this.deps.itemTooltip(item, s.instance, materialSourcesForDisplay(s))',
+    );
   });
 });
 
@@ -808,7 +833,9 @@ describe('bags_window: the bag-bar counter pools readout (phase 08)', () => {
       28,
     );
     const counter = root.querySelector('.bag-capacity');
-    expect(counter?.textContent).toBe('2/28');
+    // Issue #3795: the inline text names both pools once a satchel is equipped
+    // (the summed pair alone reads roomy while the general pool refuses).
+    expect(counter?.textContent).toBe('Items 1/16, Materials 1/12');
     expect(counter?.getAttribute('aria-label')).toBe(
       'Bag slots used: 2 of 28. General items: 1 of 16. Materials: 1 of 12.',
     );

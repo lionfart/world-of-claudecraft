@@ -15,11 +15,11 @@ describe('Donate shell surfaces', () => {
       expect(html, name).not.toContain('steam-wishlist');
       expect(html, name).not.toContain('store.steampowered.com/app/4897790');
       expect(html.match(/data-donate-sol/g), name).toHaveLength(3);
-      expect(html, name).toContain('<a class="donate-cta" data-donate-sol');
-      expect(html, name).toContain('<a class="social-link donate" data-donate-sol');
+      expect(html, name).toMatch(/<a\s+class="donate-cta"\s+data-donate-sol/);
+      expect(html, name).toMatch(/<a\s+class="social-link donate"\s+data-donate-sol/);
       expect(html, name).toContain('class="community-link donate community-support-chip"');
       expect(html, name).toContain('id="mobile-donate"');
-      expect(html.match(/data-donate-sol href="\/donate"/g), name).toHaveLength(3);
+      expect(html.match(/data-donate-sol\s+href="\/donate"/g), name).toHaveLength(3);
       expect(html, name).not.toContain('data-donate-sol href="https://solscan.io"');
     }
   });

@@ -9,13 +9,13 @@
     "class:warrior",
     "class:mage"
   ],
-  "draws": 8,
-  "drawDigest": "5b236bae",
+  "draws": 7,
+  "drawDigest": "284731db",
   "frames": [
     {
       "tick": 0,
       "time": 0,
-      "nextId": 998,
+      "nextId": 1006,
       "state": "5bc471b0",
       "events": "741638a5",
       "rng": {
@@ -29,12 +29,12 @@
     {
       "tick": 0,
       "time": 0,
-      "nextId": 1001,
-      "state": "d74abbdd",
+      "nextId": 1009,
+      "state": "69a38adb",
       "events": "741638a5",
       "rng": {
-        "draws": 8,
-        "digest": "5b236bae"
+        "draws": 7,
+        "digest": "284731db"
       },
       "label": "loot-identity-captured",
       "players": [
@@ -61,6 +61,7 @@
           "cls": "warrior",
           "companionUpgrades": {},
           "counters": {},
+          "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {},
@@ -74,14 +75,21 @@
           },
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 998,
+          "entityId": 1006,
           "equipment": {
             "chest": "recruit_tunic",
             "mainhand": "worn_sword",
             "offhand": "eastbrook_buckler"
           },
           "equipmentInstance": {},
+          "gathererIdentity": {
+            "id": 101,
+            "kind": "character"
+          },
           "gatheringProficiency": {},
+          "harvestPreference": {
+            "kind": "all"
+          },
           "heroicDaily": {},
           "inventory": [
             {
@@ -102,7 +110,8 @@
           "townFocus": {},
           "vault": {
             "stock": {}
-          }
+          },
+          "wyrmfallDaily": {}
         },
         {
           "activeLoadout": -1,
@@ -127,6 +136,7 @@
           "cls": "mage",
           "companionUpgrades": {},
           "counters": {},
+          "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {},
@@ -140,13 +150,20 @@
           },
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 999,
+          "entityId": 1007,
           "equipment": {
             "chest": "apprentice_robe",
             "mainhand": "gnarled_staff"
           },
           "equipmentInstance": {},
+          "gathererIdentity": {
+            "id": 102,
+            "kind": "character"
+          },
           "gatheringProficiency": {},
+          "harvestPreference": {
+            "kind": "all"
+          },
           "heroicDaily": {},
           "inventory": [
             {
@@ -171,7 +188,8 @@
           "townFocus": {},
           "vault": {
             "stock": {}
-          }
+          },
+          "wyrmfallDaily": {}
         }
       ],
       "entities": [
@@ -186,7 +204,7 @@
               "name": "Battle Stance",
               "remaining": 3600,
               "school": "physical",
-              "sourceId": 998
+              "sourceId": 1006
             }
           ],
           "blockChance": 0.05,
@@ -200,7 +218,7 @@
           "fiveSecondRule": 99,
           "healPower": 5,
           "hp": 100,
-          "id": 998,
+          "id": 1006,
           "kind": "player",
           "level": 1,
           "lootFfaTimer": "Infinity",
@@ -251,7 +269,7 @@
           "fiveSecondRule": 99,
           "healPower": 13,
           "hp": 54,
-          "id": 999,
+          "id": 1007,
           "kind": "player",
           "level": 1,
           "lootFfaTimer": "Infinity",
@@ -301,7 +319,7 @@
           "fiveSecondRule": 99,
           "hostile": true,
           "hp": 120000,
-          "id": 1000,
+          "id": 1008,
           "kind": "mob",
           "level": 20,
           "loot": {
@@ -309,19 +327,11 @@
             "items": [
               {
                 "count": 1,
-                "itemId": "sigil_ember_shoulder"
+                "itemId": "sigil_anvil_gloves"
               },
               {
                 "count": 1,
-                "itemId": "sigil_tempest_gloves"
-              },
-              {
-                "count": 1,
-                "itemId": "ignivars_ember_choker"
-              },
-              {
-                "count": 1,
-                "itemId": "moonscorch_waistwrap"
+                "itemId": "cinderfang_kris"
               },
               {
                 "count": 1,
@@ -330,6 +340,10 @@
               {
                 "count": 1,
                 "itemId": "lastflame_core"
+              },
+              {
+                "count": 1,
+                "itemId": "pattern_crucible_healer_mail"
               }
             ]
           },
@@ -345,8 +359,8 @@
             ]
           },
           "lootRecipientIds": [
-            998,
-            999
+            1006,
+            1007
           ],
           "lootable": true,
           "maxHp": 120000,
@@ -380,12 +394,12 @@
     {
       "tick": 0,
       "time": 0,
-      "nextId": 1001,
-      "state": "7f5f7e07",
-      "events": "76b49129",
+      "nextId": 1009,
+      "state": "9174a945",
+      "events": "397551ea",
       "rng": {
-        "draws": 8,
-        "digest": "5b236bae"
+        "draws": 7,
+        "digest": "284731db"
       },
       "label": "leaver-remains-eligible",
       "players": [
@@ -412,6 +426,7 @@
           "cls": "warrior",
           "companionUpgrades": {},
           "counters": {},
+          "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {},
@@ -429,14 +444,21 @@
           },
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 998,
+          "entityId": 1006,
           "equipment": {
             "chest": "recruit_tunic",
             "mainhand": "worn_sword",
             "offhand": "eastbrook_buckler"
           },
           "equipmentInstance": {},
+          "gathererIdentity": {
+            "id": 101,
+            "kind": "character"
+          },
           "gatheringProficiency": {},
+          "harvestPreference": {
+            "kind": "all"
+          },
           "heroicDaily": {},
           "inventory": [
             {
@@ -474,7 +496,8 @@
           "townFocus": {},
           "vault": {
             "stock": {}
-          }
+          },
+          "wyrmfallDaily": {}
         },
         {
           "activeLoadout": -1,
@@ -499,6 +522,7 @@
           "cls": "mage",
           "companionUpgrades": {},
           "counters": {},
+          "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {},
@@ -512,13 +536,20 @@
           },
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 999,
+          "entityId": 1007,
           "equipment": {
             "chest": "apprentice_robe",
             "mainhand": "gnarled_staff"
           },
           "equipmentInstance": {},
+          "gathererIdentity": {
+            "id": 102,
+            "kind": "character"
+          },
           "gatheringProficiency": {},
+          "harvestPreference": {
+            "kind": "all"
+          },
           "heroicDaily": {},
           "inventory": [
             {
@@ -544,7 +575,8 @@
           "townFocus": {},
           "vault": {
             "stock": {}
-          }
+          },
+          "wyrmfallDaily": {}
         }
       ],
       "entities": [
@@ -559,7 +591,7 @@
               "name": "Battle Stance",
               "remaining": 3600,
               "school": "physical",
-              "sourceId": 998
+              "sourceId": 1006
             }
           ],
           "blockChance": 0.05,
@@ -573,7 +605,7 @@
           "fiveSecondRule": 99,
           "healPower": 5,
           "hp": 100,
-          "id": 998,
+          "id": 1006,
           "kind": "player",
           "level": 1,
           "lootFfaTimer": "Infinity",
@@ -624,7 +656,7 @@
           "fiveSecondRule": 99,
           "healPower": 13,
           "hp": 54,
-          "id": 999,
+          "id": 1007,
           "kind": "player",
           "level": 1,
           "lootFfaTimer": "Infinity",
@@ -674,7 +706,7 @@
           "fiveSecondRule": 99,
           "hostile": true,
           "hp": 120000,
-          "id": 1000,
+          "id": 1008,
           "kind": "mob",
           "level": 20,
           "loot": {
@@ -682,19 +714,11 @@
             "items": [
               {
                 "count": 1,
-                "itemId": "sigil_ember_shoulder"
+                "itemId": "sigil_anvil_gloves"
               },
               {
                 "count": 1,
-                "itemId": "sigil_tempest_gloves"
-              },
-              {
-                "count": 1,
-                "itemId": "ignivars_ember_choker"
-              },
-              {
-                "count": 1,
-                "itemId": "moonscorch_waistwrap"
+                "itemId": "cinderfang_kris"
               },
               {
                 "count": 1,
@@ -703,6 +727,10 @@
               {
                 "count": 1,
                 "itemId": "lastflame_core"
+              },
+              {
+                "count": 1,
+                "itemId": "pattern_crucible_healer_mail"
               }
             ]
           },
@@ -718,8 +746,8 @@
             ]
           },
           "lootRecipientIds": [
-            998,
-            999
+            1006,
+            1007
           ],
           "lootable": true,
           "maxHp": 120000,
@@ -753,12 +781,12 @@
     {
       "tick": 0,
       "time": 0,
-      "nextId": 1001,
-      "state": "7f5f7e07",
+      "nextId": 1009,
+      "state": "9174a945",
       "events": "741638a5",
       "rng": {
-        "draws": 8,
-        "digest": "5b236bae"
+        "draws": 7,
+        "digest": "284731db"
       },
       "label": "final",
       "players": [
@@ -785,6 +813,7 @@
           "cls": "warrior",
           "companionUpgrades": {},
           "counters": {},
+          "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {},
@@ -802,14 +831,21 @@
           },
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 998,
+          "entityId": 1006,
           "equipment": {
             "chest": "recruit_tunic",
             "mainhand": "worn_sword",
             "offhand": "eastbrook_buckler"
           },
           "equipmentInstance": {},
+          "gathererIdentity": {
+            "id": 101,
+            "kind": "character"
+          },
           "gatheringProficiency": {},
+          "harvestPreference": {
+            "kind": "all"
+          },
           "heroicDaily": {},
           "inventory": [
             {
@@ -847,7 +883,8 @@
           "townFocus": {},
           "vault": {
             "stock": {}
-          }
+          },
+          "wyrmfallDaily": {}
         },
         {
           "activeLoadout": -1,
@@ -872,6 +909,7 @@
           "cls": "mage",
           "companionUpgrades": {},
           "counters": {},
+          "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {},
@@ -885,13 +923,20 @@
           },
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 999,
+          "entityId": 1007,
           "equipment": {
             "chest": "apprentice_robe",
             "mainhand": "gnarled_staff"
           },
           "equipmentInstance": {},
+          "gathererIdentity": {
+            "id": 102,
+            "kind": "character"
+          },
           "gatheringProficiency": {},
+          "harvestPreference": {
+            "kind": "all"
+          },
           "heroicDaily": {},
           "inventory": [
             {
@@ -917,7 +962,8 @@
           "townFocus": {},
           "vault": {
             "stock": {}
-          }
+          },
+          "wyrmfallDaily": {}
         }
       ],
       "entities": [
@@ -932,7 +978,7 @@
               "name": "Battle Stance",
               "remaining": 3600,
               "school": "physical",
-              "sourceId": 998
+              "sourceId": 1006
             }
           ],
           "blockChance": 0.05,
@@ -946,7 +992,7 @@
           "fiveSecondRule": 99,
           "healPower": 5,
           "hp": 100,
-          "id": 998,
+          "id": 1006,
           "kind": "player",
           "level": 1,
           "lootFfaTimer": "Infinity",
@@ -997,7 +1043,7 @@
           "fiveSecondRule": 99,
           "healPower": 13,
           "hp": 54,
-          "id": 999,
+          "id": 1007,
           "kind": "player",
           "level": 1,
           "lootFfaTimer": "Infinity",
@@ -1047,7 +1093,7 @@
           "fiveSecondRule": 99,
           "hostile": true,
           "hp": 120000,
-          "id": 1000,
+          "id": 1008,
           "kind": "mob",
           "level": 20,
           "loot": {
@@ -1055,19 +1101,11 @@
             "items": [
               {
                 "count": 1,
-                "itemId": "sigil_ember_shoulder"
+                "itemId": "sigil_anvil_gloves"
               },
               {
                 "count": 1,
-                "itemId": "sigil_tempest_gloves"
-              },
-              {
-                "count": 1,
-                "itemId": "ignivars_ember_choker"
-              },
-              {
-                "count": 1,
-                "itemId": "moonscorch_waistwrap"
+                "itemId": "cinderfang_kris"
               },
               {
                 "count": 1,
@@ -1076,6 +1114,10 @@
               {
                 "count": 1,
                 "itemId": "lastflame_core"
+              },
+              {
+                "count": 1,
+                "itemId": "pattern_crucible_healer_mail"
               }
             ]
           },
@@ -1091,8 +1133,8 @@
             ]
           },
           "lootRecipientIds": [
-            998,
-            999
+            1006,
+            1007
           ],
           "lootable": true,
           "maxHp": 120000,

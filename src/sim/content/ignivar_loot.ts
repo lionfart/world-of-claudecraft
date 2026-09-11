@@ -32,8 +32,14 @@
 // trade, mail, market, and sale). One sigil buys any one matching-slot set
 // piece for the holder's class at the Crucible Quartermaster
 // (CRUCIBLE_VENDOR_STOCK).
+//
+// Binding policy (PRs #3788 and #3789): the 15 sigils and the 145 sigil-redeemed
+// tier set pieces are soulbound, matching the tokens that buy them; the 41
+// ordinary boss drops (offset, jewelry, held, weapons) carry no `soulbound`
+// flag and trade freely. Pinned by tests/ignivar_loot.test.ts.
 
 import type { ItemDef, NpcDef } from '../types';
+import { CRUCIBLE_PATTERN_VENDOR_STOCK } from './crucible_collections';
 
 // Source level the whole Ignivar raid loot table reads as in the item-level
 // index: level-20 content two tiers above the five-man heroics, so epics land
@@ -3290,6 +3296,7 @@ export interface CrucibleVendorOffer {
 }
 
 export const CRUCIBLE_VENDOR_STOCK: readonly CrucibleVendorOffer[] = [
+  ...CRUCIBLE_PATTERN_VENDOR_STOCK,
   { itemId: 'slagbreaker_helmet', sigilId: 'sigil_anvil_helmet' },
   { itemId: 'slagbreaker_shoulder', sigilId: 'sigil_anvil_shoulder' },
   { itemId: 'slagbreaker_chest', sigilId: 'sigil_anvil_chest' },
@@ -3437,9 +3444,9 @@ export const CRUCIBLE_VENDOR_STOCK: readonly CrucibleVendorOffer[] = [
   { itemId: 'grovespring_legs', sigilId: 'sigil_anvil_legs' },
 ];
 
-// The Crucible Quartermaster herself, stationed outside the Forgefather's
-// Isle keep door so raiders can redeem sigils without entering an instance.
-// The crucibleVendor flag routes her dialog to the sigil shop.
+// The Crucible Quartermaster stands outside the Forgefather's Isle keep door,
+// so raiders can redeem sigils without entering an instance. The crucibleVendor
+// flag routes the dialog to the sigil shop.
 export const IGNIVAR_VENDOR_NPCS: Record<string, NpcDef> = {
   [CRUCIBLE_VENDOR_NPC_ID]: {
     id: CRUCIBLE_VENDOR_NPC_ID,
@@ -3449,11 +3456,11 @@ export const IGNIVAR_VENDOR_NPCS: Record<string, NpcDef> = {
     // cannot suppress nearby raid-entrance structures or terrain edits.
     pos: { x: 0, z: 0 },
     facing: Math.PI,
-    dynamic: true,
     color: 0xb3702d,
     questIds: [],
     crucibleVendor: true,
     greeting:
       'The forge marks its own. Bring me a sigil from the Crucible and I will fit you for war.',
+    dynamic: true,
   },
 };

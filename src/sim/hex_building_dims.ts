@@ -12,7 +12,7 @@
 // does not occupy while also clipping into it along the axes.
 //
 // The three colourways (hex_ green, hexr_ red, hexb_ blue) are the same meshes,
-// so one table serves Dawnhold, the Last Keep and the Ashen Bulwark. Values are
+// so one table serves Dawnhold and the Last Keep. Values are
 // the model's own bounding footprint at scale 1, measured off the shipped GLBs.
 // Pure leaf: no rng, no SimContext, no imports.
 
@@ -63,10 +63,7 @@ export function hexBuildingFamily(key: string): string {
  * for a rotated building. Returns null for a key with no measurement, and the
  * caller keeps its circle.
  */
-export function hexBuildingBox(
-  key: string,
-  scale: number,
-): { hw: number; hd: number } | null {
+export function hexBuildingBox(key: string, scale: number): { hw: number; hd: number } | null {
   const u = HEX_BUILDING_UNIT[hexBuildingFamily(key)];
   if (!u) return null;
   return { hw: (u.w * scale) / 2, hd: (u.d * scale) / 2 };

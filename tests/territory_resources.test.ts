@@ -15,9 +15,7 @@ describe('territory resource items', () => {
   });
 
   it('drops zero-cost entries before inventory validation and consumption', () => {
-    expect(
-      territoryResourceCostEntries({ wood: 80, iron: 0, grain: 15, labor: 30 }),
-    ).toEqual([
+    expect(territoryResourceCostEntries({ wood: 80, iron: 0, grain: 15, labor: 30 })).toEqual([
       ['territory_wood', 80],
       ['territory_grain', 15],
       ['territory_labor', 30],

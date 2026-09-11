@@ -19,9 +19,9 @@ export {
 } from './territory_siege_ground';
 
 import {
+  resolveTerritorySiegeCitadelElevationTransitionLocal,
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
-  resolveTerritorySiegeCitadelElevationTransitionLocal,
 } from './territory_siege_ground';
 
 export const TERRITORY_SIEGE_FLOOR_Y = DUNGEON_FLOOR_Y;
@@ -82,8 +82,7 @@ export function territorySiegeDefenderGateDestination(
     !Number.isFinite(x) ||
     !Number.isFinite(z) ||
     Math.abs(x) > TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_HALF_WIDTH ||
-    Math.abs(z - TERRITORY_SIEGE_GATE_Z) >
-      TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_DEPTH
+    Math.abs(z - TERRITORY_SIEGE_GATE_Z) > TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_DEPTH
   ) {
     return null;
   }
@@ -101,10 +100,9 @@ export function territorySiegeDefenderGateDestination(
  * same gate distance, sit abreast rather than in rows, and pivot their noses
  * toward the gate centre.
  */
-export const TERRITORY_SIEGE_RAM_FORMATION: readonly Omit<
-  TerritorySiegeRamPlacement,
-  'id'
->[] = [-0.6, 0, 0.6].map((yaw) => ({
+export const TERRITORY_SIEGE_RAM_FORMATION: readonly Omit<TerritorySiegeRamPlacement, 'id'>[] = [
+  -0.6, 0, 0.6,
+].map((yaw) => ({
   x: Math.sin(yaw) * 9.5,
   z: TERRITORY_SIEGE_GATE_Z + Math.cos(yaw) * 9.5,
   yaw,
@@ -138,16 +136,9 @@ export function territorySiegeCatapultDeployPlacement(
   return { x, z, yaw: Number.isFinite(yaw) ? yaw : 0, side };
 }
 
-function circleOverlapsCollider(
-  x: number,
-  z: number,
-  radius: number,
-  collider: Collider,
-): boolean {
+function circleOverlapsCollider(x: number, z: number, radius: number, collider: Collider): boolean {
   if (collider.type === 'circle') {
-    return (
-      (x - collider.x) ** 2 + (z - collider.z) ** 2 < (radius + collider.r) ** 2
-    );
+    return (x - collider.x) ** 2 + (z - collider.z) ** 2 < (radius + collider.r) ** 2;
   }
   const cosine = Math.cos(-collider.rot);
   const sine = Math.sin(-collider.rot);
@@ -181,12 +172,7 @@ function overlapsTerritorySiegeStructureFootprint(
     }
   }
   return (['left', 'right'] as const).some((towerId) =>
-    circleOverlapsCollider(
-      x,
-      z,
-      radius,
-      territorySiegeTowerCollider(towerId, castleLevel),
-    ),
+    circleOverlapsCollider(x, z, radius, territorySiegeTowerCollider(towerId, castleLevel)),
   );
 }
 
@@ -227,8 +213,7 @@ export function territorySiegeMortarPlacementAllowed(
     return false;
   }
   for (const mortar of mortars) {
-    if ((x - mortar.x) ** 2 + (z - mortar.z) ** 2 < (radius * 2) ** 2)
-      return false;
+    if ((x - mortar.x) ** 2 + (z - mortar.z) ** 2 < (radius * 2) ** 2) return false;
   }
   for (const ram of rams) {
     const minimum = radius + TERRITORY_SIEGE_RAM_COLLIDER_RADIUS;
@@ -236,15 +221,12 @@ export function territorySiegeMortarPlacementAllowed(
   }
   for (const catapult of catapults) {
     const minimum = radius + TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS;
-    if ((x - catapult.x) ** 2 + (z - catapult.z) ** 2 < minimum ** 2)
-      return false;
+    if ((x - catapult.x) ** 2 + (z - catapult.z) ** 2 < minimum ** 2) return false;
   }
   return true;
 }
 
-export function territorySiegeNearestMortar<
-  T extends TerritorySiegeMortarPlacement,
->(
+export function territorySiegeNearestMortar<T extends TerritorySiegeMortarPlacement>(
   x: number,
   z: number,
   mortars: Iterable<T>,
@@ -271,8 +253,7 @@ export function territorySiegeMortarTargetAllowed(
     Number.isFinite(z) &&
     Math.abs(x) <= TERRITORY_SIEGE_FIELD_HALF_X &&
     Math.abs(z) <= TERRITORY_SIEGE_FIELD_HALF_Z &&
-    (x - mortar.x) ** 2 + (z - mortar.z) ** 2 <=
-      TERRITORY_SIEGE_MORTAR_RANGE ** 2
+    (x - mortar.x) ** 2 + (z - mortar.z) ** 2 <= TERRITORY_SIEGE_MORTAR_RANGE ** 2
   );
 }
 
@@ -308,8 +289,7 @@ export function territorySiegeCatapultPlacementAllowed(
     return false;
   }
   for (const catapult of catapults) {
-    if ((x - catapult.x) ** 2 + (z - catapult.z) ** 2 < (radius * 2) ** 2)
-      return false;
+    if ((x - catapult.x) ** 2 + (z - catapult.z) ** 2 < (radius * 2) ** 2) return false;
   }
   for (const mortar of mortars) {
     const minimum = radius + TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS;
@@ -322,9 +302,7 @@ export function territorySiegeCatapultPlacementAllowed(
   return true;
 }
 
-export function territorySiegeNearestCatapult<
-  T extends TerritorySiegeCatapultPlacement,
->(
+export function territorySiegeNearestCatapult<T extends TerritorySiegeCatapultPlacement>(
   x: number,
   z: number,
   catapults: Iterable<T>,
@@ -351,15 +329,11 @@ export function territorySiegeCatapultTargetAllowed(
     Number.isFinite(z) &&
     Math.abs(x) <= TERRITORY_SIEGE_FIELD_HALF_X &&
     Math.abs(z) <= TERRITORY_SIEGE_FIELD_HALF_Z &&
-    (x - catapult.x) ** 2 + (z - catapult.z) ** 2 <=
-      TERRITORY_SIEGE_CATAPULT_RANGE ** 2
+    (x - catapult.x) ** 2 + (z - catapult.z) ** 2 <= TERRITORY_SIEGE_CATAPULT_RANGE ** 2
   );
 }
 
-export function territorySiegeRamDeploymentAreaContains(
-  x: number,
-  z: number,
-): boolean {
+export function territorySiegeRamDeploymentAreaContains(x: number, z: number): boolean {
   return (
     Number.isFinite(x) &&
     Number.isFinite(z) &&
@@ -372,10 +346,7 @@ export function territorySiegeRamDeploymentAreaContains(
 export function territorySiegeRamDeployPlacement(
   deployedCount: number,
 ): Omit<TerritorySiegeRamPlacement, 'id'> | null {
-  return (
-    TERRITORY_SIEGE_RAM_FORMATION[Math.max(0, Math.floor(deployedCount))] ??
-    null
-  );
+  return TERRITORY_SIEGE_RAM_FORMATION[Math.max(0, Math.floor(deployedCount))] ?? null;
 }
 
 /** The cart must be wholly inside the gate apron and clear of every other cart. */
@@ -389,8 +360,7 @@ export function territorySiegeRamPlacementAllowed(
   }
   const minimumDistance = TERRITORY_SIEGE_RAM_COLLIDER_RADIUS * 2;
   for (const ram of existing) {
-    if ((x - ram.x) ** 2 + (z - ram.z) ** 2 < minimumDistance ** 2)
-      return false;
+    if ((x - ram.x) ** 2 + (z - ram.z) ** 2 < minimumDistance ** 2) return false;
   }
   return true;
 }
@@ -424,13 +394,9 @@ export interface TerritorySiegeWallPlacement {
 
 // hex_wall.glb is 0.8 units deep. Match the renderer's 2.25 depth scale.
 export const TERRITORY_SIEGE_WALL_SCALE_Z = 2.25;
-export const TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH =
-  0.4 * TERRITORY_SIEGE_WALL_SCALE_Z;
+export const TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH = 0.4 * TERRITORY_SIEGE_WALL_SCALE_Z;
 
-export function territorySiegeWallColliderHalfDepth(
-  castleLevel: number,
-  detailIndex = 0,
-): number {
+export function territorySiegeWallColliderHalfDepth(castleLevel: number, detailIndex = 0): number {
   if (castleLevel <= 1) return 0.37501 * 2.4;
   if (castleLevel === 2) return 0.39995 * TERRITORY_SIEGE_WALL_SCALE_Z;
   const sourceHalfDepth = detailIndex % 5 === 3 ? 0.75008 : 0.50008;
@@ -457,22 +423,14 @@ export function territorySiegeTowerCollider(
   castleLevel: number,
 ): Extract<Collider, { type: 'obb' }> {
   const level = Math.max(1, Math.min(4, Math.floor(castleLevel)));
-  const family =
-    level === 1 ? 'watchtower' : level === 2 ? 'towerCannon' : 'castle';
+  const family = level === 1 ? 'watchtower' : level === 2 ? 'towerCannon' : 'castle';
   const scale = level === 1 ? 5.4 : level === 2 ? 6 : level === 3 ? 4.15 : 4.75;
-  const rot =
-    level === 1
-      ? territorySiegeWoodTowerYaw(towerId)
-      : level >= 3
-        ? Math.PI
-        : 0;
+  const rot = level === 1 ? territorySiegeWoodTowerYaw(towerId) : level >= 3 ? Math.PI : 0;
   const bounds = hexBuildingBounds(family, scale);
-  if (!bounds)
-    throw new Error(`missing measured siege tower footprint: ${family}`);
+  if (!bounds) throw new Error(`missing measured siege tower footprint: ${family}`);
   const cosine = Math.cos(rot);
   const sine = Math.sin(rot);
-  const baseX =
-    towerId === 'left' ? -TERRITORY_SIEGE_TOWER_X : TERRITORY_SIEGE_TOWER_X;
+  const baseX = towerId === 'left' ? -TERRITORY_SIEGE_TOWER_X : TERRITORY_SIEGE_TOWER_X;
   return {
     type: 'obb',
     x: baseX + bounds.cx * cosine + bounds.cz * sine,
@@ -540,10 +498,7 @@ export function territorySiegeWallSegmentPlacements(
   const entries = territorySiegeWallPlacements(castleLevel).map(
     (wall) => [territorySiegeWallSegmentId(wall), wall] as const,
   );
-  return Object.fromEntries(entries) as Record<
-    TerritorySiegeWallId,
-    TerritorySiegeWallPlacement
-  >;
+  return Object.fromEntries(entries) as Record<TerritorySiegeWallId, TerritorySiegeWallPlacement>;
 }
 
 /**
@@ -553,8 +508,7 @@ export function territorySiegeWallSegmentPlacements(
 export function territorySiegeWallPlacements(
   castleLevel = 3,
 ): readonly TerritorySiegeWallPlacement[] {
-  const outside =
-    TERRITORY_SIEGE_WALL_HALF_X + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
+  const outside = TERRITORY_SIEGE_WALL_HALF_X + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
   const outer = [
     ...wallRunZ(
       'left',
@@ -572,14 +526,7 @@ export function territorySiegeWallPlacements(
       8,
       Math.PI / 2,
     ),
-    ...wallRunX(
-      'back',
-      TERRITORY_SIEGE_BACK_WALL_Z,
-      -outside,
-      outside,
-      8,
-      Math.PI,
-    ),
+    ...wallRunX('back', TERRITORY_SIEGE_BACK_WALL_Z, -outside, outside, 8, Math.PI),
     ...wallRunX(
       'front_left',
       TERRITORY_SIEGE_GATE_Z,
@@ -598,27 +545,22 @@ export function territorySiegeWallPlacements(
     ),
   ];
   if (castleLevel < 4) return outer;
-  const innerOutside =
-    TERRITORY_SIEGE_INNER_WALL_HALF_X + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
+  const innerOutside = TERRITORY_SIEGE_INNER_WALL_HALF_X + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
   return [
     ...outer,
     ...wallRunZ(
       'inner_left',
       -TERRITORY_SIEGE_INNER_WALL_HALF_X,
-      TERRITORY_SIEGE_INNER_BACK_WALL_Z +
-        TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
-      TERRITORY_SIEGE_INNER_FRONT_WALL_Z -
-        TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      TERRITORY_SIEGE_INNER_BACK_WALL_Z + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      TERRITORY_SIEGE_INNER_FRONT_WALL_Z - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
       4,
       -Math.PI / 2,
     ),
     ...wallRunZ(
       'inner_right',
       TERRITORY_SIEGE_INNER_WALL_HALF_X,
-      TERRITORY_SIEGE_INNER_BACK_WALL_Z +
-        TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
-      TERRITORY_SIEGE_INNER_FRONT_WALL_Z -
-        TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      TERRITORY_SIEGE_INNER_BACK_WALL_Z + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      TERRITORY_SIEGE_INNER_FRONT_WALL_Z - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
       4,
       Math.PI / 2,
     ),
@@ -682,11 +624,7 @@ export function territorySiegeTowerPositions(
   ];
 }
 
-export function territorySiegeInTowerRange(
-  slot: number,
-  x: number,
-  z: number,
-): boolean {
+export function territorySiegeInTowerRange(slot: number, x: number, z: number): boolean {
   return (['left', 'right'] as const).some((towerId) =>
     territorySiegeInSpecificTowerRange(slot, towerId, x, z),
   );
@@ -701,10 +639,7 @@ export function territorySiegeInSpecificTowerRange(
   impactRadius = 0,
 ): boolean {
   const tower = territorySiegeTowerPositions(slot)[towerId === 'left' ? 0 : 1];
-  const effectiveRange = Math.max(
-    0,
-    TERRITORY_SIEGE_TOWER_RANGE - impactRadius,
-  );
+  const effectiveRange = Math.max(0, TERRITORY_SIEGE_TOWER_RANGE - impactRadius);
   return (x - tower.x) ** 2 + (z - tower.z) ** 2 <= effectiveRange ** 2;
 }
 
@@ -815,8 +750,7 @@ export function clampTerritorySiegeMortars(
   bodyRadius: number,
 ): { x: number; z: number } {
   const origin = territorySiegeOrigin(slot);
-  const minimum =
-    TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS + Math.max(0, bodyRadius);
+  const minimum = TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS + Math.max(0, bodyRadius);
   let nextX = x;
   let nextZ = z;
   for (const mortar of mortars) {
@@ -846,8 +780,7 @@ export function clampTerritorySiegeCatapults(
   bodyRadius: number,
 ): { x: number; z: number } {
   const origin = territorySiegeOrigin(slot);
-  const minimum =
-    TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS + Math.max(0, bodyRadius);
+  const minimum = TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS + Math.max(0, bodyRadius);
   let nextX = x;
   let nextZ = z;
   for (const catapult of catapults) {
@@ -951,17 +884,13 @@ function resolveSweptClamp(
     // buildings instead of freezing on first contact.
     const intended = { x: current.x + stepX, z: current.z + stepZ };
     const resolved = clamp(intended.x, intended.z);
-    if (Math.hypot(resolved.x - intended.x, resolved.z - intended.z) > 1e-7)
-      collided = true;
+    if (Math.hypot(resolved.x - intended.x, resolved.z - intended.z) > 1e-7) collided = true;
     current = resolved;
   }
   return collided ? current : { x: toX, z: toZ };
 }
 
-function territorySiegeCourtyardColliders(
-  slot: number,
-  castleLevel: number,
-): Collider[] {
+function territorySiegeCourtyardColliders(slot: number, castleLevel: number): Collider[] {
   const origin = territorySiegeOrigin(slot);
   return territorySiegeCourtyardFootprints(castleLevel).map(
     (footprint): Collider =>
@@ -1025,8 +954,7 @@ export function resolveTerritorySiegeCitadelElevationTransition(
 /** Dynamic collision for every independently breachable wall segment and defense tower. */
 export function clampTerritorySiegeDestructibleStructures(
   slot: number,
-  wallAlive:
-    Readonly<Partial<Record<TerritorySiegeWallId, boolean>>> | undefined,
+  wallAlive: Readonly<Partial<Record<TerritorySiegeWallId, boolean>>> | undefined,
   towerAlive: Readonly<Partial<Record<'left' | 'right', boolean>>> | undefined,
   x: number,
   z: number,
@@ -1069,8 +997,7 @@ export function clampTerritorySiegeDestructibleStructures(
  */
 export function resolveTerritorySiegeDestructibleStructures(
   slot: number,
-  wallAlive:
-    Readonly<Partial<Record<TerritorySiegeWallId, boolean>>> | undefined,
+  wallAlive: Readonly<Partial<Record<TerritorySiegeWallId, boolean>>> | undefined,
   towerAlive: Readonly<Partial<Record<'left' | 'right', boolean>>> | undefined,
   fromX: number,
   fromZ: number,
@@ -1104,8 +1031,7 @@ export function clampTerritorySiegeGate(
   const origin = territorySiegeOrigin(slot);
   const localX = x - origin.x;
   const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
-  if (Math.abs(localX) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius)
-    return { x, z };
+  if (Math.abs(localX) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius) return { x, z };
   const front = gateZ + 1.4 + radius;
   const back = gateZ - 1.4 - radius;
   if (fromZ >= front && z < front) return { x, z: front };
@@ -1185,8 +1111,7 @@ export function sealTerritorySiegeGateForSide(
   // walking through the gate itself; only the stale-position backstop relaxes.
   if (gateOpen || breachOpen) return { x, z };
   const origin = territorySiegeOrigin(slot);
-  if (Math.abs(x - origin.x) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius)
-    return { x, z };
+  if (Math.abs(x - origin.x) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius) return { x, z };
   const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
   const front = gateZ + 1.4 + radius;
   if (side === 'attacker' && z < front) return { x, z: front };
@@ -1224,24 +1149,25 @@ export function clampTerritorySiegeFieldForSide(
  * Static collision shared by sim and renderer. The gate leaf is dynamic and is
  * enforced by the authoritative movement clamp until gate HP reaches zero.
  */
-export function territorySiegeLocalColliders(
-  castleLevel = 3,
-  includeCourtyard = true,
-): Collider[] {
+export function territorySiegeLocalColliders(castleLevel = 3, includeCourtyard = true): Collider[] {
   const y = TERRITORY_SIEGE_FLOOR_Y;
   const scenery: Collider[] = [
-    ...TERRITORY_SIEGE_TREES.map((tree): Collider => ({
-      type: 'circle',
-      x: tree.x,
-      z: tree.z,
-      r: 1.5,
-    })),
-    ...TERRITORY_SIEGE_ROCKS.map((rock): Collider => ({
-      type: 'circle',
-      x: rock.x,
-      z: rock.z,
-      r: 1.3,
-    })),
+    ...TERRITORY_SIEGE_TREES.map(
+      (tree): Collider => ({
+        type: 'circle',
+        x: tree.x,
+        z: tree.z,
+        r: 1.5,
+      }),
+    ),
+    ...TERRITORY_SIEGE_ROCKS.map(
+      (rock): Collider => ({
+        type: 'circle',
+        x: rock.x,
+        z: rock.z,
+        r: 1.3,
+      }),
+    ),
     ...(includeCourtyard
       ? territorySiegeCourtyardFootprints(castleLevel).map(
           (footprint): Collider =>

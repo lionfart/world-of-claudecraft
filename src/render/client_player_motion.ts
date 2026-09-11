@@ -1,24 +1,14 @@
 import { moverHeight, resolveMovement } from '../sim/colliders';
-import {
-  DUNGEON_FLOOR_Y,
-  isTerritorySiegePos,
-  territorySiegeOriginAt,
-} from '../sim/data';
+import { DUNGEON_FLOOR_Y, isTerritorySiegePos, territorySiegeOriginAt } from '../sim/data';
 import { moveSpeedMult, type PlayerMotionDeps } from '../sim/player_motion';
-import {
-  resolveTerritorySiegeTeamMovement,
-  type TerritorySimTeam,
-} from '../sim/territory_local';
+import { resolveTerritorySiegeTeamMovement, type TerritorySimTeam } from '../sim/territory_local';
 import { territorySiegeGroundLiftForCastleLocal } from '../sim/territory_siege_ground';
 import type { Entity } from '../sim/types';
 import { groundHeight } from '../sim/world';
 import type { TerritoryMapState, TerritorySiegeView } from '../world_api';
 
-function territoryControlForView(
-  siege: TerritorySiegeView,
-): TerritorySimTeam['control'] {
-  if (siege.controlledRamId != null)
-    return { kind: 'ram', ramId: siege.controlledRamId };
+function territoryControlForView(siege: TerritorySiegeView): TerritorySimTeam['control'] {
+  if (siege.controlledRamId != null) return { kind: 'ram', ramId: siege.controlledRamId };
   if (siege.controlledMortarId != null)
     return { kind: 'mortar', mortarId: siege.controlledMortarId };
   if (siege.controlledCatapultId != null)
@@ -96,8 +86,7 @@ export function createClientPlayerMotionDeps(
         moverHeight(entity),
         riftCollisionToken,
       );
-      if (!isTerritorySiegePos(fromX) && !isTerritorySiegePos(resolved.x))
-        return resolved;
+      if (!isTerritorySiegePos(fromX) && !isTerritorySiegePos(resolved.x)) return resolved;
       const team = territoryTeamForPrediction(territoryState(), fromZ);
       return team
         ? resolveTerritorySiegeTeamMovement(

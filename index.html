@@ -543,8 +543,18 @@
           aria-label="Your Band"
         ></div>
 
-        <div id="buff-bar"></div>
-        <div id="debuff-bar"></div>
+        <div id="aura-stack">
+          <div id="buff-bar"></div>
+          <div id="debuff-bar"></div>
+        </div>
+
+        <div id="target-dots"></div>
+        <div id="aura-track-defensives"></div>
+        <div id="aura-track-self"></div>
+        <div id="aura-track-power"></div>
+        <div id="aura-track-utility"></div>
+        <div id="aura-track-friendly"></div>
+        <div id="aura-track-shields"></div>
 
         <div id="ctx-menu" class="panel"></div>
         <div id="prompt-stack"></div>
@@ -726,18 +736,22 @@
         </nav>
 
         <div id="right-tracker-stack">
-          <div id="quest-tracker"></div>
+          <div id="quest-tracker"><div id="qt-body"></div></div>
           <div id="deed-tracker"></div>
           <div id="reliquary-tracker"></div>
-          <div id="delve-tracker"></div>
-          <div id="rift-tracker"></div>
+          <div id="delve-tracker"><div id="delve-body"></div></div>
+          <div id="rift-tracker"><div id="rift-body"></div></div>
+          <div id="practice-tracker"></div>
+          <div id="hub-lesson-coach"></div>
+          <div id="gathering-goal-tracker" class="gathering-goal-panel">
+            <div id="gathering-goal-body"></div>
+          </div>
         </div>
 
         <div
           class="paladin-devotion-frame"
           id="paladin-devotion-frame"
           role="group"
-          tabindex="0"
           data-i18n-aria="hudChrome.paladin.devotion"
           aria-label="Devotion"
         >
@@ -1864,6 +1878,7 @@
         <div id="bg-proposal-popup" class="panel"></div>
         <div id="leaderboard-window" class="window panel"></div>
         <div id="guild-board-window" class="window panel"></div>
+        <div id="rift-forge-window" class="window panel"></div>
         <div id="daily-rewards-window" class="window panel"></div>
         <div id="claudium-window" class="window panel"></div>
         <div id="market-window" class="window panel"></div>
@@ -1872,7 +1887,12 @@
         <div id="bank-window" class="window panel"></div>
         <div id="deeds-window" class="window panel"></div>
         <div id="reliquary-window" class="window panel"></div>
+        <div id="loot-explorer-window" class="window panel"></div>
+        <div id="cosmetics-window" class="window panel"></div>
         <div id="professions-window" class="window panel"></div>
+        <div id="harvest-journal-window" class="window panel"></div>
+        <div id="plant-sheet-window" class="window panel"></div>
+        <div id="harvest-preference-window" class="window panel"></div>
         <div id="calendar-window" class="window panel"></div>
         <div id="arena-status"></div>
         <div
@@ -2009,6 +2029,18 @@
             <button
               type="button"
               class="micro-btn"
+              id="mm-loot-explorer"
+              data-i18n-title="hudChrome.lootExplorer.title"
+              data-i18n-aria="hudChrome.lootExplorer.title"
+              title="Loot Explorer"
+              aria-label="Loot Explorer"
+              data-icon="chest"
+            >
+              <span class="keybind">s-o</span>
+            </button>
+            <button
+              type="button"
+              class="micro-btn"
               id="mm-professions"
               data-i18n-title="hudChrome.professions.title"
               data-i18n-aria="hudChrome.professions.title"
@@ -2017,6 +2049,18 @@
               data-icon="professions"
             >
               <span class="keybind">s-p</span>
+            </button>
+            <button
+              type="button"
+              class="micro-btn"
+              id="mm-harvest-journal"
+              data-i18n-title="hudChrome.harvestJournal.title"
+              data-i18n-aria="hudChrome.harvestJournal.title"
+              title="Harvest Journal"
+              aria-label="Harvest Journal"
+              data-icon="harvest-journal"
+            >
+              <span class="keybind">s-k</span>
             </button>
             <button
               type="button"
@@ -2054,16 +2098,41 @@
             >
               <span class="keybind">t</span>
             </button>
+            <button
+              type="button"
+              class="micro-btn"
+              id="mm-perfecting"
+              data-i18n-title="hudChrome.perfecting.title"
+              data-i18n-aria="hudChrome.perfecting.title"
+              title="Perfecting"
+              aria-label="Perfecting"
+              data-icon="perfecting"
+            >
+              <span class="keybind">s-t</span>
+            </button>
           </div>
           <div id="side-buttons-col-b" class="side-buttons-col">
             <button
               id="daily-rewards-button"
+              class="micro-btn"
               type="button"
               data-i18n-title="hudChrome.wocStore.title"
               data-i18n-aria="hudChrome.wocStore.title"
               title="WOC Store"
               aria-label="WOC Store"
             ></button>
+            <button
+              type="button"
+              class="micro-btn"
+              id="mm-cosmetics"
+              data-i18n-title="hudChrome.cosmetics.title"
+              data-i18n-aria="hudChrome.cosmetics.title"
+              title="Cosmetics"
+              aria-label="Cosmetics"
+              data-icon="mount"
+            >
+              <span class="keybind">s-y</span>
+            </button>
             <button
               type="button"
               class="micro-btn"
@@ -2133,6 +2202,16 @@
             </button>
             <button
               type="button"
+              class="micro-btn"
+              id="mm-music"
+              data-i18n-title="hud.options.music"
+              data-i18n-aria="hud.options.music"
+              title="Music"
+              aria-label="Music"
+              data-icon="music"
+            ></button>
+            <button
+              type="button"
               class="micro-btn territory-war-launcher"
               id="mm-territory"
               data-i18n-title="hudChrome.territoryMap.title"
@@ -2154,6 +2233,19 @@
               data-icon="social"
             >
               <span class="keybind">o</span>
+            </button>
+            <button
+              type="button"
+              class="micro-btn"
+              id="mm-discord"
+              hidden
+              data-i18n-title="hudChrome.discord.title"
+              data-i18n-aria="hudChrome.discord.title"
+              title="Discord"
+              aria-label="Discord"
+              data-icon="discord"
+            >
+              <span class="keybind">u</span>
             </button>
             <button
               type="button"
@@ -2218,6 +2310,7 @@
             The Pale Keeper (Keeper's Toll)
           </button>
         </div>
+        <div id="interact-affordance" role="status" aria-live="polite"></div>
       </div>
 
       <textarea
@@ -4615,21 +4708,21 @@
               <a
                 class="btn btn-primary desktop-download-link"
                 data-platform="mac"
-                href="https://updates.worldofclaudecraft.com/desktop/world-of-claudecraft-0.41.3-mac-universal.dmg"
+                href="https://updates.worldofclaudecraft.com/desktop/world-of-claudecraft-0.42.1-mac-universal.dmg"
                 data-i18n="download.macCta"
                 >Download for macOS</a
               >
               <a
                 class="btn btn-primary desktop-download-link"
                 data-platform="win"
-                href="https://updates.worldofclaudecraft.com/desktop/world-of-claudecraft-0.41.3-win-x64.exe"
+                href="https://updates.worldofclaudecraft.com/desktop/world-of-claudecraft-0.42.1-win-x64.exe"
                 data-i18n="download.windowsCta"
                 >Download for Windows</a
               >
               <a
                 class="btn btn-primary desktop-download-link"
                 data-platform="linux"
-                href="https://updates.worldofclaudecraft.com/desktop/world-of-claudecraft-0.41.3-linux-x86_64.AppImage"
+                href="https://updates.worldofclaudecraft.com/desktop/world-of-claudecraft-0.42.1-linux-x86_64.AppImage"
                 data-i18n="download.linuxCta"
                 >Download for Linux</a
               >
@@ -5350,7 +5443,7 @@
                 <span data-i18n="nav.donate">Donate</span>
               </a>
             </div>
-            <div id="game-version">v0.41.3</div>
+            <div id="game-version">v0.42.1</div>
           </div>
           <div class="footer-legal-row">
             <a
@@ -6127,6 +6220,20 @@
         <button
           type="button"
           class="mobile-btn"
+          id="mobile-meters"
+          data-i18n-title="hud.keybinds.actions.meters"
+          data-i18n-aria="hud.keybinds.actions.meters"
+          title="Damage Meters"
+          aria-label="Damage Meters"
+          data-icon="meters"
+        >
+          <span class="mobile-label" data-i18n="hud.keybinds.actions.meters"
+            >Damage Meters</span
+          >
+        </button>
+        <button
+          type="button"
+          class="mobile-btn"
           id="mobile-crafting"
           data-i18n-title="hudChrome.crafting.title"
           data-i18n-aria="hudChrome.crafting.title"
@@ -6252,6 +6359,20 @@
         <button
           type="button"
           class="mobile-btn"
+          id="mobile-loot-explorer"
+          data-i18n-title="hudChrome.lootExplorer.title"
+          data-i18n-aria="hudChrome.lootExplorer.title"
+          title="Loot Explorer"
+          aria-label="Loot Explorer"
+          data-icon="chest"
+        >
+          <span class="mobile-label" data-i18n="hudChrome.mobile.lootExplorer"
+            >Loot Explorer</span
+          >
+        </button>
+        <button
+          type="button"
+          class="mobile-btn"
           id="mobile-mounts"
           data-i18n-title="hudChrome.keybinds.mount"
           data-i18n-aria="hudChrome.keybinds.mount"
@@ -6290,6 +6411,18 @@
           <span class="mobile-label" data-i18n="hudChrome.mobile.nameplates"
             >Names</span
           >
+        </button>
+        <button
+          type="button"
+          class="mobile-btn"
+          id="mobile-music"
+          data-i18n-title="hud.options.music"
+          data-i18n-aria="hud.options.music"
+          title="Music"
+          aria-label="Music"
+          data-icon="music"
+        >
+          <span class="mobile-label" data-i18n="hud.options.music">Music</span>
         </button>
         <button
           type="button"

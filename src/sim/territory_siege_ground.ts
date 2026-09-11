@@ -20,8 +20,7 @@ export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_CLEAR_HALF_WIDTH = 2.25;
 /** A small physical overlap hides the join between the top landing and ward. */
 export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_JOIN_OVERLAP = 0.45;
 export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z =
-  TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z -
-  TERRITORY_SIEGE_CITADEL_INNER_STAIR_JOIN_OVERLAP;
+  TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z - TERRITORY_SIEGE_CITADEL_INNER_STAIR_JOIN_OVERLAP;
 export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z = -11.1;
 /** Wall walks overlap the outer curtain instead of floating beside it. */
 export const TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X = 39.7;
@@ -60,13 +59,9 @@ export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
   const cross = Math.sin(z * 0.071 - x * 0.033 + 1.7) * 0.31;
   const ridge = Math.sin((x + z) * 0.039 - 0.8) * 0.2;
   const detail = Math.sin(x * 0.13 - z * 0.11 + 2.4) * 0.08;
-  const gentle = Math.max(
-    -0.48,
-    Math.min(1.18, (0.24 + broad + cross + ridge + detail) * mask),
-  );
+  const gentle = Math.max(-0.48, Math.min(1.18, (0.24 + broad + cross + ridge + detail) * mask));
   const ridgeInside = 1 - smoothstep(10, 38, edgeDistance);
-  const ridgeOutside =
-    1 - smoothstep(0, TERRITORY_SIEGE_VISUAL_MARGIN, -edgeDistance);
+  const ridgeOutside = 1 - smoothstep(0, TERRITORY_SIEGE_VISUAL_MARGIN, -edgeDistance);
   const boundaryMask = edgeDistance >= 0 ? ridgeInside : ridgeOutside;
   // One continuous heightfield ridge replaces the old row of enlarged rock
   // props. Broad frequencies shape long shoulders while the rectified crest
@@ -84,10 +79,8 @@ export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
  * letting characters sink through its decorative mesh.
  */
 export function territorySiegeStoneLaneLiftLocal(x: number, z: number): number {
-  const vertical =
-    z >= -69 && z <= 17 ? 1 - smoothstep(3.55, 4.05, Math.abs(x)) : 0;
-  const horizontal =
-    x >= -38 && x <= 38 ? 1 - smoothstep(3.55, 4.05, Math.abs(z + 24)) : 0;
+  const vertical = z >= -69 && z <= 17 ? 1 - smoothstep(3.55, 4.05, Math.abs(x)) : 0;
+  const horizontal = x >= -38 && x <= 38 ? 1 - smoothstep(3.55, 4.05, Math.abs(z + 24)) : 0;
   return Math.max(vertical, horizontal) * TERRITORY_SIEGE_STONE_LANE_HEIGHT;
 }
 
@@ -95,18 +88,13 @@ function insideRange(value: number, minimum: number, maximum: number): boolean {
   return value >= minimum && value <= maximum;
 }
 
-function territorySiegeCitadelWallWalkContainsLocal(
-  x: number,
-  z: number,
-): boolean {
+function territorySiegeCitadelWallWalkContainsLocal(x: number, z: number): boolean {
   const absoluteX = Math.abs(x);
   return (
     insideRange(
       absoluteX,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X -
-        TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X +
-        TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
+      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
+      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
     ) &&
     insideRange(
       z,
@@ -126,11 +114,7 @@ export function territorySiegeCitadelLiftLocal(x: number, z: number): number {
   let lift = 0;
   if (
     Math.abs(x) <= TERRITORY_SIEGE_CITADEL_INNER_HALF_X &&
-    insideRange(
-      z,
-      TERRITORY_SIEGE_CITADEL_INNER_BACK_Z,
-      TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z,
-    )
+    insideRange(z, TERRITORY_SIEGE_CITADEL_INNER_BACK_Z, TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z)
   ) {
     lift = TERRITORY_SIEGE_CITADEL_INNER_HEIGHT;
   }
@@ -156,11 +140,9 @@ export function territorySiegeCitadelLiftLocal(x: number, z: number): number {
 
   const absoluteX = Math.abs(x);
   const accessMinimumX =
-    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X -
-    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH;
+    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH;
   const accessMaximumX =
-    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X +
-    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH;
+    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH;
   // The playable deck is broad enough for two characters to pass and remains
   // between the inner curtain and the outer wall collider.
   const onSideWalk = territorySiegeCitadelWallWalkContainsLocal(x, z);
@@ -225,10 +207,7 @@ export function resolveTerritorySiegeCitadelElevationTransitionLocal(
       currentLift + TERRITORY_SIEGE_CITADEL_MAX_UP_STEP <
         TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT &&
       territorySiegeCitadelWallWalkContainsLocal(next.x, next.z);
-    if (
-      nextLift - currentLift > TERRITORY_SIEGE_CITADEL_MAX_UP_STEP &&
-      !belowWallWalk
-    )
+    if (nextLift - currentLift > TERRITORY_SIEGE_CITADEL_MAX_UP_STEP && !belowWallWalk)
       return current;
     current = next;
     if (!belowWallWalk) currentLift = nextLift;
@@ -246,21 +225,15 @@ export function territorySiegeGroundLiftForCastleLocal(
   const base = territorySiegeGroundLiftLocal(x, z);
   if (castleLevel < 4) return base;
   const citadel = territorySiegeCitadelLiftLocal(x, z);
-  if (feetY === undefined || !Number.isFinite(feetY))
-    return Math.max(base, citadel);
+  if (feetY === undefined || !Number.isFinite(feetY)) return Math.max(base, citadel);
   // Runtime movement may adopt a raised surface only when it is no more than
   // one authored stair step above the character's current feet. This preserves
   // gradual stair travel but makes the upper face of a ramp, wall walk or inner
   // ward invisible to support/landing while the character is underneath it.
-  return citadel <= feetY + TERRITORY_SIEGE_CITADEL_MAX_UP_STEP
-    ? Math.max(base, citadel)
-    : base;
+  return citadel <= feetY + TERRITORY_SIEGE_CITADEL_MAX_UP_STEP ? Math.max(base, citadel) : base;
 }
 
 /** Authoritative player surface, including the low castle paving. */
 export function territorySiegeGroundLiftLocal(x: number, z: number): number {
-  return Math.max(
-    territorySiegeTerrainLiftLocal(x, z),
-    territorySiegeStoneLaneLiftLocal(x, z),
-  );
+  return Math.max(territorySiegeTerrainLiftLocal(x, z), territorySiegeStoneLaneLiftLocal(x, z));
 }

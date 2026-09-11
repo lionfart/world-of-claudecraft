@@ -67,9 +67,7 @@ describe('territory siege prototype visual state', () => {
   it('keeps the four ram supports tight to the cart and drives the head longitudinally', () => {
     expect(TERRITORY_SIEGE_RAM_SUPPORT_X).toBeLessThanOrEqual(1.2);
     expect(TERRITORY_SIEGE_RAM_SUPPORT_Z).toBeLessThanOrEqual(0.9);
-    expect(
-      territorySiegeVisualState({ ...siege, ramCooldown: 0 }, 0.2).ramThrust,
-    ).toBe(0);
+    expect(territorySiegeVisualState({ ...siege, ramCooldown: 0 }, 0.2).ramThrust).toBe(0);
     expect(territorySiegeVisualState(siege, 0.2).ramThrust).not.toBe(
       territorySiegeVisualState(siege, 0.4).ramThrust,
     );
@@ -89,15 +87,10 @@ describe('territory siege prototype visual state', () => {
 
   it('shows core health after either a gate or wall breach', () => {
     expect(territorySiegeVisualState(siege, 0).coreHealthVisible).toBe(false);
+    expect(territorySiegeVisualState({ ...siege, gateOpen: true }, 0).coreHealthVisible).toBe(true);
     expect(
-      territorySiegeVisualState({ ...siege, gateOpen: true }, 0)
+      territorySiegeVisualState({ ...siege, wallHealth: [{ id: 'left:3', hp: 0, maxHp: 100 }] }, 0)
         .coreHealthVisible,
-    ).toBe(true);
-    expect(
-      territorySiegeVisualState(
-        { ...siege, wallHealth: [{ id: 'left:3', hp: 0, maxHp: 100 }] },
-        0,
-      ).coreHealthVisible,
     ).toBe(true);
   });
 
@@ -110,9 +103,7 @@ describe('territory siege prototype visual state', () => {
       ramDeployment: true,
       towerRanges: [false, false],
     });
-    expect(
-      territorySiegeGuideVisibility(siege, { kind: 'tower', id: 'right' }, 0),
-    ).toEqual({
+    expect(territorySiegeGuideVisibility(siege, { kind: 'tower', id: 'right' }, 0)).toEqual({
       ramDeployment: false,
       towerRanges: [false, true],
     });
@@ -126,12 +117,8 @@ describe('territory siege prototype visual state', () => {
   });
 
   it('never exposes a selection ring for missing or destroyed objectives', () => {
-    expect(
-      territorySiegeObjectiveSelectable(siege, { kind: 'wall', id: 'left:0' }),
-    ).toBe(true);
-    expect(
-      territorySiegeObjectiveSelectable(siege, { kind: 'wall', id: 'left:1' }),
-    ).toBe(false);
+    expect(territorySiegeObjectiveSelectable(siege, { kind: 'wall', id: 'left:0' })).toBe(true);
+    expect(territorySiegeObjectiveSelectable(siege, { kind: 'wall', id: 'left:1' })).toBe(false);
     expect(
       territorySiegeObjectiveSelectable(
         { ...siege, wallHealth: [{ id: 'left:0', hp: 0, maxHp: 100 }] },

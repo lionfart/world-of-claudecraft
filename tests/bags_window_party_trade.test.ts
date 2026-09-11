@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 // Drives the real bags painter through the player click that originally
 // rejected every soulbound copy before the authoritative trade path could see
-// its temporary party-trade marker.
+// its temporary bind-on-pickup party-trade marker (PR #3791): a still-live
+// marker stages the copy, an expired one (by the host clock) shows the
+// Soulbound refusal.
 import { describe, expect, it } from 'vitest';
 import type { InvSlot } from '../src/sim/types';
 import { BagsWindow, type BagsWindowDeps } from '../src/ui/bags_window';
@@ -26,6 +28,7 @@ function clickHarness(
     bags: [null, null, null, null],
     bagCapacity: 16,
     copper: 0,
+    questLog: new Map(),
     partyTradeMsRemaining: () => partyTradeMsRemaining,
   } as unknown as IWorld;
   const noop = (): void => {};
@@ -88,17 +91,17 @@ function clickFirstCell(root: HTMLElement): void {
   cell?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 
+const WINDOWED_SIGIL: InvSlot = {
+  itemId: 'sigil_anvil_helmet',
+  count: 1,
+  instance: {
+    partyTrade: { untilMs: 10_000, eligible: ['Alice', 'Bob'] },
+  },
+};
+
 describe('bags party-trade click path', () => {
   it('stages a windowed soulbound sigil instead of showing the Soulbound refusal', () => {
-    const { root, staged, errors } = clickHarness([
-      {
-        itemId: 'sigil_anvil_helmet',
-        count: 1,
-        instance: {
-          partyTrade: { untilMs: 10_000, eligible: ['Alice', 'Bob'] },
-        },
-      },
-    ]);
+    const { root, staged, errors } = clickHarness([WINDOWED_SIGIL]);
 
     clickFirstCell(root);
 
@@ -107,18 +110,7 @@ describe('bags party-trade click path', () => {
   });
 
   it('shows the Soulbound refusal after the host clock expires the same marker', () => {
-    const { root, staged, errors } = clickHarness(
-      [
-        {
-          itemId: 'sigil_anvil_helmet',
-          count: 1,
-          instance: {
-            partyTrade: { untilMs: 10_000, eligible: ['Alice', 'Bob'] },
-          },
-        },
-      ],
-      0,
-    );
+    const { root, staged, errors } = clickHarness([WINDOWED_SIGIL], 0);
 
     clickFirstCell(root);
 

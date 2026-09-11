@@ -57,6 +57,7 @@ import type { IWorldDuelArena } from '../src/world_api/duel_arena';
 import type { IWorldDungeonFinder } from '../src/world_api/dungeon_finder';
 import type { IWorldDungeons } from '../src/world_api/dungeons';
 import type { IWorldEntityRoster } from '../src/world_api/entity_roster';
+import type { IWorldFarming } from '../src/world_api/farming';
 import type { IWorldGuildBank } from '../src/world_api/guild_bank';
 import type { IWorldInteraction } from '../src/world_api/interaction';
 import type { IWorldInventory } from '../src/world_api/inventory';
@@ -110,9 +111,14 @@ export const IWORLD_MEMBERS = [
   { name: 'craftSkills', kind: 'data' },
   { name: 'gatheringProficiency', kind: 'data' },
   { name: 'known', kind: 'data' },
+  { name: 'resolvedAbility', kind: 'method' },
   { name: 'activeConsecrations', kind: 'data' },
   { name: 'activeFrostRings', kind: 'data' },
   { name: 'activeIgnivarMeteors', kind: 'data' },
+  { name: 'activeNythraxisGraveEruptions', kind: 'data' },
+  { name: 'activeNythraxisGraveFlames', kind: 'data' },
+  { name: 'activeNythraxisGravefires', kind: 'data' },
+  { name: 'activeNythraxisBindingSigils', kind: 'data' },
   { name: 'activeVarkhulCinderFires', kind: 'data' },
   { name: 'activeVarkhulCinderOrbProjectiles', kind: 'data' },
   { name: 'activeVarkhulForgestormWarnings', kind: 'data' },
@@ -145,6 +151,7 @@ export const IWORLD_MEMBERS = [
   { name: 'lootCorpse', kind: 'method' },
   { name: 'autoLoot', kind: 'method' },
   { name: 'harvestCorpse', kind: 'method' },
+  { name: 'corpseHarvestInfo', kind: 'method' }, // read-returning
   { name: 'submitLootRoll', kind: 'method' },
   { name: 'activeLootRolls', kind: 'method' }, // read-returning (2/6)
   { name: 'lootRollGroupStatus', kind: 'method' }, // read-returning
@@ -155,7 +162,6 @@ export const IWORLD_MEMBERS = [
   { name: 'setTownFocus', kind: 'method' },
   { name: 'acceptQuest', kind: 'method' },
   { name: 'turnInQuest', kind: 'method' },
-  { name: 'startTutorial', kind: 'method' },
   { name: 'reportTelemetry', kind: 'method' },
   { name: 'abandonQuest', kind: 'method' },
   { name: 'acceptLinkedQuest', kind: 'method' },
@@ -163,6 +169,8 @@ export const IWORLD_MEMBERS = [
   { name: 'equipItemToSlot', kind: 'method' },
   { name: 'moveInventoryItem', kind: 'method' },
   { name: 'sortInventory', kind: 'method' },
+  { name: 'separateMaterialStack', kind: 'method' },
+  { name: 'combineMaterialStacks', kind: 'method' },
   { name: 'unequipItem', kind: 'method' },
   { name: 'useItem', kind: 'method' },
   { name: 'discardItem', kind: 'method' },
@@ -172,7 +180,6 @@ export const IWORLD_MEMBERS = [
   { name: 'sellAllJunk', kind: 'method' },
   { name: 'buyBackItem', kind: 'method' },
   { name: 'upgradeRiftItem', kind: 'method' },
-  { name: 'enchantRiftItem', kind: 'method' },
   { name: 'socketRiftGem', kind: 'method' },
   { name: 'partyTradeMsRemaining', kind: 'method' },
   { name: 'equipBag', kind: 'method' },
@@ -181,6 +188,7 @@ export const IWORLD_MEMBERS = [
   { name: 'claimEventSkin', kind: 'method' },
   { name: 'unequipMechChroma', kind: 'method' },
   { name: 'changeWeaponSkin', kind: 'method' },
+  { name: 'changeMountSkin', kind: 'method' },
   { name: 'toggleWeaponStow', kind: 'method' },
   { name: 'setHelmHidden', kind: 'method' },
   { name: 'unstuck', kind: 'method' },
@@ -273,6 +281,7 @@ export const IWORLD_MEMBERS = [
   { name: 'guildEventCreate', kind: 'method' },
   { name: 'guildEventRemove', kind: 'method' },
   { name: 'guildSetMotd', kind: 'method' },
+  { name: 'guildBuyRosterPage', kind: 'method' },
   { name: 'searchCharacters', kind: 'method' }, // async (1/2)
   { name: 'characterProfile', kind: 'method' }, // async
   // Operator-set account flair, by name. A pure LOCAL read (the flair rides the entity
@@ -357,6 +366,7 @@ export const IWORLD_MEMBERS = [
   { name: 'guildBankWithdraw', kind: 'method' },
   { name: 'guildBankBuySlots', kind: 'method' },
   { name: 'guildBankLog', kind: 'method' },
+  { name: 'guildBankLogOlder', kind: 'method' },
   // --- dungeons + delves commands and reads ---
   { name: 'enterDungeon', kind: 'method' },
   { name: 'leaveDungeon', kind: 'method' },
@@ -383,6 +393,10 @@ export const IWORLD_MEMBERS = [
   { name: 'nodeHarvestableByMe', kind: 'method' }, // read-returning
   { name: 'nodeRespawnSeconds', kind: 'method' }, // read-returning (countdown of the same timer)
   { name: 'harvestNode', kind: 'method' },
+  // The remembered corpse-harvest preference (Intentional Gathering PR3): a
+  // settings read plus its command, never gated on kit/location/combat/cost.
+  { name: 'harvestPreference', kind: 'data' },
+  { name: 'setHarvestPreference', kind: 'method' },
   { name: 'recipeList', kind: 'data' },
   { name: 'lastCraftResult', kind: 'data' },
   { name: 'lastMasterwork', kind: 'data' },
@@ -391,9 +405,13 @@ export const IWORLD_MEMBERS = [
   { name: 'hobbyCraft', kind: 'data' },
   { name: 'placeMobileStation', kind: 'method' },
   { name: 'trainRecipe', kind: 'method' },
-  { name: 'activeMobileStationCraft', kind: 'data' },
+  // A rename of activeMobileStationCraft (now the set of every serving
+  // station craft), not an add: the three count pins below do not move.
+  { name: 'activeMobileStationCrafts', kind: 'data' },
   // Enchanting profession commands + result reads (Professions 2.0).
   { name: 'disenchantItem', kind: 'method' },
+  // The Sundered Essence extraction (Masterwrought phase 04).
+  { name: 'extractEssence', kind: 'method' },
   { name: 'applyEnchant', kind: 'method' },
   { name: 'salvageItem', kind: 'method' },
   { name: 'lastDisenchantResult', kind: 'data' },
@@ -413,6 +431,20 @@ export const IWORLD_MEMBERS = [
   { name: 'toolEffectSlots', kind: 'data' },
   { name: 'slotToolEffect', kind: 'method' },
   { name: 'rechargeToolEffect', kind: 'method' },
+  // The Perfecting stage (Masterwrought phase 12): the attempt command and
+  // the shared both-hosts state read (perfectingInfoFrom).
+  { name: 'perfectItem', kind: 'method' },
+  { name: 'perfectingInfo', kind: 'method' }, // read-returning
+  // Intentional Gathering PR4 (docs/prd/intentional-gathering/goal-projection-
+  // contract.md): the viewer's single explicit gathering goal, plus its
+  // track/clear commands.
+  { name: 'gatheringGoal', kind: 'data' },
+  { name: 'trackGatheringRecipe', kind: 'method' },
+  { name: 'trackGatheringCommission', kind: 'method' },
+  { name: 'clearGatheringGoal', kind: 'method' },
+  // Perfecting rank exchange (Masterwrought phase 15).
+  { name: 'swapPerfectingRanks', kind: 'method' },
+  { name: 'perfectingSwapInfo', kind: 'method' },
   { name: 'raidLockouts', kind: 'method' }, // read-returning (5/6)
   { name: 'riftFloor', kind: 'data' }, // active procedural rift floor (null outside)
   { name: 'riftCollisionToken', kind: 'data' }, // per-Sim rift collision registry key
@@ -497,6 +529,26 @@ export const IWORLD_MEMBERS = [
   // IWorldActionBar: per-character action-bar layout persistence + login restore.
   { name: 'saveActionBarLayout', kind: 'method' },
   { name: 'takeActionBarLayoutRestore', kind: 'method' },
+  // IWorldFarming: the static garden-bed geography plus the viewer's own plot
+  // rows (both data), the growth phase's two plot mutations, and the knobs
+  // phase's husk conversion (all methods). The plant-time knobs themselves
+  // ride plantCrop's payload rather than members of their own (D8:
+  // front-loaded choice).
+  { name: 'farmPatches', kind: 'data' },
+  { name: 'myFarmPlots', kind: 'data' },
+  { name: 'plantCrop', kind: 'method' },
+  { name: 'harvestCrop', kind: 'method' },
+  { name: 'convertHusks', kind: 'method' },
+  // The render phase's clock read: each world returns its OWN lockoutNowMs
+  // base, so a growth-stage fraction never mixes clock bases.
+  { name: 'farmNowMs', kind: 'method' },
+  // The shared-feast phase's pair: placement (whose ONE optional argument is
+  // the item_copy_ref selection naming which bag copy to spend; the bare call
+  // keeps its harvest_feast default) and the entity-id-keyed bite. Both
+  // methods; the feast entity itself rides the normal entity snapshot, so no
+  // data member exists for it.
+  { name: 'placeFeast', kind: 'method' },
+  { name: 'consumeFeast', kind: 'method' },
 ] as const satisfies readonly IWorldMember[];
 
 const DATA_MEMBERS = IWORLD_MEMBERS.filter((m) => m.kind === 'data');
@@ -602,7 +654,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
     // pickRowTalent; rowPicks stays off the seam, rows live on the allocation)
     // plus the release's Card Duel facet, the Professions 2.0 identity
     // surface, the mobile-station pair (placeMobileStation +
-    // activeMobileStationCraft), the commissions unbindItem command, and the
+    // activeMobileStationCrafts), the commissions unbindItem command, and the
     // Rift + mounts surface. The v0.31.0 base merge added the release's three new
     // members on top of the branch's 272; making reins usable items then removed
     // two (selectedMount + selectMount) for 273; the v0.32.0 base merge adds
@@ -621,7 +673,9 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
     // IWorldGuildBank members (guildBankInfo, one data read, plus five
     // commands), leaving 287. The guild bank ACTIVITY LOG adds one read member
     // (guildBankLog, a method because reading it is what requests the cold
-    // payload on demand: it has no snapshot key), leaving 288. Thornhollow
+    // payload on demand: it has no snapshot key), leaving 288; the transaction
+    // history adds guildBankLogOlder (method, the older-page request) on top
+    // of the final tally below. Thornhollow
     // Fields adds the four battleground facet members on top of that base:
     // the bgInfo data member plus the bgQueueJoin / bgQueueLeave / bgFlagAction
     // commands, leaving 292. The stop-auto-attack-on-target-switch setting
@@ -642,13 +696,63 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
     // method being the Phase 22 reliquaryRarity), leaving 317. The fourth data
     // member is reliquaryObtainCounts, the Phase 17 per-relic obtain tally.
     // The Phase 19 nameplate border adds the IWorldDeeds pair activeBorder
-    // (data) + setActiveBorder (method), leaving 319. The release's backward
+    // (data) + setActiveBorder (method), leaving 319. The Masterwrought
+    // materials backbone adds the Sundered Essence extraction command
+    // extractEssence (IWorldProfessions, a method), leaving 320. The release's
+    // backward target cycle (Shift+Tab) adds tabTargetPrev (IWorldTargeting,
+    // a method); the v0.37.0 sync composed the two one-member bumps (both
+    // sides read 320 pre-merge, the merged tree carries both), leaving 321.
+    // The v0.38.0 sync composed AGAIN: the release's player item lock (issue
+    // #3042) adds setItemLocked (IWorldInventory, a method), and both sides
+    // read 321 pre-merge, so the merged tree carries both, leaving 322.
+    // The v0.38.0 map-marker sync composed a THIRD time: the release's civic
+    // service anchors add civicServicePlacements (IWorldInteraction, data),
+    // and both sides read 322 pre-merge, so the merged tree carries both,
+    // leaving 323. The final v0.38.0 sync composed a FOURTH time: the
+    // release's market Sell-tab price reference adds marketSellPriceCheck
+    // (IWorldMarket, a method), and both sides read 323 pre-merge, so the
+    // merged tree carries both extractEssence and marketSellPriceCheck,
+    // leaving 324.
+    // Farming's own narrative reaches its 331 off the shared release base
+    // (its sync history below repeats the same four release pairs, so only
+    // its EIGHT farming members are new to this union):
+    // (data) + setActiveBorder (method), leaving 319. This branch's backward
     // target cycle (Shift+Tab) adds tabTargetPrev (IWorldTargeting, a method),
     // leaving 320. The player item lock (issue #3042) adds setItemLocked
     // (IWorldInventory, a method), leaving 321. Civic service anchors add
     // civicServicePlacements (IWorldInteraction, data), leaving 322. The market
     // Sell-tab price reference adds marketSellPriceCheck (IWorldMarket, a
-    // method), leaving 323. This branch's Materials Vault adds one
+    // method), leaving 323.
+    // Farming's patches-and-plots phase adds farmPatches and myFarmPlots
+    // (IWorldFarming, data), leaving 325. Farming's growth phase adds the two
+    // plot mutations, plantCrop and harvestCrop (IWorldFarming, methods),
+    // leaving 327. Farming's knobs phase adds the husk conversion,
+    // convertHusks (IWorldFarming, a method), leaving 328. Farming's render
+    // phase adds the clock read farmNowMs (IWorldFarming, a method), leaving
+    // 329. Farming's shared-feast phase adds the placement and bite pair,
+    // placeFeast and consumeFeast (IWorldFarming, methods), leaving 331.
+    // The farming absorb (masterwrought Phase 11d) is the union of the two:
+    // ours' 324 plus farming's eight (farmPatches and myFarmPlots as data,
+    // the six farming methods), 332 members, 88 data, 244 method, and the
+    // 34th facet file (farming.ts) joins FACET_MEMBER_ARRAYS.
+    // The release's own narrative for the same stretch (v0.41.0), kept whole:
+    // (data) + setActiveBorder (method), leaving 319. The v0.37.0 release's
+    // backward target cycle (Shift+Tab) adds tabTargetPrev (IWorldTargeting, a
+    // method), and its player item lock (issue #3042) adds setItemLocked
+    // (IWorldInventory, a method). The v0.38.0 release's civic service
+    // anchors add civicServicePlacements (IWorldInteraction, data), and its
+    // market Sell-tab price reference adds marketSellPriceCheck (IWorldMarket,
+    // a method). The release arm's neutral trade close (tradeClose, a sibling
+    // of tradeCancel that ends a session without calling it a cancellation)
+    // adds one command member. The signpost guild board's roster drill-in
+    // adds guildRoster (IWorldProgressionXp, a method). On the release the
+    // New Eastbrook program
+    // retires the Vale Cup facet (docs/design/eastbrook-revamp/master-plan.md),
+    // removing cupInfo (data) plus the cup methods, and the tutorial greeting
+    // added the now-retired tutorial ferry member. The merged tree carries
+    // both arms.
+    // The bank-storage arm's own narrative from the same 323 point, kept
+    // whole: the release branch's Materials Vault adds one
     // proximity-gated view (vaultInfo, data) plus the three vaultDeposit/
     // vaultWithdraw/vaultBuyUpgrade commands (methods) to the same IWorldBank
     // facet, leaving 327. The Phase 03 batched deposit-all sweep adds
@@ -666,13 +770,18 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
     // a run on the MERGED tree, never reconciled by arithmetic across a merge.
     // The release arm then retires the Vale Cup facet with the New Eastbrook
     // program (cupInfo plus the cup methods leave), adds guildRoster
-    // (IWorldProgressionXp, a method) for the signpost guild board, and adds
-    // startTutorial (IWorldQuests, a method) for the tutorial greeting. Both
+    // (IWorldProgressionXp, a method) for the signpost guild board, and added
+    // the now-retired tutorial ferry member. Both
     // arms land in the merged tree and the totals below are read off a run on
     // it, never reconciled by arithmetic across a merge.
     // The PR 3676 arm's ground-aim landing preview adds groundAimPlacementPreview
     // (IWorldCombat, a method) on top of the bank-storage members at the sixth
     // v0.41.0 sync; the totals below are read off a run on the merged tree.
+    // The v0.42.0 class-balance display-parity fix adds resolvedAbility
+    // (IWorldCombat, a method): the local player's own known ability with every
+    // presentation-layer transform folded in, so the HUD/cross-hotbar/spellbook
+    // can show the same resolve Sim.resolvedAbility would produce instead of a
+    // raw known-array lookup.
     //
     // NOTE for the next merge, four syncs run now: BOTH sides of this pin move
     // it independently every cycle. Twice git merged identical numbers with no
@@ -682,9 +791,9 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
     // even when the total agrees. Only running the suite says what these
     // numbers really are; never reconcile them by arithmetic in the diff (the
     // numbers below were set from a suite run, not from this narrative).
-    expect(IWORLD_MEMBERS.length).toBe(362);
-    expect(DATA_MEMBERS.length).toBe(97);
-    expect(METHOD_MEMBERS.length).toBe(265);
+    expect(IWORLD_MEMBERS.length).toBe(390);
+    expect(DATA_MEMBERS.length).toBe(105);
+    expect(METHOD_MEMBERS.length).toBe(285);
   });
   it('has no duplicate member names', () => {
     const names = IWORLD_MEMBERS.map((m) => m.name);
@@ -710,7 +819,11 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'activeLoadout',
       'activeLootRolls',
       'activeMasterLootRolls',
-      'activeMobileStationCraft',
+      'activeMobileStationCrafts',
+      'activeNythraxisBindingSigils',
+      'activeNythraxisGraveEruptions',
+      'activeNythraxisGraveFlames',
+      'activeNythraxisGravefires',
       'activeTemporalHourglasses',
       'activeTitle',
       'activeVarkhulAnvilMeteors',
@@ -757,21 +870,27 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'castAbilityOn',
       'castAbilityToward',
       'cfg',
+      'changeMountSkin',
       'changeSkin',
       'changeWeaponSkin',
       'characterProfile',
       'chat',
       'civicServicePlacements',
       'claimEventSkin',
+      'clearGatheringGoal',
       'clearMarker',
       'collectDelveChestLoot',
+      'combineMaterialStacks',
       'commissionOrders',
       'companionState',
       'companionUpgrade',
       'companionUpgrades',
+      'consumeFeast',
+      'convertHusks',
       'convertPartyToRaid',
       'convertRaidToParty',
       'copper',
+      'corpseHarvestInfo',
       'craftItem',
       'craftSkills',
       'craftVaultStock',
@@ -813,7 +932,6 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'dungeonFinderQueueLeave',
       'dungeonFinderRespond',
       'dungeonFinderSetRoles',
-      'enchantRiftItem',
       'enterDelve',
       'enterDungeon',
       'entities',
@@ -822,11 +940,15 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'equipItemToSlot',
       'equipment',
       'equipmentInstances',
+      'extractEssence',
+      'farmNowMs',
+      'farmPatches',
       'feedPet',
       'forfeitCardDuel',
       'friendAdd',
       'friendRemove',
       'friendlyTabTarget',
+      'gatheringGoal',
       'gatheringProficiency',
       'groundAimPlacementPreview',
       'guildAccept',
@@ -835,8 +957,10 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'guildBankDepositGold',
       'guildBankInfo',
       'guildBankLog',
+      'guildBankLogOlder',
       'guildBankWithdraw',
       'guildBankWithdrawGold',
+      'guildBuyRosterPage',
       'guildCreate',
       'guildDecline',
       'guildDemote',
@@ -855,7 +979,9 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'guildSetMotd',
       'guildTransfer',
       'harvestCorpse',
+      'harvestCrop',
       'harvestNode',
+      'harvestPreference',
       'healPet',
       'hobbyCraft',
       'honor',
@@ -908,6 +1034,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'moveInput',
       'moveInventoryItem',
       'moveRaidMember',
+      'myFarmPlots',
       'nodeHarvestableByMe',
       'nodeRespawnSeconds',
       'openCommissionOrder',
@@ -920,13 +1047,18 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'partyLeave',
       'partyPromote',
       'partyTradeMsRemaining',
+      'perfectItem',
+      'perfectingInfo',
+      'perfectingSwapInfo',
       'petAttack',
       'petSpecial',
       'petSpecialCommandsSupported',
       'petTaunt',
       'petWaterJet',
       'pickUpObject',
+      'placeFeast',
       'placeMobileStation',
+      'plantCrop',
       'playCardInDuel',
       'playEmote',
       'player',
@@ -958,6 +1090,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'renamePet',
       'renown',
       'reportTelemetry',
+      'resolvedAbility',
       'respec',
       'respondToResurrection',
       'restedXp',
@@ -976,10 +1109,12 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'selectTalentRow',
       'sellAllJunk',
       'sellItem',
+      'separateMaterialStack',
       'setActiveBorder',
       'setActiveTitle',
       'setDungeonDifficulty',
       'setGuildPledgeSettings',
+      'setHarvestPreference',
       'setHelmHidden',
       'setItemLocked',
       'setMarker',
@@ -998,10 +1133,10 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'spectating',
       'spinDailyReward',
       'startAutoAttack',
-      'startTutorial',
       'stationPlacements',
       'stopAutoAttack',
       'submitLootRoll',
+      'swapPerfectingRanks',
       'switchLoadout',
       'tabTarget',
       'tabTargetPrev',
@@ -1033,6 +1168,8 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'toggleWeaponStow',
       'toolEffectSlots',
       'townFocus',
+      'trackGatheringCommission',
+      'trackGatheringRecipe',
       'tradeAccept',
       'tradeCancel',
       'tradeClose',
@@ -1069,7 +1206,11 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'activeFrostRings',
       'activeIgnivarMeteors',
       'activeLoadout',
-      'activeMobileStationCraft',
+      'activeMobileStationCrafts',
+      'activeNythraxisBindingSigils',
+      'activeNythraxisGraveEruptions',
+      'activeNythraxisGraveFlames',
+      'activeNythraxisGravefires',
       'activeTemporalHourglasses',
       'activeTitle',
       'activeVarkhulAnvilMeteors',
@@ -1105,8 +1246,11 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'entities',
       'equipment',
       'equipmentInstances',
+      'farmPatches',
+      'gatheringGoal',
       'gatheringProficiency',
       'guildBankInfo',
+      'harvestPreference',
       'hobbyCraft',
       'honor',
       'inventory',
@@ -1125,6 +1269,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'marketCollectPending',
       'marketInfo',
       'moveInput',
+      'myFarmPlots',
       'partyInfo',
       'petSpecialCommandsSupported',
       'player',
@@ -1202,16 +1347,22 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'castAbilityBySlot',
       'castAbilityOn',
       'castAbilityToward',
+      'changeMountSkin',
       'changeSkin',
       'changeWeaponSkin',
       'characterProfile',
       'chat',
       'claimEventSkin',
+      'clearGatheringGoal',
       'clearMarker',
       'collectDelveChestLoot',
+      'combineMaterialStacks',
       'companionUpgrade',
+      'consumeFeast',
+      'convertHusks',
       'convertPartyToRaid',
       'convertRaidToParty',
+      'corpseHarvestInfo',
       'craftItem',
       'dailyRewardHistory',
       'dailyRewardLeaderboard',
@@ -1242,12 +1393,13 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'dungeonFinderQueueLeave',
       'dungeonFinderRespond',
       'dungeonFinderSetRoles',
-      'enchantRiftItem',
       'enterDelve',
       'enterDungeon',
       'equipBag',
       'equipItem',
       'equipItemToSlot',
+      'extractEssence',
+      'farmNowMs',
       'feedPet',
       'forfeitCardDuel',
       'friendAdd',
@@ -1259,8 +1411,10 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'guildBankDeposit',
       'guildBankDepositGold',
       'guildBankLog',
+      'guildBankLogOlder',
       'guildBankWithdraw',
       'guildBankWithdrawGold',
+      'guildBuyRosterPage',
       'guildCreate',
       'guildDecline',
       'guildDemote',
@@ -1279,6 +1433,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'guildSetMotd',
       'guildTransfer',
       'harvestCorpse',
+      'harvestCrop',
       'harvestNode',
       'healPet',
       'ignoreAdd',
@@ -1325,12 +1480,17 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'partyLeave',
       'partyPromote',
       'partyTradeMsRemaining',
+      'perfectItem',
+      'perfectingInfo',
+      'perfectingSwapInfo',
       'petAttack',
       'petSpecial',
       'petTaunt',
       'petWaterJet',
       'pickUpObject',
+      'placeFeast',
       'placeMobileStation',
+      'plantCrop',
       'playCardInDuel',
       'playEmote',
       'prestige',
@@ -1348,6 +1508,7 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'reliquaryRarity',
       'renamePet',
       'reportTelemetry',
+      'resolvedAbility',
       'respec',
       'respondToResurrection',
       'resurrectAtCorpse',
@@ -1363,10 +1524,12 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'selectTalentRow',
       'sellAllJunk',
       'sellItem',
+      'separateMaterialStack',
       'setActiveBorder',
       'setActiveTitle',
       'setDungeonDifficulty',
       'setGuildPledgeSettings',
+      'setHarvestPreference',
       'setHelmHidden',
       'setItemLocked',
       'setMarker',
@@ -1383,9 +1546,9 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'sortInventory',
       'spinDailyReward',
       'startAutoAttack',
-      'startTutorial',
       'stopAutoAttack',
       'submitLootRoll',
+      'swapPerfectingRanks',
       'switchLoadout',
       'tabTarget',
       'tabTargetPrev',
@@ -1410,6 +1573,8 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'territoryUpgrade',
       'toggleMounted',
       'toggleWeaponStow',
+      'trackGatheringCommission',
+      'trackGatheringRecipe',
       'tradeAccept',
       'tradeCancel',
       'tradeClose',
@@ -1526,9 +1691,14 @@ type _ExhaustEntityRoster = AssertNever<
 
 const FACET_COMBAT = [
   'known',
+  'resolvedAbility',
   'activeConsecrations',
   'activeFrostRings',
   'activeIgnivarMeteors',
+  'activeNythraxisGraveEruptions',
+  'activeNythraxisGraveFlames',
+  'activeNythraxisGravefires',
+  'activeNythraxisBindingSigils',
   'activeTemporalHourglasses',
   'activeVarkhulForgestormWarnings',
   'activeVarkhulCinderFires',
@@ -1572,6 +1742,7 @@ const FACET_INTERACTION = [
   'interact',
   'lootCorpse',
   'harvestCorpse',
+  'corpseHarvestInfo',
   'pickUpObject',
   'townFocus',
   'setTownFocus',
@@ -1601,6 +1772,8 @@ const FACET_INVENTORY = [
   'equipItemToSlot',
   'moveInventoryItem',
   'sortInventory',
+  'separateMaterialStack',
+  'combineMaterialStacks',
   'unequipItem',
   'useItem',
   'discardItem',
@@ -1610,7 +1783,6 @@ const FACET_INVENTORY = [
   'sellAllJunk',
   'buyBackItem',
   'upgradeRiftItem',
-  'enchantRiftItem',
   'socketRiftGem',
   'partyTradeMsRemaining',
   'equipBag',
@@ -1626,6 +1798,7 @@ const FACET_COSMETICS = [
   'claimEventSkin',
   'unequipMechChroma',
   'changeWeaponSkin',
+  'changeMountSkin',
   'toggleWeaponStow',
   'setHelmHidden',
 ] as const satisfies readonly (keyof IWorldCosmetics)[];
@@ -1641,7 +1814,6 @@ const FACET_QUESTS = [
   'turnInQuest',
   'abandonQuest',
   'acceptLinkedQuest',
-  'startTutorial',
 ] as const satisfies readonly (keyof IWorldQuests)[];
 type _ExhaustQuests = AssertNever<Exclude<keyof IWorldQuests, (typeof FACET_QUESTS)[number]>>;
 
@@ -1819,6 +1991,7 @@ const FACET_SOCIAL_GRAPH = [
   'guildEventCreate',
   'guildEventRemove',
   'guildSetMotd',
+  'guildBuyRosterPage',
   'searchCharacters',
   'characterProfile',
   'accountFlair',
@@ -1876,6 +2049,7 @@ const FACET_GUILD_BANK = [
   'guildBankWithdraw',
   'guildBankBuySlots',
   'guildBankLog',
+  'guildBankLogOlder',
 ] as const satisfies readonly (keyof IWorldGuildBank)[];
 type _ExhaustGuildBank = AssertNever<
   Exclude<keyof IWorldGuildBank, (typeof FACET_GUILD_BANK)[number]>
@@ -1968,6 +2142,8 @@ const FACET_PROFESSIONS = [
   'nodeHarvestableByMe',
   'nodeRespawnSeconds',
   'harvestNode',
+  'harvestPreference',
+  'setHarvestPreference',
   'recipeList',
   'lastCraftResult',
   'lastMasterwork',
@@ -1976,8 +2152,9 @@ const FACET_PROFESSIONS = [
   'hobbyCraft',
   'placeMobileStation',
   'trainRecipe',
-  'activeMobileStationCraft',
+  'activeMobileStationCrafts',
   'disenchantItem',
+  'extractEssence',
   'applyEnchant',
   'salvageItem',
   'lastDisenchantResult',
@@ -1992,6 +2169,14 @@ const FACET_PROFESSIONS = [
   'toolEffectSlots',
   'slotToolEffect',
   'rechargeToolEffect',
+  'perfectItem',
+  'perfectingInfo',
+  'gatheringGoal',
+  'trackGatheringRecipe',
+  'trackGatheringCommission',
+  'clearGatheringGoal',
+  'swapPerfectingRanks',
+  'perfectingSwapInfo',
 ] as const satisfies readonly (keyof IWorldProfessions)[];
 type _ExhaustProfessions = AssertNever<
   Exclude<keyof IWorldProfessions, (typeof FACET_PROFESSIONS)[number]>
@@ -2034,6 +2219,18 @@ type _ExhaustActionBar = AssertNever<
   Exclude<keyof IWorldActionBar, (typeof FACET_ACTION_BAR)[number]>
 >;
 
+const FACET_FARMING = [
+  'farmPatches',
+  'myFarmPlots',
+  'plantCrop',
+  'harvestCrop',
+  'convertHusks',
+  'farmNowMs',
+  'placeFeast',
+  'consumeFeast',
+] as const satisfies readonly (keyof IWorldFarming)[];
+type _ExhaustFarming = AssertNever<Exclude<keyof IWorldFarming, (typeof FACET_FARMING)[number]>>;
+
 // The facet partition, keyed by facet for legible failure messages.
 const FACET_MEMBER_ARRAYS: Readonly<Record<string, readonly string[]>> = {
   entityRoster: FACET_ENTITY_ROSTER,
@@ -2069,6 +2266,7 @@ const FACET_MEMBER_ARRAYS: Readonly<Record<string, readonly string[]>> = {
   deeds: FACET_DEEDS,
   reliquary: FACET_RELIQUARY,
   actionBar: FACET_ACTION_BAR,
+  farming: FACET_FARMING,
 };
 
 describe('W1: aggregate IWorld member set equals the disjoint union of the facets', () => {
@@ -2076,7 +2274,7 @@ describe('W1: aggregate IWorld member set equals the disjoint union of the facet
     // +1 battleground facet (Thornhollow Fields) on the release line; +1
     // Reliquary facet on this branch: 33 total; -1 for the New Eastbrook
     // program's Vale Cup retirement: 32 total.
-    expect(Object.keys(FACET_MEMBER_ARRAYS).length).toBe(33);
+    expect(Object.keys(FACET_MEMBER_ARRAYS).length).toBe(34);
   });
 
   it('each facet array is non-empty and internally duplicate-free', () => {
@@ -2104,8 +2302,8 @@ describe('W1: aggregate IWorld member set equals the disjoint union of the facet
 
   it('the facet union equals the pinned IWORLD_MEMBERS set', () => {
     const union = Object.values(FACET_MEMBER_ARRAYS).flatMap((arr) => [...arr]);
-    expect(union.length, 'union size before dedup (catches a duplicated member)').toBe(362);
-    expect(new Set(union).size, 'union size after dedup (catches a duplicated member)').toBe(362);
+    expect(union.length, 'union size before dedup (catches a duplicated member)').toBe(390);
+    expect(new Set(union).size, 'union size after dedup (catches a duplicated member)').toBe(390);
     const sortedUnion = [...union].sort();
     const pinned = IWORLD_MEMBERS.map((m) => m.name).sort();
     expect(sortedUnion).toEqual(pinned);

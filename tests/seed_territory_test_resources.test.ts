@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  seedTerritoryTestState,
   TERRITORY_TEST_COPPER,
   TERRITORY_TEST_ITEMS,
-  seedTerritoryTestState,
 } from '../scripts/seed_territory_test_resources.mjs';
 
 describe('territory test-resource seed', () => {

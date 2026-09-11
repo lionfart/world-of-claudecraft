@@ -19,10 +19,7 @@ import {
   territorySiegeWallPlacements,
   territorySiegeWallSegmentId,
 } from '../sim/territory_siege_layout';
-import type {
-  TerritorySiegeObjectiveTarget,
-  TerritorySiegeView,
-} from '../world_api';
+import type { TerritorySiegeObjectiveTarget, TerritorySiegeView } from '../world_api';
 import { surfaceMat } from './gfx';
 import {
   cloneTerritorySiegeAsset,
@@ -135,13 +132,7 @@ function buildDrakelandsBastion(
     Math.PI,
   );
   for (const x of [-1.55, 1.55]) {
-    model(
-      tier,
-      'drakelandsTorch',
-      [x, citadel ? 4.7 : 4.1, 4.08],
-      [0.95, 0.95, 0.95],
-      Math.PI,
-    );
+    model(tier, 'drakelandsTorch', [x, citadel ? 4.7 : 4.1, 4.08], [0.95, 0.95, 0.95], Math.PI);
   }
   return tier;
 }
@@ -183,11 +174,7 @@ function artilleryModel(
       fog: false,
     }),
   );
-  muzzleFlash.position.set(
-    0,
-    height * (key === 'mortar' ? 0.62 : 0.74),
-    height * 0.48,
-  );
+  muzzleFlash.position.set(0, height * (key === 'mortar' ? 0.62 : 0.74), height * 0.48);
   muzzleFlash.renderOrder = 42;
   muzzleFlash.visible = false;
   root.add(muzzleFlash);
@@ -195,18 +182,9 @@ function artilleryModel(
   return { root, asset, assetBaseZ, muzzleFlash };
 }
 
-function turnTowardYaw(
-  current: number,
-  target: number,
-  maxStep: number,
-): number {
-  const delta = Math.atan2(
-    Math.sin(target - current),
-    Math.cos(target - current),
-  );
-  return Math.abs(delta) <= maxStep
-    ? target
-    : current + Math.sign(delta) * maxStep;
+function turnTowardYaw(current: number, target: number, maxStep: number): number {
+  const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+  return Math.abs(delta) <= maxStep ? target : current + Math.sign(delta) * maxStep;
 }
 
 interface ObjectiveBeacon {
@@ -235,21 +213,11 @@ function segmentedRingGeometry(
     }
     for (let step = 0; step < subdivisions; step += 1) {
       const cursor = base + step * 2;
-      indices.push(
-        cursor,
-        cursor + 2,
-        cursor + 1,
-        cursor + 1,
-        cursor + 2,
-        cursor + 3,
-      );
+      indices.push(cursor, cursor + 2, cursor + 1, cursor + 1, cursor + 2, cursor + 3);
     }
   }
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
   return geometry;
@@ -298,11 +266,7 @@ function objectiveBeacon(color: number, radius: number): ObjectiveBeacon {
   return { root, segments, halo };
 }
 
-function towerRangeBeacon(
-  centerX: number,
-  centerZ: number,
-  radius: number,
-): THREE.Group {
+function towerRangeBeacon(centerX: number, centerZ: number, radius: number): THREE.Group {
   const group = new THREE.Group();
   const positions: number[] = [];
   const indices: number[] = [];
@@ -317,14 +281,10 @@ function towerRangeBeacon(
     }
     const base = index * 2;
     const next = ((index + 1) % segments) * 2;
-    if (index % 10 < 6)
-      indices.push(base, next, base + 1, base + 1, next, next + 1);
+    if (index % 10 < 6) indices.push(base, next, base + 1, base + 1, next, next + 1);
   }
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
@@ -362,14 +322,8 @@ function buildRam(): { root: THREE.Group; head: THREE.Group } {
   cap.castShadow = true;
   head.add(cap);
 
-  for (const x of [
-    -TERRITORY_SIEGE_RAM_SUPPORT_X,
-    TERRITORY_SIEGE_RAM_SUPPORT_X,
-  ]) {
-    for (const z of [
-      -TERRITORY_SIEGE_RAM_SUPPORT_Z,
-      TERRITORY_SIEGE_RAM_SUPPORT_Z,
-    ]) {
+  for (const x of [-TERRITORY_SIEGE_RAM_SUPPORT_X, TERRITORY_SIEGE_RAM_SUPPORT_X]) {
+    for (const z of [-TERRITORY_SIEGE_RAM_SUPPORT_Z, TERRITORY_SIEGE_RAM_SUPPORT_Z]) {
       const support = model(root, 'log', [x, 2.15, z], [0.52, 0.52, 2.8]);
       support.rotation.x = Math.PI / 2;
     }
@@ -385,12 +339,7 @@ interface FittedGate {
 
 interface StructureHealthPlate {
   sprite: THREE.Sprite;
-  update(
-    label: string,
-    current: number,
-    maximum: number,
-    visible: boolean,
-  ): void;
+  update(label: string, current: number, maximum: number, visible: boolean): void;
 }
 
 /** Camera-facing objective health, deliberately matching the compact NPC-bar language. */
@@ -399,8 +348,7 @@ function buildStructureHealthPlate(): StructureHealthPlate {
   canvas.width = 224;
   canvas.height = 40;
   const context = canvas.getContext('2d');
-  if (!context)
-    throw new Error('2D canvas unavailable for siege objective health');
+  if (!context) throw new Error('2D canvas unavailable for siege objective health');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearFilter;
@@ -422,8 +370,7 @@ function buildStructureHealthPlate(): StructureHealthPlate {
       const next = `${label}:${Math.ceil(current)}:${Math.ceil(maximum)}`;
       if (next === signature) return;
       signature = next;
-      const ratio =
-        maximum <= 0 ? 0 : Math.max(0, Math.min(1, current / maximum));
+      const ratio = maximum <= 0 ? 0 : Math.max(0, Math.min(1, current / maximum));
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.fillStyle = 'rgba(7, 9, 10, 0.86)';
       context.fillRect(3, 3, 218, 34);
@@ -485,11 +432,7 @@ function buildFittedGate(): FittedGate {
 
   for (const y of [1.25, 4.55]) {
     const band = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        TERRITORY_SIEGE_GATE_VISUAL_WIDTH + 0.25,
-        0.3,
-        0.92,
-      ),
+      new THREE.BoxGeometry(TERRITORY_SIEGE_GATE_VISUAL_WIDTH + 0.25, 0.3, 0.92),
       iron,
     );
     band.position.set(0, y, 0.04);
@@ -522,10 +465,7 @@ function buildFittedGate(): FittedGate {
     lintelHeight: number,
   ): void => {
     for (const x of [-10.55, 10.55]) {
-      const jamb = new THREE.Mesh(
-        new THREE.BoxGeometry(postWidth, 6.65, postDepth),
-        material,
-      );
+      const jamb = new THREE.Mesh(new THREE.BoxGeometry(postWidth, 6.65, postDepth), material);
       jamb.position.set(x, 3.325, 0);
       jamb.castShadow = true;
       jamb.receiveShadow = true;
@@ -540,60 +480,23 @@ function buildFittedGate(): FittedGate {
     lintel.receiveShadow = true;
     parent.add(lintel);
   };
-  addFrame(
-    tierGroups[0],
-    surfaceMat({ color: 0x604124, roughness: 0.98 }),
-    1.75,
-    2.25,
-    0.92,
-  );
-  addFrame(
-    tierGroups[1],
-    surfaceMat({ color: 0x7d8587, roughness: 0.94 }),
-    1.45,
-    2.6,
-    1.15,
-  );
+  addFrame(tierGroups[0], surfaceMat({ color: 0x604124, roughness: 0.98 }), 1.75, 2.25, 0.92);
+  addFrame(tierGroups[1], surfaceMat({ color: 0x7d8587, roughness: 0.94 }), 1.45, 2.6, 1.15);
   const drakelandsStone = surfaceMat({ color: 0x635b53, roughness: 0.96 });
   addFrame(tierGroups[2], drakelandsStone, 1.9, 2.5, 1.25);
   for (const x of [-10.7, 10.7]) {
     model(tierGroups[2], 'drakelandsWallPillar', [x, 0, 0], [0.72, 1.7, 2.05]);
   }
   model(tierGroups[2], 'drakelandsBarrier', [0, 6.84, 0], [5.65, 1.12, 2.05]);
-  model(
-    tierGroups[2],
-    'drakelandsBanner',
-    [0, 6.45, 1.25],
-    [0.82, 0.82, 0.82],
-    Math.PI,
-  );
-  addFrame(
-    tierGroups[3],
-    surfaceMat({ color: 0x4b4541, roughness: 0.98 }),
-    2.15,
-    3,
-    1.45,
-  );
+  model(tierGroups[2], 'drakelandsBanner', [0, 6.45, 1.25], [0.82, 0.82, 0.82], Math.PI);
+  addFrame(tierGroups[3], surfaceMat({ color: 0x4b4541, roughness: 0.98 }), 2.15, 3, 1.45);
   for (const x of [-10.8, 10.8]) {
     model(tierGroups[3], 'drakelandsWallPillar', [x, 0, 0], [0.82, 1.95, 2.35]);
-    model(
-      tierGroups[3],
-      'drakelandsTorch',
-      [x * 0.82, 5.25, 1.72],
-      [1, 1, 1],
-      Math.PI,
-    );
+    model(tierGroups[3], 'drakelandsTorch', [x * 0.82, 5.25, 1.72], [1, 1, 1], Math.PI);
   }
   model(tierGroups[3], 'drakelandsBarrier', [0, 7.15, 0], [5.8, 1.28, 2.35]);
-  model(
-    tierGroups[3],
-    'drakelandsBanner',
-    [0, 6.55, 1.55],
-    [0.95, 0.95, 0.95],
-    Math.PI,
-  );
-  const setCastleLevel = (level: number): void =>
-    showTerritoryCastleTier(tierGroups, level);
+  model(tierGroups[3], 'drakelandsBanner', [0, 6.55, 1.55], [0.95, 0.95, 0.95], Math.PI);
+  const setCastleLevel = (level: number): void => showTerritoryCastleTier(tierGroups, level);
   setCastleLevel(2);
   return { root, leaf, setCastleLevel };
 }
@@ -626,14 +529,8 @@ function buildCoreChannelFx(): CoreChannelFx {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  const outer = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.34, 1, 10),
-    outerMaterial,
-  );
-  const inner = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.045, 0.085, 1, 8),
-    innerMaterial,
-  );
+  const outer = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.34, 1, 10), outerMaterial);
+  const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.085, 1, 8), innerMaterial);
   root.add(outer, inner);
 
   const particleCount = 52;
@@ -678,10 +575,7 @@ function buildCoreChannelFx(): CoreChannelFx {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  const flare = new THREE.Mesh(
-    new THREE.SphereGeometry(0.34, 12, 8),
-    flareMaterial,
-  );
+  const flare = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 8), flareMaterial);
   root.add(flare);
   root.visible = false;
 
@@ -744,11 +638,7 @@ function buildCoreChannelFx(): CoreChannelFx {
 const aimDirection = new THREE.Vector3();
 const aimUp = new THREE.Vector3(0, 1, 0);
 
-function aimCylinder(
-  mesh: THREE.Mesh,
-  from: THREE.Vector3,
-  to: THREE.Vector3,
-): void {
+function aimCylinder(mesh: THREE.Mesh, from: THREE.Vector3, to: THREE.Vector3): void {
   aimDirection.subVectors(to, from);
   mesh.position.copy(from).add(to).multiplyScalar(0.5);
   mesh.scale.y = aimDirection.length();
@@ -788,22 +678,13 @@ export function buildTerritorySiegePrototype(
         return buildDrakelandsWallTier(wallModel, wall.scaleX, wall.index);
       }
       if (level === 4) {
-        return buildDrakelandsWallTier(
-          wallModel,
-          wall.scaleX,
-          wall.index,
-          true,
-        );
+        return buildDrakelandsWallTier(wallModel, wall.scaleX, wall.index, true);
       }
       const tier = model(
         wallModel,
         style.wallAsset,
         [0, 0, 0],
-        [
-          wall.scaleX * style.wallScale[0],
-          style.wallScale[1],
-          style.wallScale[2],
-        ],
+        [wall.scaleX * style.wallScale[0], style.wallScale[1], style.wallScale[2]],
         style.wallYawOffset,
       );
       tier.name = `territory-siege-wall-tier:${level}:${style.wallAsset}`;
@@ -816,50 +697,42 @@ export function buildTerritorySiegePrototype(
     return { wall, model: wallModel, tiers };
   });
 
-  const towerModels = [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].map(
-    (x, index) => {
-      const towerRoot = new THREE.Group();
-      towerRoot.name = `territory-siege-defense-tower:${index === 0 ? 'left' : 'right'}`;
-      towerRoot.position.set(x, 0, TERRITORY_SIEGE_TOWER_Z);
-      root.add(towerRoot);
-      const tiers = [1, 2, 3, 4].map((level) => {
-        const style = territoryDefenseTowerVisualStyle(level);
-        const towerId = index === 0 ? 'left' : 'right';
-        if (level === 4) {
-          return buildDrakelandsBastion(towerRoot, towerId, true);
-        }
-        if (style.towerAsset === 'drakelandsBastion') {
-          return buildDrakelandsBastion(towerRoot, towerId);
-        }
-        const tier = model(
-          towerRoot,
-          style.towerAsset,
-          [0, 0, 0],
-          [...style.towerScale],
-          level === 1 ? territoryWoodTowerYaw(towerId) : 0,
-        );
-        tier.name = `territory-siege-tower-tier:${level}:${style.towerAsset}`;
-        return tier;
-      });
-      towerRoot.userData.territorySiegeObjective = {
-        kind: 'tower',
-        id: index === 0 ? 'left' : 'right',
-      } satisfies TerritorySiegeObjectiveTarget;
-      return { root: towerRoot, tiers };
-    },
-  );
-
-  const towerRanges = [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].map(
-    (x) => {
-      const range = towerRangeBeacon(
-        x,
-        TERRITORY_SIEGE_TOWER_Z,
-        TERRITORY_SIEGE_TOWER_RANGE,
+  const towerModels = [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].map((x, index) => {
+    const towerRoot = new THREE.Group();
+    towerRoot.name = `territory-siege-defense-tower:${index === 0 ? 'left' : 'right'}`;
+    towerRoot.position.set(x, 0, TERRITORY_SIEGE_TOWER_Z);
+    root.add(towerRoot);
+    const tiers = [1, 2, 3, 4].map((level) => {
+      const style = territoryDefenseTowerVisualStyle(level);
+      const towerId = index === 0 ? 'left' : 'right';
+      if (level === 4) {
+        return buildDrakelandsBastion(towerRoot, towerId, true);
+      }
+      if (style.towerAsset === 'drakelandsBastion') {
+        return buildDrakelandsBastion(towerRoot, towerId);
+      }
+      const tier = model(
+        towerRoot,
+        style.towerAsset,
+        [0, 0, 0],
+        [...style.towerScale],
+        level === 1 ? territoryWoodTowerYaw(towerId) : 0,
       );
-      root.add(range);
-      return range;
-    },
-  );
+      tier.name = `territory-siege-tower-tier:${level}:${style.towerAsset}`;
+      return tier;
+    });
+    towerRoot.userData.territorySiegeObjective = {
+      kind: 'tower',
+      id: index === 0 ? 'left' : 'right',
+    } satisfies TerritorySiegeObjectiveTarget;
+    return { root: towerRoot, tiers };
+  });
+
+  const towerRanges = [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].map((x) => {
+    const range = towerRangeBeacon(x, TERRITORY_SIEGE_TOWER_Z, TERRITORY_SIEGE_TOWER_RANGE);
+    root.add(range);
+    return range;
+  });
 
   const fittedGate = buildFittedGate();
   fittedGate.root.position.set(0, 0, TERRITORY_SIEGE_GATE_Z);
@@ -868,10 +741,7 @@ export function buildTerritorySiegePrototype(
   } satisfies TerritorySiegeObjectiveTarget;
   root.add(fittedGate.root);
 
-  const coreBeacon = objectiveBeacon(
-    0x61d8e6,
-    TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
-  );
+  const coreBeacon = objectiveBeacon(0x61d8e6, TERRITORY_SIEGE_CORE_ATTACK_RADIUS);
   const coreRoot = coreBeacon.root;
   coreRoot.position.set(0, 0, TERRITORY_SIEGE_CORE_Z);
   root.add(coreRoot);
@@ -895,8 +765,7 @@ export function buildTerritorySiegePrototype(
   ];
   corePedestals.forEach((pedestal, index) => {
     pedestal.name = `territory-siege-core-pedestal-tier:${index + 1}`;
-    pedestal.position.y =
-      index === 3 ? 0.64 : index === 2 ? 0.525 : index === 1 ? 0.4 : 0.36;
+    pedestal.position.y = index === 3 ? 0.64 : index === 2 ? 0.525 : index === 1 ? 0.4 : 0.36;
     pedestal.castShadow = true;
     pedestal.receiveShadow = true;
     coreRoot.add(pedestal);
@@ -932,9 +801,7 @@ export function buildTerritorySiegePrototype(
   const coreChannelFx = Array.from({ length: 20 }, () => buildCoreChannelFx());
   for (const effect of coreChannelFx) root.add(effect.root);
 
-  const ramParts = Array.from({ length: TERRITORY_SIEGE_MAX_RAMS }, () =>
-    buildRam(),
-  );
+  const ramParts = Array.from({ length: TERRITORY_SIEGE_MAX_RAMS }, () => buildRam());
   for (const ram of ramParts) root.add(ram.root);
   const ramBuildBeacon = objectiveBeacon(0xe3ad63, 8);
   ramBuildBeacon.root.position.set(0, 0, 27);
@@ -946,14 +813,11 @@ export function buildTerritorySiegePrototype(
     return mortar;
   });
 
-  const catapultModels = Array.from(
-    { length: TERRITORY_SIEGE_MAX_CATAPULTS_PER_SIDE * 2 },
-    () => {
-      const catapult = artilleryModel(root, 'catapult', 5.8);
-      catapult.root.visible = false;
-      return catapult;
-    },
-  );
+  const catapultModels = Array.from({ length: TERRITORY_SIEGE_MAX_CATAPULTS_PER_SIDE * 2 }, () => {
+    const catapult = artilleryModel(root, 'catapult', 5.8);
+    catapult.root.visible = false;
+    return catapult;
+  });
   const selection = objectiveBeacon(0xd7ae47, 1);
   selection.root.name = 'territory-siege-objective-selection';
   selection.root.visible = false;
@@ -996,10 +860,7 @@ export function buildTerritorySiegePrototype(
         roughness: 0.5,
         metalness: 0.72,
       });
-      const body = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.36, 0.31, 1.35, 14),
-        iron,
-      );
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.31, 1.35, 14), iron);
       body.castShadow = true;
       shell.add(body);
       const nose = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.72, 14), iron);
@@ -1018,17 +879,11 @@ export function buildTerritorySiegePrototype(
       );
       band.position.y = 0.22;
       shell.add(band);
-      const tail = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.23, 0.28, 0.46, 12),
-        iron,
-      );
+      const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.28, 0.46, 12), iron);
       tail.position.y = -0.9;
       shell.add(tail);
       for (let fin = 0; fin < 4; fin += 1) {
-        const blade = new THREE.Mesh(
-          new THREE.BoxGeometry(0.09, 0.5, 0.55),
-          iron,
-        );
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.5, 0.55), iron);
         blade.position.y = -1.02;
         blade.rotation.y = (fin * Math.PI) / 2;
         shell.add(blade);
@@ -1133,10 +988,7 @@ export function buildTerritorySiegePrototype(
     root.add(impact.root);
     return impact;
   });
-  const towerFlightClocks = new Map<
-    number,
-    { seenAt: number; remaining: number }
-  >();
+  const towerFlightClocks = new Map<number, { seenAt: number; remaining: number }>();
   const activeTowerShots = new Set<number>();
   const channelFrom = new THREE.Vector3();
   const channelTo = new THREE.Vector3(0, 5.1, TERRITORY_SIEGE_CORE_Z);
@@ -1162,10 +1014,7 @@ export function buildTerritorySiegePrototype(
       catapultRecoilStartedAt.clear();
       lastArtilleryVisualAt = timeSeconds;
     }
-    const artilleryDeltaSeconds = Math.max(
-      0,
-      Math.min(0.1, timeSeconds - lastArtilleryVisualAt),
-    );
+    const artilleryDeltaSeconds = Math.max(0, Math.min(0.1, timeSeconds - lastArtilleryVisualAt));
     lastArtilleryVisualAt = timeSeconds;
     const artilleryTurnStep =
       TERRITORY_SIEGE_ARTILLERY_TURN_RADIANS_PER_SECOND * artilleryDeltaSeconds;
@@ -1176,27 +1025,20 @@ export function buildTerritorySiegePrototype(
       const lastShotId = mortarShotIds.get(shot.mortarId) ?? 0;
       if (shot.id <= lastShotId) continue;
       mortarShotIds.set(shot.mortarId, shot.id);
-      mortarVisualYaws.set(
-        shot.mortarId,
-        Math.atan2(shot.x - shot.fromX, shot.z - shot.fromZ),
-      );
+      mortarVisualYaws.set(shot.mortarId, Math.atan2(shot.x - shot.fromX, shot.z - shot.fromZ));
       mortarRecoilStartedAt.set(shot.mortarId, timeSeconds);
     }
     for (const shot of siege?.catapultShots ?? []) {
       const lastShotId = catapultShotIds.get(shot.catapultId) ?? 0;
       if (shot.id <= lastShotId) continue;
       catapultShotIds.set(shot.catapultId, shot.id);
-      catapultVisualYaws.set(
-        shot.catapultId,
-        Math.atan2(shot.x - shot.fromX, shot.z - shot.fromZ),
-      );
+      catapultVisualYaws.set(shot.catapultId, Math.atan2(shot.x - shot.fromX, shot.z - shot.fromZ));
       catapultRecoilStartedAt.set(shot.catapultId, timeSeconds);
     }
     const state = territorySiegeVisualState(siege, timeSeconds);
     if (siege) displayedCastleLevel = siege.castleLevel;
     const castleLevel = displayedCastleLevel;
-    const coreElevation =
-      castleLevel >= 4 ? TERRITORY_SIEGE_CITADEL_INNER_HEIGHT : 0;
+    const coreElevation = castleLevel >= 4 ? TERRITORY_SIEGE_CITADEL_INNER_HEIGHT : 0;
     castleSettlement.setCastleLevel(castleLevel);
     fittedGate.setCastleLevel(castleLevel);
     showTerritoryCastleTier(corePedestals, castleLevel);
@@ -1208,27 +1050,19 @@ export function buildTerritorySiegePrototype(
     core.scale.setScalar(TERRITORY_SIEGE_CORE_CRYSTAL_SCALE * state.coreScaleY);
     coreRoot.visible = siege !== null;
     const towersActive = !!siege && siege.defenseTowerLevel > 0;
-    const defenseTowerVisualLevel = territoryDefenseTowerVisualLevel(
-      siege?.defenseTowerLevel ?? 0,
-    );
+    const defenseTowerVisualLevel = territoryDefenseTowerVisualLevel(siege?.defenseTowerLevel ?? 0);
     for (const tower of towerModels) tower.root.visible = towersActive;
     for (const entry of wallModels) {
       const objectiveId = territorySiegeWallSegmentId(entry.wall);
-      const health = siege?.wallHealth?.find(
-        (value) => value.id === objectiveId,
-      );
+      const health = siege?.wallHealth?.find((value) => value.id === objectiveId);
       entry.model.visible = !health || health.hp > 0;
       showTerritoryCastleTier(entry.tiers, castleLevel);
     }
     for (let index = 0; index < towerModels.length; index += 1) {
       const id = index === 0 ? 'left' : 'right';
       const health = siege?.towerHealth?.find((value) => value.id === id);
-      towerModels[index].root.visible =
-        towersActive && (!health || health.hp > 0);
-      showTerritoryCastleTier(
-        towerModels[index].tiers,
-        defenseTowerVisualLevel || 1,
-      );
+      towerModels[index].root.visible = towersActive && (!health || health.hp > 0);
+      showTerritoryCastleTier(towerModels[index].tiers, defenseTowerVisualLevel || 1);
     }
     const deployedRams = siege?.rams?.length
       ? siege.rams
@@ -1267,9 +1101,7 @@ export function buildTerritorySiegePrototype(
       } satisfies TerritorySiegeObjectiveTarget;
       parts.head.position.z =
         TERRITORY_SIEGE_RAM_HEAD_BASE_Z -
-        (deployed.cooldown > 0
-          ? Math.sin(timeSeconds * 8 + index * 0.35) * 0.72
-          : 0);
+        (deployed.cooldown > 0 ? Math.sin(timeSeconds * 8 + index * 0.35) * 0.72 : 0);
     }
     for (let index = 0; index < mortarModels.length; index += 1) {
       const view = siege?.mortars[index];
@@ -1284,12 +1116,9 @@ export function buildTerritorySiegePrototype(
       );
       mortarVisualYaws.set(view.id, visualYaw);
       mortar.root.rotation.y = visualYaw;
-      const recoilAge =
-        timeSeconds - (mortarRecoilStartedAt.get(view.id) ?? -100);
+      const recoilAge = timeSeconds - (mortarRecoilStartedAt.get(view.id) ?? -100);
       const recoil =
-        recoilAge >= 0 && recoilAge <= 0.42
-          ? Math.sin((recoilAge / 0.42) * Math.PI)
-          : 0;
+        recoilAge >= 0 && recoilAge <= 0.42 ? Math.sin((recoilAge / 0.42) * Math.PI) : 0;
       mortar.asset.position.z = mortar.assetBaseZ - recoil * 0.42;
       mortar.muzzleFlash.visible = recoilAge >= 0 && recoilAge <= 0.2;
       if (mortar.muzzleFlash.visible) {
@@ -1307,12 +1136,9 @@ export function buildTerritorySiegePrototype(
       const catapult = catapultModels[index];
       catapult.root.visible = !!view;
       if (!view) continue;
-      const recoilAge =
-        timeSeconds - (catapultRecoilStartedAt.get(view.id) ?? -100);
+      const recoilAge = timeSeconds - (catapultRecoilStartedAt.get(view.id) ?? -100);
       const recoil =
-        recoilAge >= 0 && recoilAge <= 0.72
-          ? Math.sin((recoilAge / 0.72) * Math.PI)
-          : 0;
+        recoilAge >= 0 && recoilAge <= 0.72 ? Math.sin((recoilAge / 0.72) * Math.PI) : 0;
       catapult.root.position.set(view.x, recoil * 0.18, view.z);
       const visualYaw = turnTowardYaw(
         catapultVisualYaws.get(view.id) ?? view.yaw,
@@ -1324,9 +1150,7 @@ export function buildTerritorySiegePrototype(
       catapult.root.rotation.x = recoil * -0.045;
       catapult.muzzleFlash.visible = recoilAge >= 0 && recoilAge <= 0.2;
       if (catapult.muzzleFlash.visible) {
-        catapult.muzzleFlash.scale.setScalar(
-          1 + Math.sin((recoilAge / 0.2) * Math.PI) * 1.5,
-        );
+        catapult.muzzleFlash.scale.setScalar(1 + Math.sin((recoilAge / 0.2) * Math.PI) * 1.5);
         catapult.muzzleFlash.material.opacity = 0.58 * (1 - recoilAge / 0.2);
       }
       catapult.root.userData.territorySiegeObjective = {
@@ -1346,12 +1170,8 @@ export function buildTerritorySiegePrototype(
         remaining: view.detonatesIn,
         launchRemaining: view.launchesIn,
       };
-      if (!catapultFlightClocks.has(view.id))
-        catapultFlightClocks.set(view.id, clock);
-      const locallyRemaining = Math.max(
-        0,
-        clock.remaining - (timeSeconds - clock.seenAt),
-      );
+      if (!catapultFlightClocks.has(view.id)) catapultFlightClocks.set(view.id, clock);
+      const locallyRemaining = Math.max(0, clock.remaining - (timeSeconds - clock.seenAt));
       const remaining = Math.min(view.detonatesIn, locallyRemaining);
       const locallyLaunchRemaining = Math.max(
         0,
@@ -1359,35 +1179,12 @@ export function buildTerritorySiegePrototype(
       );
       if (Math.min(view.launchesIn, locallyLaunchRemaining) > 0) continue;
       projectile.flight.visible = true;
-      const progress = Math.max(
-        0,
-        Math.min(1, 1 - remaining / Math.max(0.001, view.duration)),
-      );
-      const localX = THREE.MathUtils.lerp(
-        view.fromX - origin.x,
-        view.x - origin.x,
-        progress,
-      );
-      const localZ = THREE.MathUtils.lerp(
-        view.fromZ - origin.z,
-        view.z - origin.z,
-        progress,
-      );
-      projectile.flight.position.set(
-        localX,
-        2.6 + Math.sin(progress * Math.PI) * 21,
-        localZ,
-      );
-      projectile.flight.rotation.set(
-        timeSeconds * 2.3,
-        timeSeconds * 1.7,
-        timeSeconds * 1.2,
-      );
-      for (
-        let rockIndex = 0;
-        rockIndex < projectile.rocks.length;
-        rockIndex += 1
-      ) {
+      const progress = Math.max(0, Math.min(1, 1 - remaining / Math.max(0.001, view.duration)));
+      const localX = THREE.MathUtils.lerp(view.fromX - origin.x, view.x - origin.x, progress);
+      const localZ = THREE.MathUtils.lerp(view.fromZ - origin.z, view.z - origin.z, progress);
+      projectile.flight.position.set(localX, 2.6 + Math.sin(progress * Math.PI) * 21, localZ);
+      projectile.flight.rotation.set(timeSeconds * 2.3, timeSeconds * 1.7, timeSeconds * 1.2);
+      for (let rockIndex = 0; rockIndex < projectile.rocks.length; rockIndex += 1) {
         const rock = projectile.rocks[rockIndex];
         rock.visible = view.kind === 'cluster' || rockIndex === 0;
         const spread = view.kind === 'cluster' ? 1.55 : 0;
@@ -1413,12 +1210,8 @@ export function buildTerritorySiegePrototype(
         remaining: view.detonatesIn,
         launchRemaining: view.launchesIn,
       };
-      if (!mortarFlightClocks.has(view.id))
-        mortarFlightClocks.set(view.id, clock);
-      const locallyRemaining = Math.max(
-        0,
-        clock.remaining - (timeSeconds - clock.seenAt),
-      );
+      if (!mortarFlightClocks.has(view.id)) mortarFlightClocks.set(view.id, clock);
+      const locallyRemaining = Math.max(0, clock.remaining - (timeSeconds - clock.seenAt));
       const remaining = Math.min(view.detonatesIn, locallyRemaining);
       const locallyLaunchRemaining = Math.max(
         0,
@@ -1426,32 +1219,13 @@ export function buildTerritorySiegePrototype(
       );
       if (Math.min(view.launchesIn, locallyLaunchRemaining) > 0) continue;
       projectile.flight.visible = true;
-      const progress = Math.max(
-        0,
-        Math.min(1, 1 - remaining / Math.max(0.001, view.duration)),
-      );
-      const localX = THREE.MathUtils.lerp(
-        view.fromX - origin.x,
-        view.x - origin.x,
-        progress,
-      );
-      const localZ = THREE.MathUtils.lerp(
-        view.fromZ - origin.z,
-        view.z - origin.z,
-        progress,
-      );
-      projectile.flight.position.set(
-        localX,
-        2.6 + Math.sin(progress * Math.PI) * 15,
-        localZ,
-      );
+      const progress = Math.max(0, Math.min(1, 1 - remaining / Math.max(0.001, view.duration)));
+      const localX = THREE.MathUtils.lerp(view.fromX - origin.x, view.x - origin.x, progress);
+      const localZ = THREE.MathUtils.lerp(view.fromZ - origin.z, view.z - origin.z, progress);
+      projectile.flight.position.set(localX, 2.6 + Math.sin(progress * Math.PI) * 15, localZ);
       projectile.flight.rotation.set(0, 0, 0);
       projectileTangent
-        .set(
-          view.x - view.fromX,
-          Math.PI * 15 * Math.cos(progress * Math.PI),
-          view.z - view.fromZ,
-        )
+        .set(view.x - view.fromX, Math.PI * 15 * Math.cos(progress * Math.PI), view.z - view.fromZ)
         .normalize();
       for (const shell of projectile.shells) {
         const visible = shell.kind === view.kind;
@@ -1482,11 +1256,7 @@ export function buildTerritorySiegePrototype(
     let selectionPose:
       | { x: number; z: number; yaw: number; scaleX: number; scaleZ: number }
       | undefined;
-    if (
-      siege &&
-      selectedObjective &&
-      territorySiegeObjectiveSelectable(siege, selectedObjective)
-    ) {
+    if (siege && selectedObjective && territorySiegeObjectiveSelectable(siege, selectedObjective)) {
       if (selectedObjective.kind === 'gate' && !siege.gateOpen) {
         selectionPose = {
           x: 0,
@@ -1497,12 +1267,9 @@ export function buildTerritorySiegePrototype(
         };
       } else if (selectedObjective.kind === 'wall') {
         const entry = wallModels.find(
-          ({ wall }) =>
-            territorySiegeWallSegmentId(wall) === selectedObjective.id,
+          ({ wall }) => territorySiegeWallSegmentId(wall) === selectedObjective.id,
         );
-        const health = siege.wallHealth?.find(
-          (value) => value.id === selectedObjective.id,
-        );
+        const health = siege.wallHealth?.find((value) => value.id === selectedObjective.id);
         if (entry?.model.visible && health && health.hp > 0) {
           selectionPose = {
             x: entry.wall.x,
@@ -1514,9 +1281,7 @@ export function buildTerritorySiegePrototype(
         }
       } else if (selectedObjective.kind === 'tower') {
         const index = selectedObjective.id === 'left' ? 0 : 1;
-        const health = siege.towerHealth?.find(
-          (value) => value.id === selectedObjective.id,
-        );
+        const health = siege.towerHealth?.find((value) => value.id === selectedObjective.id);
         if (towerModels[index]?.root.visible && health && health.hp > 0) {
           selectionPose = {
             x: index === 0 ? -TERRITORY_SIEGE_TOWER_X : TERRITORY_SIEGE_TOWER_X,
@@ -1537,9 +1302,7 @@ export function buildTerritorySiegePrototype(
             : selectedObjective.kind === 'mortar'
               ? siege.mortars
               : (siege.catapults ?? []);
-        const weapon = collection.find(
-          (value) => value.id === selectedObjective.id,
-        );
+        const weapon = collection.find((value) => value.id === selectedObjective.id);
         if (weapon) {
           const radius =
             selectedObjective.kind === 'ram'
@@ -1595,8 +1358,7 @@ export function buildTerritorySiegePrototype(
         : [];
     for (let index = 0; index < coreChannelFx.length; index += 1) {
       const source = channelSources[index];
-      if (source)
-        channelFrom.set(source.x - origin.x, 1.6, source.z - origin.z);
+      if (source) channelFrom.set(source.x - origin.x, 1.6, source.z - origin.z);
       coreChannelFx[index].update(
         !!source,
         timeSeconds + index * 0.11,
@@ -1618,16 +1380,12 @@ export function buildTerritorySiegePrototype(
         seenAt: timeSeconds,
         remaining: zone.detonatesIn,
       };
-      if (!towerFlightClocks.has(zone.id))
-        towerFlightClocks.set(zone.id, clock);
+      if (!towerFlightClocks.has(zone.id)) towerFlightClocks.set(zone.id, clock);
       const remaining = Math.min(
         zone.detonatesIn,
         Math.max(0, clock.remaining - (timeSeconds - clock.seenAt)),
       );
-      const progress = Math.max(
-        0,
-        Math.min(1, 1 - remaining / Math.max(0.001, zone.duration)),
-      );
+      const progress = Math.max(0, Math.min(1, 1 - remaining / Math.max(0.001, zone.duration)));
       const localImpactX = zone.x - origin.x;
       const localImpactZ = zone.z - origin.z;
       impact.root.visible = true;
@@ -1643,27 +1401,12 @@ export function buildTerritorySiegePrototype(
       impact.halo.material.opacity = 0.12 + impactUrgency * 0.16;
       projectile.flight.visible = true;
       projectile.flight.position.set(
-        THREE.MathUtils.lerp(
-          zone.fromX - origin.x,
-          zone.x - origin.x,
-          progress,
-        ),
-        THREE.MathUtils.lerp(9.2, 1.15, progress) +
-          Math.sin(progress * Math.PI) * 10,
-        THREE.MathUtils.lerp(
-          zone.fromZ - origin.z,
-          zone.z - origin.z,
-          progress,
-        ),
+        THREE.MathUtils.lerp(zone.fromX - origin.x, zone.x - origin.x, progress),
+        THREE.MathUtils.lerp(9.2, 1.15, progress) + Math.sin(progress * Math.PI) * 10,
+        THREE.MathUtils.lerp(zone.fromZ - origin.z, zone.z - origin.z, progress),
       );
-      projectile.flight.rotation.set(
-        timeSeconds * 4.4,
-        timeSeconds * 3.7,
-        timeSeconds * 2.9,
-      );
-      projectile.aura.scale.setScalar(
-        0.9 + Math.sin(timeSeconds * 14 + index) * 0.13,
-      );
+      projectile.flight.rotation.set(timeSeconds * 4.4, timeSeconds * 3.7, timeSeconds * 2.9);
+      projectile.aura.scale.setScalar(0.9 + Math.sin(timeSeconds * 14 + index) * 0.13);
     }
     for (const id of towerFlightClocks.keys()) {
       if (!activeTowerShots.has(id)) towerFlightClocks.delete(id);

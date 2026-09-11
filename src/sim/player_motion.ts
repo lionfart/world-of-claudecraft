@@ -25,11 +25,7 @@ import { iceFloesAuraForAbility } from './combat/empower_next';
 import { isVeilboundMarchActive } from './combat/paladin_veilbound_state';
 import { mountMoveSpeedPct } from './content/mounts';
 import { isTerritorySiegePos } from './data';
-import {
-  PLAYER_BODY_RADIUS,
-  PLAYER_MAX_CLIMB_SLOPE,
-  PLAYER_SWIM_DEPTH,
-} from './pathfind';
+import { PLAYER_BODY_RADIUS, PLAYER_MAX_CLIMB_SLOPE, PLAYER_SWIM_DEPTH } from './pathfind';
 import {
   type CharacterMoveParams,
   type CharacterMoveResult,
@@ -38,12 +34,7 @@ import {
   moveCharacter,
 } from './physics';
 import { PLATFORM_CARRY_CLEARANCE } from './physics/character';
-import {
-  isSubmergedAt,
-  rideSteepnessAt,
-  shoreStepOut,
-  stepWaterLevel,
-} from './ride_height';
+import { isSubmergedAt, rideSteepnessAt, shoreStepOut, stepWaterLevel } from './ride_height';
 import { GHOST_RUN_MULT } from './spirit';
 import {
   DT,
@@ -57,6 +48,7 @@ import {
 import {
   groundHeight,
   terrainDownhill,
+  terrainHeight,
   terrainSteepnessAt,
   terrainWallStandoff,
   waterLevelAt,
@@ -158,10 +150,7 @@ export const WADE_SPEED_MULT = 0.72;
  */
 export function wadeSpeedMult(feetDepth: number): number {
   if (!Number.isFinite(feetDepth) || feetDepth <= WADE_MIN_DEPTH) return 1;
-  const t = Math.min(
-    1,
-    (feetDepth - WADE_MIN_DEPTH) / (WADE_FULL_DEPTH - WADE_MIN_DEPTH),
-  );
+  const t = Math.min(1, (feetDepth - WADE_MIN_DEPTH) / (WADE_FULL_DEPTH - WADE_MIN_DEPTH));
   return 1 + (WADE_SPEED_MULT - 1) * t;
 }
 
@@ -183,10 +172,7 @@ export function swimSteerRate(steer: number | undefined): number {
 export function isSubmerged(e: Entity, seed: number): boolean {
   const ground = groundHeight(e.pos.x, e.pos.z, seed);
   const level = waterLevelAt(e.pos.x, e.pos.z, seed);
-  return (
-    swimsAt(e.pos.y, ground, level) &&
-    e.pos.y < level - 0.75 - SWIM_SUBMERGE_EPS
-  );
+  return swimsAt(e.pos.y, ground, level) && e.pos.y < level - 0.75 - SWIM_SUBMERGE_EPS;
 }
 
 /** The swim test itself, over an ALREADY-sampled ground height and water level.
@@ -205,10 +191,7 @@ export function swimSpeedMult(strokeT: number, submerged: boolean): number {
   if (!submerged) return SWIM_SPEED_MULT;
   const t = Math.min(1, Math.max(0, strokeT / SWIM_STROKE_PERIOD));
   const eased = t * t * (3 - 2 * t);
-  return (
-    SWIM_DIVE_SPEED_MULT +
-    (SWIM_DIVE_CRUISE_MULT - SWIM_DIVE_SPEED_MULT) * eased
-  );
+  return SWIM_DIVE_SPEED_MULT + (SWIM_DIVE_CRUISE_MULT - SWIM_DIVE_SPEED_MULT) * eased;
 }
 // Body bobs just below the water line at this location (terrain/feature-aware:
 // -Infinity outside every declared lake and the open sea, so this is never
@@ -219,9 +202,14 @@ export function swimSurfaceY(x: number, z: number, seed: number): number {
 
 /** Swimmable depth at a point, sampling the terrain ONCE (the mount water-walls
  *  ask about a destination they have no height for yet). */
-function isDeepFor(x: number, z: number, seed: number): boolean {
-  const ground = groundHeight(x, z, seed);
-  return ground < waterLevelAt(x, z, seed) - SWIM_DEPTH;
+function isDeepFor(x: number, z: number, seed: number, feetY: number): boolean {
+  const wl = waterLevelAt(x, z, seed);
+  if (groundHeight(x, z, seed) >= wl - SWIM_DEPTH) return false;
+  // A standable deck within a step of the hooves is dry footing, not deep
+  // water: the strait bridge crosses the deep channel on plates well above
+  // the waterline, and gating the ride on the DROWNED seabed under them
+  // walled every mounted crossing at the bridge mouth.
+  return floorHeightAt(seed, x, z, BODY_RADIUS, feetY + MAX_STEP_HEIGHT) < wl - SWIM_DEPTH;
 }
 
 const SWIM_DEPTH = PLAYER_SWIM_DEPTH; // ground this far under the water line = deep water
@@ -239,17 +227,11 @@ export function moveSpeedMult(e: Entity, extraSpeedPct = 0): number {
   let slow = 1,
     speed = 1;
   const slowImmune =
-    isVeilboundMarchActive(e) ||
-    e.auras.some((aura) => aura.kind === 'slow_immunity');
+    isVeilboundMarchActive(e) || e.auras.some((aura) => aura.kind === 'slow_immunity');
   for (const a of e.auras) {
-    if ((!slowImmune && a.kind === 'slow') || a.kind === 'stealth')
-      slow = Math.min(slow, a.value);
+    if ((!slowImmune && a.kind === 'slow') || a.kind === 'stealth') slow = Math.min(slow, a.value);
     // Speed buffs and travel forms carry a 1+fraction multiplier (1.4 = +40%).
-    if (
-      a.kind === 'buff_speed' ||
-      a.kind === 'form_travel' ||
-      a.kind === 'form_fireball'
-    ) {
+    if (a.kind === 'buff_speed' || a.kind === 'form_travel' || a.kind === 'form_fireball') {
       speed = Math.max(speed, a.value);
     }
     // Fury Enrage: +10% move speed (non-stacking with other speed buffs).
@@ -319,20 +301,11 @@ export interface PlayerMotionDeps {
   ): void;
 }
 
-function motionGroundHeight(
-  deps: PlayerMotionDeps,
-  entity: Entity,
-  x: number,
-  z: number,
-): number {
+function motionGroundHeight(deps: PlayerMotionDeps, entity: Entity, x: number, z: number): number {
   return deps.groundHeightAt?.(entity, x, z) ?? groundHeight(x, z, deps.seed);
 }
 
-export function stepPlayerMotion(
-  deps: PlayerMotionDeps,
-  p: Entity,
-  inp: MoveInput,
-): void {
+export function stepPlayerMotion(deps: PlayerMotionDeps, p: Entity, inp: MoveInput): void {
   const stepStartX = p.pos.x;
   const stepStartZ = p.pos.z;
   // Convention: facing f points along (sin f, cos f); the camera sits behind
@@ -363,10 +336,7 @@ export function stepPlayerMotion(
   // look around does not cost you the cruise you earned) and only resets when
   // the body surfaces or leaves the water entirely.
   if (submerged) {
-    p.swimStroke = Math.min(
-      SWIM_STROKE_PERIOD,
-      p.swimStroke + (hasMoveInput ? DT : 0),
-    );
+    p.swimStroke = Math.min(SWIM_STROKE_PERIOD, p.swimStroke + (hasMoveInput ? DT : 0));
   } else {
     p.swimStroke = 0;
   }
@@ -385,20 +355,27 @@ export function stepPlayerMotion(
   // EXACT position (terrainDownhill): genuinely steep ground still strips
   // control and slides, but a flat shoulder the cell memo over-reads keeps
   // control, and the wall/contour gate below still refuses the climb.
-  // A body CARRIED BY A STANDABLE PLATFORM (feet well above the raw ground:
-  // a fortress floor plate, a stair tread, a pier deck) is not walking the
-  // ground the memo read at all, so the strip never fires for the terrain
-  // buried under its deck: stripping there froze players on the Forgefather
-  // plates whose under-floor ground the stamps had carved steep, with no
-  // slide to escape by because the platform holds the body in place.
+  // A body CARRIED ABOVE THE RAW GROUND (feet well over the terrain the memo
+  // read: a fortress floor plate, a stair tread, a pier deck, or a walk-lift
+  // stair band) is not walking the ground the memo read at all, so the strip
+  // never fires for terrain buried beneath it: stripping there froze players
+  // on the Forgefather plates whose under-floor ground the stamps had carved
+  // steep, and later froze the Last Keep stair DESCENTS, where a band-carried
+  // walker's feet equal lift-inclusive groundHeight exactly, so comparing
+  // against that surface never exempted them even though the memo's steep
+  // read came from the raw rim carved yards below the flight. The reference
+  // surface is therefore the RAW ridden height, the same surface the dry-land
+  // steepness memo and the downhill sampler describe; without lifts it equals
+  // groundHeight, so plain ground walking is untouched. The memo is read
+  // FIRST: the raw height is a fresh heightfield sample per player per tick
+  // on the authoritative server, so it is taken only on the cells the memo
+  // already calls steep (a rare read on any ground a player can walk).
   const steepFlagged =
     p.onGround &&
     !swimming &&
     p.pos.y <= swimGround + PLATFORM_CARRY_CLEARANCE &&
     rideSteepnessAt(p.pos.x, p.pos.z, deps.seed) > MAX_CLIMB_SLOPE;
-  const steepSlide = steepFlagged
-    ? terrainDownhill(p.pos.x, p.pos.z, deps.seed)
-    : null;
+  const steepSlide = steepFlagged ? terrainDownhill(p.pos.x, p.pos.z, deps.seed) : null;
   const steepGround = steepSlide !== null;
   // Move-to-cancel: any movement input during a summon channel cancels the cast.
   // Dismount channels (mountCastKey === '') remain fully rooted (handled by mountLocked below).
@@ -451,12 +428,7 @@ export function stepPlayerMotion(
   // ledge stay steerable, instead of the old frozen-at-takeoff trajectory.
   const airSteering = moving && !p.onGround && !swimming;
   const slide = steepSlide;
-  if (
-    slide ||
-    movingOnGround ||
-    airSteering ||
-    (!p.onGround && (p.vx !== 0 || p.vz !== 0))
-  ) {
+  if (slide || movingOnGround || airSteering || (!p.onGround && (p.vx !== 0 || p.vz !== 0))) {
     if (slide && p.castingAbility) deps.cancelCast(p);
     if (airSteering) {
       // Steer the air velocity toward the wish vector, limited as a VECTOR
@@ -489,16 +461,8 @@ export function stepPlayerMotion(
         p.vz *= k;
       }
     }
-    const stepX = slide
-      ? slide.x * STEEP_SLIDE_SPEED
-      : movingOnGround
-        ? wishX * wishSpeed
-        : p.vx;
-    const stepZ = slide
-      ? slide.z * STEEP_SLIDE_SPEED
-      : movingOnGround
-        ? wishZ * wishSpeed
-        : p.vz;
+    const stepX = slide ? slide.x * STEEP_SLIDE_SPEED : movingOnGround ? wishX * wishSpeed : p.vx;
+    const stepZ = slide ? slide.z * STEEP_SLIDE_SPEED : movingOnGround ? wishZ * wishSpeed : p.vz;
     // Slide along buildings, trees, crypt walls; but while airborne from a
     // jump, pass through fences for the whole arc. Keying off the jump itself
     // (not a height threshold) makes this independent of slope: an uphill
@@ -516,15 +480,7 @@ export function stepPlayerMotion(
       moveParams.grounded = p.onGround && !swimming;
       moveParams.swimming = swimming;
       moveParams.ignoreFences = clearFences;
-      moveCharacter(
-        moveParams,
-        p.pos.x,
-        p.pos.y,
-        p.pos.z,
-        stepX * DT,
-        stepZ * DT,
-        moveOut,
-      );
+      moveCharacter(moveParams, p.pos.x, p.pos.y, p.pos.z, stepX * DT, stepZ * DT, moveOut);
       // Territory sieges deliberately use the open-world physics solver for
       // their sculpted battlefield, but their castle tier, destroyed walls and
       // raised-platform skirts are live state rather than static world-grid
@@ -542,8 +498,7 @@ export function stepPlayerMotion(
           p,
           clearFences,
         );
-        if (siegeResolved.x !== moveOut.x || siegeResolved.z !== moveOut.z)
-          moveOut.blocked = true;
+        if (siegeResolved.x !== moveOut.x || siegeResolved.z !== moveOut.z) moveOut.blocked = true;
         moveOut.x = siegeResolved.x;
         moveOut.z = siegeResolved.z;
       }
@@ -556,7 +511,7 @@ export function stepPlayerMotion(
       // into the water; horizontal velocity dies with it while airborne,
       // matching the steep-wall airborne gate.
       const mountBlockedByWater =
-        !!p.mountKey && !swimming && isDeepFor(moveOut.x, moveOut.z, deps.seed);
+        !!p.mountKey && !swimming && isDeepFor(moveOut.x, moveOut.z, deps.seed, p.pos.y);
       if (mountBlockedByWater) {
         if (!p.onGround) {
           p.vx = 0;
@@ -578,27 +533,8 @@ export function stepPlayerMotion(
     }
   }
 
-  verticalPass(
-    deps,
-    p,
-    inp,
-    wishX,
-    wishZ,
-    wishSpeed,
-    swimming,
-    steepGround,
-    mountLocked,
-  );
-  standoffPass(
-    deps,
-    p,
-    stepStartX,
-    stepStartZ,
-    wishX,
-    wishZ,
-    wishSpeed,
-    movingOnGround,
-  );
+  verticalPass(deps, p, inp, wishX, wishZ, wishSpeed, swimming, steepGround, mountLocked);
+  standoffPass(deps, p, stepStartX, stepStartZ, wishX, wishZ, wishSpeed, movingOnGround);
 }
 
 // Instanced interiors (dungeons, delves, arena, the Yumi maze): flat floors
@@ -646,8 +582,7 @@ function stepInstancedRegion(
         r1 - r0 > MAX_STEP_HEIGHT &&
         run > 1e-5 &&
         ((r1 - r0) / run > MAX_CLIMB_SLOPE ||
-          (g1 >= wls &&
-            rideSteepnessAt(nx, nz, deps.seed) > MAX_CLIMB_SLOPE)) &&
+          (g1 >= wls && rideSteepnessAt(nx, nz, deps.seed) > MAX_CLIMB_SLOPE)) &&
         !shoreStepOut(p.pos.x, p.pos.z, nx, nz, deps.seed, MAX_CLIMB_SLOPE)
       ) {
         nx = p.pos.x;
@@ -672,8 +607,7 @@ function stepInstancedRegion(
           r1 > r0 &&
           run > 1e-5 &&
           ((r1 - r0) / run > MAX_CLIMB_SLOPE ||
-            (h1 >= wls &&
-              rideSteepnessAt(nx, nz, deps.seed) > MAX_CLIMB_SLOPE)) &&
+            (h1 >= wls && rideSteepnessAt(nx, nz, deps.seed) > MAX_CLIMB_SLOPE)) &&
           !shoreStepOut(p.pos.x, p.pos.z, nx, nz, deps.seed, MAX_CLIMB_SLOPE)
         ) {
           nx = p.pos.x;
@@ -690,7 +624,7 @@ function stepInstancedRegion(
     // from land. Reset the candidate to the current pose (and kill horizontal
     // velocity when airborne, matching the steep-wall airborne gate) so the body
     // stops at the shore instead of clipping into the water.
-    if (p.mountKey && !swimming && isDeepFor(nx, nz, deps.seed)) {
+    if (p.mountKey && !swimming && isDeepFor(nx, nz, deps.seed, p.pos.y)) {
       nx = p.pos.x;
       nz = p.pos.z;
       if (!p.onGround) {
@@ -698,15 +632,7 @@ function stepInstancedRegion(
         p.vz = 0;
       }
     }
-    const resolved = deps.resolveMove(
-      p.pos.x,
-      p.pos.z,
-      nx,
-      nz,
-      BODY_RADIUS,
-      p,
-      clearFences,
-    );
+    const resolved = deps.resolveMove(p.pos.x, p.pos.z, nx, nz, BODY_RADIUS, p, clearFences);
     p.pos.x = resolved.x;
     p.pos.z = resolved.z;
     if (!p.onGround && (resolved.x !== nx || resolved.z !== nz)) {
@@ -754,16 +680,7 @@ function verticalPass(
   const waterHere = waterLevelAt(p.pos.x, p.pos.z, deps.seed);
   const deepWater = ground < waterHere - SWIM_DEPTH;
   if (deepWater && p.pos.y <= waterHere - 0.75 + 0.05) {
-    swimVerticalPass(
-      p,
-      inp,
-      wishX,
-      wishZ,
-      wishSpeed,
-      mountLocked,
-      ground,
-      waterHere,
-    );
+    swimVerticalPass(p, inp, wishX, wishZ, wishSpeed, mountLocked, ground, waterHere);
     return;
   }
   // Coyote window: within COYOTE_TIME of WALKING off a ledge (vy starts at 0
@@ -779,13 +696,7 @@ function verticalPass(
     p.vy <= 0 &&
     p.vy > -GRAVITY * COYOTE_TIME &&
     terrainSteepnessAt(p.pos.x, p.pos.z, deps.seed) <= MAX_CLIMB_SLOPE;
-  if (
-    inp.jump &&
-    (p.onGround || coyote) &&
-    !isRooted(p) &&
-    !steepGround &&
-    !mountLocked
-  ) {
+  if (inp.jump && (p.onGround || coyote) && !isRooted(p) && !steepGround && !mountLocked) {
     p.vy = JUMP_VELOCITY * jumpMult(p);
     p.vx = wishX * wishSpeed;
     p.vz = wishZ * wishSpeed;
@@ -810,10 +721,7 @@ function verticalPass(
         SWIM_PLUNGE_MAX,
         Math.max(0, (impact - JUMP_VELOCITY) * SWIM_PLUNGE_PER_SPEED),
       );
-      const plungeFloor = Math.min(
-        waterHere - 0.75,
-        ground + SWIM_FLOOR_CLEARANCE,
-      );
+      const plungeFloor = Math.min(waterHere - 0.75, ground + SWIM_FLOOR_CLEARANCE);
       p.pos.y = Math.max(plungeFloor, waterHere - 0.75 - plunge);
       p.vy = 0;
       p.vx = 0;
@@ -837,17 +745,7 @@ function verticalPass(
       const drop = p.fallStartY - support;
       if (drop > FALL_SAFE_DISTANCE) {
         const dmg = Math.round(p.maxHp * (drop - FALL_SAFE_DISTANCE) * 0.07);
-        if (dmg > 0)
-          deps.dealDamage(
-            null,
-            p,
-            dmg,
-            false,
-            'physical',
-            'Falling',
-            'hit',
-            true,
-          );
+        if (dmg > 0) deps.dealDamage(null, p, dmg, false, 'physical', 'Falling', 'hit', true);
       }
       p.fallStartY = support;
     }
@@ -883,7 +781,13 @@ function verticalPass(
       BODY_RADIUS,
       p.pos.y,
     );
-    if (glue > -Infinity && Math.abs(glue - p.pos.y) <= MAX_STEP_HEIGHT) {
+    // The terrain is always the floor. A glued top that has dipped BELOW the
+    // ground (a bridge deck or a rock whose far end the hillside buries)
+    // hands the body back to the support path, which maxes the terrain in:
+    // following it would seat the player under the ground, walled in by the
+    // terrain gate on every side (the "fell through the ground on a slope"
+    // trap only a teleport could escape).
+    if (glue >= ground && Math.abs(glue - p.pos.y) <= MAX_STEP_HEIGHT) {
       p.pos.y = glue;
       p.fallStartY = glue;
       return;
@@ -1014,28 +918,10 @@ function standoffPass(
   movingOnGround: boolean,
 ): void {
   const ground = groundHeight(p.pos.x, p.pos.z, deps.seed);
-  if (
-    p.onGround &&
-    p.pos.y <= ground + 1e-3 &&
-    !isSubmergedAt(p.pos.x, p.pos.z, deps.seed)
-  ) {
-    const s = terrainWallStandoff(
-      p.pos.x,
-      p.pos.z,
-      deps.seed,
-      BODY_RADIUS,
-      MAX_CLIMB_SLOPE,
-    );
+  if (p.onGround && p.pos.y <= ground + 1e-3 && !isSubmergedAt(p.pos.x, p.pos.z, deps.seed)) {
+    const s = terrainWallStandoff(p.pos.x, p.pos.z, deps.seed, BODY_RADIUS, MAX_CLIMB_SLOPE);
     if (s.x !== p.pos.x || s.z !== p.pos.z) {
-      const resolved = deps.resolveMove(
-        p.pos.x,
-        p.pos.z,
-        s.x,
-        s.z,
-        BODY_RADIUS,
-        p,
-        false,
-      );
+      const resolved = deps.resolveMove(p.pos.x, p.pos.z, s.x, s.z, BODY_RADIUS, p, false);
       let standX = resolved.x;
       let standZ = resolved.z;
       if (movingOnGround && wishSpeed > 0) {
@@ -1047,8 +933,7 @@ function standoffPass(
           MAX_CLIMB_SLOPE,
         );
         const alreadyClear =
-          Math.hypot(startStand.x - stepStartX, startStand.z - stepStartZ) <
-          1e-4;
+          Math.hypot(startStand.x - stepStartX, startStand.z - stepStartZ) < 1e-4;
         const netX = standX - stepStartX;
         const netZ = standZ - stepStartZ;
         const progress = netX * wishX + netZ * wishZ;
@@ -1098,7 +983,7 @@ function standoffPass(
       // for this tick rather than silently dismounting them into the pit.
       const standSteep = rideSteepnessAt(standX, standZ, deps.seed);
       if (
-        !(p.mountKey && isDeepFor(standX, standZ, deps.seed)) &&
+        !(p.mountKey && isDeepFor(standX, standZ, deps.seed, p.pos.y)) &&
         (standSteep <= MAX_CLIMB_SLOPE ||
           standSteep <= rideSteepnessAt(p.pos.x, p.pos.z, deps.seed))
       ) {

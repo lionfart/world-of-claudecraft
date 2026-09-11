@@ -85,6 +85,7 @@ export function applyMovementInputFrame(
     facing: decision.facing,
   };
   if (session.movementWireVersion === 2) {
+    let accepted = false;
     if (frame.ct !== null) {
       session.movementTimeline?.enqueue({
         ct: frame.ct,

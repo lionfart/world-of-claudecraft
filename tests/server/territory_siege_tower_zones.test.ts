@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { TerritorySiegeTowerZones } from "../../server/territory_siege_tower_zones";
+import { describe, expect, it } from 'vitest';
+import { TerritorySiegeTowerZones } from '../../server/territory_siege_tower_zones';
 
-describe("territory siege tower telegraphs", () => {
-  it("flies from the firing tower before damaging attackers at the impact point", () => {
+describe('territory siege tower telegraphs', () => {
+  it('flies from the firing tower before damaging attackers at the impact point', () => {
     const zones = new TerritorySiegeTowerZones();
-    zones.queue("war-1", { x: -18, z: -30 }, { x: 10, z: 20 }, 14, 1_000);
-    expect(zones.view("war-1", 1_000)).toMatchObject([
+    zones.queue('war-1', { x: -18, z: -30 }, { x: 10, z: 20 }, 14, 1_000);
+    expect(zones.view('war-1', 1_000)).toMatchObject([
       {
         fromX: -18,
         fromZ: -30,
@@ -17,27 +17,25 @@ describe("territory siege tower telegraphs", () => {
       },
     ]);
     expect(
-      zones.detonate(2_799, [
-        { characterId: 1, warId: "war-1", x: 10, z: 20, alive: true },
-      ]),
+      zones.detonate(2_799, [{ characterId: 1, warId: 'war-1', x: 10, z: 20, alive: true }]),
     ).toEqual({ hits: [], removed: false });
     expect(
       zones.detonate(2_800, [
-        { characterId: 1, warId: "war-1", x: 16, z: 20, alive: true },
-        { characterId: 2, warId: "war-1", x: 12, z: 20, alive: true },
-        { characterId: 3, warId: "war-2", x: 10, z: 20, alive: true },
+        { characterId: 1, warId: 'war-1', x: 16, z: 20, alive: true },
+        { characterId: 2, warId: 'war-1', x: 12, z: 20, alive: true },
+        { characterId: 3, warId: 'war-2', x: 10, z: 20, alive: true },
       ]),
     ).toEqual({ hits: [{ characterId: 2, damage: 14 }], removed: true });
-    expect(zones.view("war-1", 2_800)).toEqual([]);
+    expect(zones.view('war-1', 2_800)).toEqual([]);
   });
 
-  it("never damages a player beyond the firing tower marked radius", () => {
+  it('never damages a player beyond the firing tower marked radius', () => {
     const zones = new TerritorySiegeTowerZones();
-    zones.queue("war-1", { x: 0, z: 0 }, { x: 9, z: 0 }, 14, 1_000, 10);
+    zones.queue('war-1', { x: 0, z: 0 }, { x: 9, z: 0 }, 14, 1_000, 10);
     expect(
       zones.detonate(2_800, [
-        { characterId: 1, warId: "war-1", x: 9, z: 0, alive: true },
-        { characterId: 2, warId: "war-1", x: 11, z: 0, alive: true },
+        { characterId: 1, warId: 'war-1', x: 9, z: 0, alive: true },
+        { characterId: 2, warId: 'war-1', x: 11, z: 0, alive: true },
       ]),
     ).toEqual({ hits: [{ characterId: 1, damage: 14 }], removed: true });
   });

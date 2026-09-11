@@ -1,6 +1,6 @@
 // The spawn greeting (tutorial island): the one-time, text-free ferry that
 // puts every genuinely fresh character on the Proving Shore. The tutorial is
-// compulsory (never asked, never skippable); the pier bell is the way back
+// compulsory for fresh characters; the pier bell is the way back
 // off at any time.
 //
 // The sweep mirrors professions/prof_nudges.ts: 1 Hz beside the other mail
@@ -34,24 +34,22 @@ function isFreshCharacter(meta: PlayerMeta): boolean {
  *  tick. Flips the persisted flag BEFORE acting (the prof_nudges idiom).
  *  Returns whether it engaged.
  *
- *  The tutorial is COMPULSORY for a fresh character (the playtest ruling:
- *  never ask, never offer a skip): a newborn already ashore (the server
- *  rolls fresh rows at PROVING_SHORE_ARRIVAL) gets Odo's arrival welcome,
+ *  The tutorial is compulsory for every fresh character: a newborn already
+ *  ashore (the server rolls fresh rows at PROVING_SHORE_ARRIVAL) gets Odo's
+ *  arrival welcome,
  *  and a fresh character anywhere else (the offline Sim's town spawn, a
  *  legacy save that never played) is ferried straight to the island. The
- *  bell beside the pier remains the way OFF at any time, so the shore is
- *  never a cage, just the front door. The old opt-in tutorialGreeting
- *  dialog (Bryn's take-or-skip offer) is gone with the choice itself. */
+ *  bell beside the pier remains the way off at any time, so the shore is
+ *  never a cage, just the front door. */
 export function maybeEmitTutorialGreeting(meta: PlayerMeta, ctx: SimContext): boolean {
   if (meta.tutorialGreetingSent) return false;
   meta.tutorialGreetingSent = true;
   if (!isFreshCharacter(meta)) return false;
   const p = ctx.entities.get(meta.entityId);
   if (!p) return false;
-  // The sibling command path's gates (resolveStartTutorial): never yank a
-  // ghost away from their corpse, and never teleport out of the instance
-  // plane. A fresh character can only be either through an odd resume, but
-  // the flag has already latched by here, so failing closed just means they
+  // Never yank a ghost away from their corpse, and never teleport out of the
+  // instance plane. A fresh character can reach either state only through an
+  // odd resume, but the flag has already latched by here, so failing closed just means they
   // walk to the pier bell themselves.
   if (p.dead || p.ghost) return false;
   if (p.pos.x > DUNGEON_X_THRESHOLD) return false;
@@ -67,7 +65,7 @@ export function maybeEmitTutorialGreeting(meta: PlayerMeta, ctx: SimContext): bo
  *  cadence. Zero rng, so its position in the tick tail cannot fork the draw
  *  order (it only emits events, which draw nothing). */
 export function updateTutorialGreeting(ctx: SimContext, primaryPid: number): void {
-  // The host opt-in (SimConfig.compulsoryTutorial): a deterministic test,
+  // The host gate (SimConfig.compulsoryTutorial): a deterministic test,
   // parity trace, or RL episode must never see a fresh character ferried
   // away mid-scenario, so the sweep only runs where a live world asked.
   if (!ctx.compulsoryTutorial) return;
@@ -83,14 +81,9 @@ export function updateTutorialGreeting(ctx: SimContext, primaryPid: number): voi
   }
 }
 
-/** The ferry ride the greeting's accept button books: the standard
- *  displacement recipe (displacement.ts; the island ships NO walk-in portal
- *  ring, PROVING_SHORE_PORTALS is deliberately empty and the crossing is a
- *  clicked bell), gated so it can never be abused as a
- *  free escape teleport. Server-validated: level 1, alive (the caller's dead
- *  gate), out of combat, overworld only. The persisted flag guards only the
- *  greeting EMIT, so this command-side gate set is what keeps the wire token
- *  from doubling as an unmetered combat exit. */
+/** Compatibility command for clients that still expose the tutorial ferry
+ *  action. Fresh characters now arrive on the shore automatically, but the
+ *  authoritative gates keep this older route safe and deterministic. */
 export function resolveStartTutorial(ctx: SimContext, p: Entity, meta: PlayerMeta): void {
   if (p.pos.x > DUNGEON_X_THRESHOLD || p.inCombat) {
     ctx.error(p.id, 'You cannot set sail from here.');
@@ -101,7 +94,5 @@ export function resolveStartTutorial(ctx: SimContext, p: Entity, meta: PlayerMet
     return;
   }
   displacePlayer(ctx, p, PROVING_SHORE_ARRIVAL, 'The ferry sets you down on the Proving Shore.');
-  // Text-free arrival marker: the HUD renders Ferryman Odo's welcome note,
-  // which teaches walking and talking, for a character new to the shore.
   emitIslandArrival(ctx, p, meta);
 }

@@ -10,10 +10,10 @@ import {
   TERRITORY_RESOURCE_ART_KEYS,
   territoryFeatureArtRect,
   territoryMapArtIsGround,
-  territoryMapGroundArtKeyForCell,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryMapAuthoredTransitionForCell,
+  territoryMapGroundArtKeyForCell,
   territoryMapHasAuthoredFullTransition,
   territoryTerrainArtRect,
 } from '../src/ui/territory_map_art';

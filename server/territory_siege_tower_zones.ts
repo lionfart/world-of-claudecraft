@@ -1,4 +1,4 @@
-import type { TerritoryTowerZoneView } from "../src/world_api";
+import type { TerritoryTowerZoneView } from '../src/world_api';
 
 export interface TerritoryTowerTarget {
   characterId: number;
@@ -28,8 +28,8 @@ export class TerritorySiegeTowerZones {
 
   queue(
     warId: string,
-    source: Pick<TerritoryTowerTarget, "x" | "z">,
-    target: Pick<TerritoryTowerTarget, "x" | "z">,
+    source: Pick<TerritoryTowerTarget, 'x' | 'z'>,
+    target: Pick<TerritoryTowerTarget, 'x' | 'z'>,
     damage: number,
     nowMs: number,
     maxRange = Number.POSITIVE_INFINITY,
@@ -64,15 +64,8 @@ export class TerritorySiegeTowerZones {
     for (const zone of due) {
       for (const target of livingTargets) {
         if (target.warId !== zone.warId) continue;
-        if (
-          (target.x - zone.x) ** 2 + (target.z - zone.z) ** 2 >
-          zone.radius ** 2
-        )
-          continue;
-        if (
-          (target.x - zone.fromX) ** 2 + (target.z - zone.fromZ) ** 2 >
-          zone.maxRange ** 2
-        )
+        if ((target.x - zone.x) ** 2 + (target.z - zone.z) ** 2 > zone.radius ** 2) continue;
+        if ((target.x - zone.fromX) ** 2 + (target.z - zone.fromZ) ** 2 > zone.maxRange ** 2)
           continue;
         hits.push({ characterId: target.characterId, damage: zone.damage });
       }

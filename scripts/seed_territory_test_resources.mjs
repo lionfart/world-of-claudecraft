@@ -52,7 +52,9 @@ async function main() {
       [realm],
     );
     if (result.rows.length !== 6) {
-      throw new Error(`Expected exactly 6 initialized characters in ${realm}; found ${result.rows.length}.`);
+      throw new Error(
+        `Expected exactly 6 initialized characters in ${realm}; found ${result.rows.length}.`,
+      );
     }
     for (const row of result.rows) {
       const state = seedTerritoryTestState(row.state);

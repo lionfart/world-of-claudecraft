@@ -112,6 +112,7 @@ const REGISTRY_ONLY_PATHS = new Set<string>([
   '/api/guilds/roster',
   '/api/reliquary/rarity',
   '/api/deeds/broadcasts',
+  '/api/discord/queue-pings',
   '/api/characters/:id/deeds-recent',
   '/api/characters/:id/appearance-reroll',
   '/api/steam/link',
@@ -123,6 +124,10 @@ const REGISTRY_ONLY_PATHS = new Set<string>([
   '/api/epic/status',
   '/api/ota/updates',
   '/api/seeker/entitlement',
+  // The Realm Builder of the Month roll the Eastbrook Vale monument reads
+  // (server/realm_builder.ts): registry-only on the same terms as the deeds
+  // family.
+  '/api/realm-builder',
   // The $WOC Exchange family (server/woc_market_routes.ts): a brand-new,
   // config-gated /api/woc-market/* prefix with no legacy ladder twin.
   '/api/woc-market/status',
@@ -350,6 +355,10 @@ describe('registry completeness: migrated baseline (public reads + auth + charac
     { method: 'GET', path: '/api/guilds/roster' },
     { method: 'GET', path: '/api/deeds/broadcasts' },
     { method: 'POST', path: '/api/deeds/broadcasts' },
+    // The queue-pop Discord DM opt-in toggle (server/discord_queue_pings.ts):
+    // registry-only on the deeds broadcasts shape.
+    { method: 'GET', path: '/api/discord/queue-pings' },
+    { method: 'POST', path: '/api/discord/queue-pings' },
     // The reliquary rarity read (server/reliquary.ts): registry-only on the
     // same terms as the deeds family, and it shares their cache and flight.
     { method: 'GET', path: '/api/reliquary/rarity' },

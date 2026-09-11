@@ -238,7 +238,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "es_ES": [
     "entities.items.territory_battering_ram.name",
@@ -469,7 +472,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "fr_FR": [
     "entities.items.territory_battering_ram.name",
@@ -700,7 +706,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "fr_CA": [
     "entities.items.territory_battering_ram.name",
@@ -931,7 +940,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "en_CA": [],
   "it_IT": [
@@ -1163,7 +1175,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "de_DE": [
     "entities.items.territory_battering_ram.name",
@@ -1394,7 +1409,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "zh_CN": [
     "entities.items.territory_battering_ram.name",
@@ -2537,7 +2555,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "ru_RU": [
     "entities.items.territory_battering_ram.name",
@@ -2996,7 +3017,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "nl_NL": [
     "entities.items.territory_battering_ram.name",
@@ -3227,7 +3251,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "pl_PL": [
     "entities.items.territory_battering_ram.name",
@@ -3458,7 +3485,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "id_ID": [
     "entities.items.territory_battering_ram.name",
@@ -3689,7 +3719,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "tr_TR": [
     "entities.items.territory_grain.name",
@@ -3727,7 +3760,6 @@ export const pending: Record<string, readonly string[]> = {
     "guide.territoryWarPage.rejoinNote",
     "guide.territoryWarPage.rosterBody",
     "guide.territoryWarPage.rosterHeading",
-    "hudChrome.options.startAttackOnAbility",
     "hudChrome.territoryMap.captureAvailable",
     "hudChrome.territoryMap.captureEnter",
     "hudChrome.territoryMap.captureGuards",
@@ -4026,7 +4058,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "vi_VN": [
     "entities.items.territory_battering_ram.name",
@@ -4257,7 +4292,10 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ],
   "da_DK": [
     "entities.items.territory_battering_ram.name",
@@ -4488,6 +4526,9 @@ export const pending: Record<string, readonly string[]> = {
     "hudChrome.territoryMap.workshopMax",
     "hudChrome.territoryMap.workshopNeedsCastle",
     "hudChrome.territoryMap.workshopTitle",
-    "hudChrome.territoryMap.workshopUpgrade"
+    "hudChrome.territoryMap.workshopUpgrade",
+    "mode.caCopyAria",
+    "mode.caLabel",
+    "mode.caNote"
   ]
 };

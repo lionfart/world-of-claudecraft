@@ -1,3 +1,4 @@
+import { dispatchCollectionAction } from './ui/collection_actions_core';
 // Game-client style barrel (declares the @layer order, loads tokens + base, etc.).
 // index.html and play.html both bootstrap through this module, so this one import
 // styles both game entries; admin/guide use their own entries and inline CSS.
@@ -47,21 +48,21 @@ import {
 import { clientEnvBits, installPageStateTracking, pageStateBits } from './game/client_env';
 import { getClientSeed } from './game/client_seed';
 import { createCombatAimController } from './game/combat_aim_controller';
+import { buildContextRecoveryCallbacks } from './game/context_loss_diagnostics';
 import { localPartyMemberIds } from './game/corpse_loot_availability';
 import { createCrossHotbar, measureCrossHotbarLift } from './game/cross_hotbar_wiring';
-import { tryDayNightDevCommand } from './game/daynight_dev_command';
 import { shouldClearAutorunOnDeath } from './game/death_input_reset';
 import { setDisplayChangeTarget } from './game/desktop_display_change';
 import {
   desktopDisplayModeSupported,
   pushDesktopDisplayMode,
-  syncDesktopDisplayModeSetting,
 } from './game/desktop_display_mode_sync';
 import { initDesktopDownload } from './game/desktop_download';
-import { pushDesktopGpuPref, syncDesktopGpuPrefSetting } from './game/desktop_gpu_pref_sync';
 import { desktopNotifyOnSimEvents } from './game/desktop_notifications';
 import { desktopPresentationHidden } from './game/desktop_presentation';
 import { initDesktopShellIntegration } from './game/desktop_shell_integration';
+import { applyDesktopShellSetting, syncDesktopShellSettings } from './game/desktop_shell_settings';
+import { tryDevChatHooks } from './game/dev_chat_hooks';
 import { installDevTeleports } from './game/dev_shortcuts';
 import {
   clearDiscordChoice,
@@ -112,9 +113,9 @@ import {
   stampGraphicsRebuildProbe,
   updateGraphicsRebuildProbePhase,
 } from './game/graphics_rebuild_crash_guard';
-import { tryIgnivarPlacerCommand } from './game/ignivar_placer';
 import { Input } from './game/input';
 import { InputActivityMeter, installInputActivityTracking } from './game/input_activity';
+import { createGatherEffectConfirm, interactKeyGatherOptions } from './game/interact_key_gather';
 import { stopAutorunForInteraction } from './game/interaction_autorun';
 import {
   activePvpOpponentIds,
@@ -146,6 +147,7 @@ import {
   resetLoadProfile,
   summarizeLoadProfile,
 } from './game/load_profiler';
+import { trackMetaPixel } from './game/meta_pixel';
 import {
   interfaceModeFromSetting,
   isPhoneTouchDevice,
@@ -156,12 +158,14 @@ import {
 } from './game/mobile_controls';
 import { applyMobileHudLayout } from './game/mobile_hud_layout_applier';
 import { watchMobileMoreState } from './game/mobile_more_diagnostics';
+import { mobilePlatform, mobilePreflightCopy } from './game/mobile_preflight';
 import { mouselookReleaseFacing } from './game/mouselook_release';
 import { diagonalMovementVisualFacing } from './game/movement_visual';
 import { music } from './game/music';
 import { tryNearbyInteraction } from './game/nearby_interaction';
 import { nextNpcTarget } from './game/npc_cycle';
 import { isOfflineModeAvailable } from './game/offline_mode_gate';
+import { offlineWorldConfig } from './game/offline_world_config';
 import { interpolatedOnlineSelfFacing } from './game/online_facing_mirror';
 import { sendOnlineMovementFrame } from './game/online_movement_frame';
 import { padCastPress, padCastRelease } from './game/pad_cast_routing';
@@ -174,6 +178,7 @@ import { initPerfNudge } from './game/perf_nudge';
 import { startPerfReporter } from './game/perf_reporter';
 import { kickCharacterPreloadStream, runPostEntryWarmups } from './game/post_entry_warmups_core';
 import { newPresentationGateInput, presentationGate } from './game/presentation_gate';
+import { startRealmBuilderRollLoad } from './game/realm_builder_boot';
 import { adaptiveSelfAlphaLead } from './game/self_alpha_lead';
 import { SelfMotionFrameBuffer } from './game/self_motion_frame_buffer';
 import {
@@ -189,6 +194,13 @@ import {
   Settings,
 } from './game/settings';
 import { sfx } from './game/sfx';
+import {
+  finishShaderWarmup,
+  startShaderWarmup,
+  stopShaderWarmup,
+} from './game/shader_cache_warmup';
+import { registerShaderWarmSetting } from './game/shader_warm_setting';
+import { toggleSheatheWithCue } from './game/sheathe_toggle';
 import { initSoftwareRenderNotice } from './game/software_render_notice';
 import {
   decideSpawnCinematic,
@@ -206,6 +218,12 @@ import {
   teleportCameraArrivalKind,
   teleportCameraFacingState,
 } from './game/teleport_camera';
+import {
+  ensureTurnstile,
+  resetTurnstile,
+  TURNSTILE_SITEKEY,
+  turnstileToken,
+} from './game/turnstile_gate';
 import { loadingCurtainFadeMs, resolveUiEffectsProfile } from './game/ui_effects_profile';
 import { feedSimCalendar } from './game/utc_day';
 import { voice } from './game/voice';
@@ -290,6 +308,7 @@ import {
 } from './render/assets/graphics_profile';
 import {
   enableKtx2MipRelease,
+  type Ktx2RestoreTarget,
   ktx2MipsOnContextLost,
   ktx2MipsRestored,
 } from './render/assets/ktx2_mip_release';
@@ -330,6 +349,7 @@ import {
   playerPortraitDataUrl,
   resetPortraitRendererForGraphicsRebuild,
 } from './render/characters/portrait';
+import { attachContextRecoveryHandlers } from './render/context_loss_recovery';
 import { type RecycledRendererContext, recycleWebGL2Context } from './render/context_recycle';
 import { installWebGLContextRelease } from './render/context_release';
 import {
@@ -341,6 +361,7 @@ import {
   graphicsPresetLabel,
   resolveGfxProfile,
 } from './render/gfx';
+import { setNameplateDotScale } from './render/nameplate_dot_scale';
 import { createInitialPrewarmResumeStartGate } from './render/prewarm_resume_start_gate';
 import { Renderer } from './render/renderer';
 import { hasAuthoritativeSelfPositionDiscontinuity } from './render/self_motion';
@@ -378,13 +399,11 @@ import {
   DT,
   dist2d,
   MELEE_RANGE,
-  PLAYER_INTEREST_DROP_RADIUS,
   type PlayerClass,
   RUN_SPEED,
   type WorldContent,
 } from './sim/types';
 import { zoneBiomeAt } from './sim/world';
-import { WORLD_SEED } from './sim/world_seed';
 import { startSitePresence } from './site_presence';
 import {
   accountPortalModel,
@@ -410,6 +429,7 @@ import {
   relocalizeAppearancePanels,
 } from './ui/appearance_panel_locale';
 import { setThornhollowPrewarmHooks } from './ui/arena_window';
+import { applyAuraBarSide } from './ui/aura_bar_side';
 import {
   handleKeyboardActivation,
   syncInputAriaState,
@@ -420,7 +440,7 @@ import {
 import { BreathBar } from './ui/breath_bar';
 import { assembleBugReportMeta } from './ui/bug_report';
 import { cameraPromptOpen, dismissCameraPrompt } from './ui/camera_prompt';
-import { deleteCharButtonHtml } from './ui/char_delete_button';
+import { deleteCharButtonHtml, normalizeDeleteConfirmation } from './ui/char_delete_button';
 import { resetComposedRows, trackComposedChipRow } from './ui/charselect_composed_refresh';
 import { loadCharselectNews } from './ui/charselect_news';
 import { CharselectRedesignEditor } from './ui/charselect_redesign';
@@ -454,7 +474,6 @@ import {
   attachGatherNodeHoverTooltip,
   gatherNodeToolGateFor,
 } from './ui/gather_node_tooltip_controller';
-import { gatherEffectPrompt, gatherToolNoNodeKey } from './ui/gathering_view';
 import { loadHighscoresInto } from './ui/highscore_board';
 import { type ClaudiumHooks, Hud } from './ui/hud';
 import { resolveActionBarVisibility } from './ui/hud/action_bar/action_bar_visibility_core';
@@ -466,6 +485,7 @@ import {
   setReferralProvider,
   setStandingProvider,
 } from './ui/hud/player_card/player_card_share';
+import { gatherToolNoNodeKey } from './ui/hud/professions/gathering_view';
 import {
   ensureLocaleLoaded,
   formatNumber,
@@ -581,8 +601,8 @@ if (DESKTOP_APP) initDesktopShellIntegration();
 // whole-blob rewrite) would silently revert it.
 let liveSettings: Settings | null = null;
 const settingsForShellReflection = (): Settings => liveSettings ?? new Settings();
-if (DESKTOP_APP) void syncDesktopGpuPrefSetting(desktopBridge(), settingsForShellReflection);
-if (DESKTOP_APP) void syncDesktopDisplayModeSetting(desktopBridge(), settingsForShellReflection);
+if (DESKTOP_APP) syncDesktopShellSettings(desktopBridge(), settingsForShellReflection);
+registerShaderWarmSetting(() => settingsForShellReflection().get('shaderWarm'));
 // Free every WebGL context (game renderer, character preview, portrait rig) when
 // the page is torn down, so logout/login reload cycles don't exhaust the GPU
 // context pool and break the next renderer with "Error creating WebGL context".
@@ -684,65 +704,6 @@ function saveHomepageMusicMuted(muted: boolean): void {
   } catch {
     // Private browsing or storage failures should not block the control.
   }
-}
-
-// --- Cloudflare Turnstile (bot gate on the login/register form) ---------------
-// The site key is injected at build time; when it is empty (local/offline dev or
-// a build without the env var) the widget never renders and the token is '', so
-// the server, which also skips verification without its secret, lets requests
-// through unchanged. The api.js <script> is in index.html.
-const TURNSTILE_SITEKEY = String(import.meta.env.VITE_TURNSTILE_SITEKEY ?? '');
-
-interface TurnstileApi {
-  render: (el: string | HTMLElement, opts: { sitekey: string }) => string;
-  getResponse: (widgetId?: string) => string | undefined;
-  reset: (widgetId?: string) => void;
-}
-let turnstileWidgetId: string | undefined;
-
-function turnstileApi(): TurnstileApi | undefined {
-  return (window as unknown as { turnstile?: TurnstileApi }).turnstile;
-}
-
-// Render the widget once, retrying until the async api.js script is ready. Safe to
-// call repeatedly (idempotent) and a no-op when no site key is configured. The
-// Electron desktop shell never renders it: Cloudflare rejects the app:// origin
-// (widget error 110200), and the server bypasses Turnstile for desktop origins
-// (passesTurnstile in server/turnstile.ts), so a widget here could only wedge
-// the form.
-function ensureTurnstile(): void {
-  if (DESKTOP_APP || !TURNSTILE_SITEKEY || turnstileWidgetId !== undefined) return;
-  const ts = turnstileApi();
-  const el = document.getElementById('cf-turnstile-container');
-  if (!ts || !el) {
-    window.setTimeout(ensureTurnstile, 200);
-    return;
-  }
-  turnstileWidgetId = ts.render(el, { sitekey: TURNSTILE_SITEKEY });
-}
-
-// The current single-use token, or '' when verification is not configured / not
-// yet solved. Tokens are consumed server-side, so reset after each attempt.
-function turnstileToken(): string {
-  const ts = turnstileApi();
-  if (!TURNSTILE_SITEKEY || !ts || turnstileWidgetId === undefined) return '';
-  return ts.getResponse(turnstileWidgetId) ?? '';
-}
-
-function resetTurnstile(): void {
-  const ts = turnstileApi();
-  if (ts && turnstileWidgetId !== undefined) ts.reset(turnstileWidgetId);
-}
-
-function trackMetaPixel(
-  eventName: string,
-  data?: Record<string, unknown>,
-  options?: Record<string, unknown>,
-): void {
-  const fbq = (window as Window & { fbq?: (...args: unknown[]) => void }).fbq;
-  if (typeof fbq !== 'function') return;
-  if (options) fbq('trackCustom', eventName, data ?? {}, options);
-  else fbq('trackCustom', eventName, data ?? {});
 }
 
 function trackCommunityLinkClicks(): void {
@@ -892,53 +853,6 @@ function requestMobileFullscreenLandscape(): void {
   } catch {
     /* browser declined orientation lock */
   }
-}
-
-function mobilePlatform(): 'ios' | 'android' | 'other' {
-  const ua = navigator.userAgent;
-  const platform = navigator.platform;
-  if (/iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1))
-    return 'ios';
-  if (/Android/.test(ua)) return 'android';
-  return 'other';
-}
-
-function isStandaloneDisplay(): boolean {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
-
-function mobilePreflightCopy(): { detail: string; steps: string[] } {
-  const standalone = isStandaloneDisplay();
-  const base = [t('mobilePreflight.baseLandscape'), t('mobilePreflight.basePerformance')];
-  if (mobilePlatform() === 'ios') {
-    return {
-      detail: standalone
-        ? t('mobilePreflight.iosStandaloneDetail')
-        : t('mobilePreflight.iosInstallDetail'),
-      steps: standalone
-        ? base
-        : [t('mobilePreflight.iosShareStep'), t('mobilePreflight.iosOpenStep'), ...base],
-    };
-  }
-  if (mobilePlatform() === 'android') {
-    return {
-      detail: standalone
-        ? t('mobilePreflight.androidStandaloneDetail')
-        : t('mobilePreflight.androidInstallDetail'),
-      steps: standalone
-        ? base
-        : [t('mobilePreflight.androidInstallStep'), t('mobilePreflight.androidOpenStep'), ...base],
-    };
-  }
-  return {
-    detail: standalone
-      ? t('mobilePreflight.otherStandaloneDetail')
-      : t('mobilePreflight.otherInstallDetail'),
-    steps: base,
-  };
 }
 
 let mobilePreflightPromptPromise: Promise<void> | null = null;
@@ -1312,8 +1226,7 @@ async function startGame(
   // The world and socket stay live, but every client-frame owner pauses while
   // the renderer is recycled. The frame loop also clears its offline backlog.
   let graphicsRebuildPaused = false;
-  const ktx2RestoreUploadQueue =
-    createKtx2RestoreUploadQueueCoordinator<Renderer['backgroundGpuWork']>();
+  const ktx2RestoreUploadQueue = createKtx2RestoreUploadQueueCoordinator<Ktx2RestoreTarget>();
   let hud!: Hud;
   const baseEntryDiagnostics = (): EntryDiagnostics => {
     const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
@@ -1512,18 +1425,17 @@ async function startGame(
   uiEffectsApplier.applyNow();
   const autoLoot = new AutoLoot();
   const perf = createPerfMonitor(null, DESKTOP_APP);
-  canvas.addEventListener('webglcontextlost', () => {
-    ktx2MipsOnContextLost(ktx2RestoreUploadQueue.current);
-    entryDiagnostics.checkpoint('webgl-context-lost', {
-      ...renderEntryDiagnostics(),
-      contextLost: rendererReady ? renderer.perfStats().contextLost + 1 : 1,
-    });
-    console.warn('[entry-diag] WebGL context lost during or after world entry');
-  });
-  canvas.addEventListener('webglcontextrestored', () => {
-    entryDiagnostics.checkpoint('webgl-context-restored');
-    console.info('[entry-diag] WebGL context restored during or after world entry');
-  });
+  attachContextRecoveryHandlers(
+    canvas,
+    buildContextRecoveryCallbacks({
+      entryDiagnostics,
+      renderEntryDiagnostics,
+      ktx2MipsOnContextLost: () => ktx2MipsOnContextLost(ktx2RestoreUploadQueue.current),
+      contextLostCount: () => (rendererReady ? renderer.perfStats().contextLost : 0),
+      showFatalOverlay: fatalOverlay,
+      stuckMessage: t('loading.rendererContextLost'),
+    }),
+  );
   // The probe was armed before the locale/asset awaits above; mark that the await
   // window ended and the synchronous scene build is what runs next.
   entryDiagnostics.checkpoint('scene-build-start', baseEntryDiagnostics());
@@ -1558,12 +1470,13 @@ async function startGame(
     // character's choice onto every character on the machine.
     renderer = loadSpan('renderer-ctor', () => new Renderer(world, canvas, nameplates));
     rendererReady = true;
-    ktx2RestoreUploadQueue.publish(renderer.backgroundGpuWork);
+    ktx2RestoreUploadQueue.publish({ queue: renderer.backgroundGpuWork, host: renderer.webgl });
     publishGpuHitchRuntimeReceipt({ search: location.search, renderer: renderer.perfStats() });
     renderer.setAudioSink(sfx);
     renderer.showDevBadges = settings.get('showDevBadges');
     renderer.showOwnNameplate = settings.get('showOwnNameplate');
     renderer.showPlayerNameplates = settings.get('showPlayerNameplates');
+    setNameplateDotScale(settings.nameplateDotRenderScale());
     renderer.setWaterRipples(settings.get('waterRipples'));
     // Dev-only: ?targetcone=1 draws the Tab-target front cone on the ground in
     // front of the player, for tuning the targeting angle/radius (tab_target.ts).
@@ -1676,6 +1589,7 @@ async function startGame(
     entryDiagnostics.markStable('[entry-guard] world entry stable; runtime probe armed');
   }, ENTRY_PROBE_STABLE_MS);
 
+  startRealmBuilderRollLoad(renderer, online);
   const chatInput = $('#chat-input') as unknown as HTMLTextAreaElement;
   const clickMoveMarker = $('#click-move-marker') as HTMLDivElement;
   // Grow the chat bar to fit what it is displaying (typed text, or the
@@ -1805,21 +1719,8 @@ async function startGame(
       // the active channel tab supplies the send prefix, so plain text goes to
       // that channel without the player retyping "/world" etc.
       const raw = chatInput.value;
-      // dev-only day/night scrub command, intercepted before the chat send path
-      if (import.meta.env.DEV && tryDayNightDevCommand(raw, hud)) {
-        chatInput.value = '';
-        closeChat();
-        return;
-      }
-      // dev-only Ignivar prop placement rig (local branch tooling)
-      if (
-        import.meta.env.DEV &&
-        tryIgnivarPlacerCommand(raw, {
-          scene: renderer.scene,
-          getPlayer: () => world.player,
-          log: (text, color) => hud.log(text, color),
-        })
-      ) {
+      // dev-only chat interceptors (day/night scrub, the placer rig)
+      if (tryDevChatHooks(raw, { hud, scene: renderer.scene, world })) {
         chatInput.value = '';
         closeChat();
         return;
@@ -1918,6 +1819,7 @@ async function startGame(
       onInputIntent: (kind) => perf.markInputIntent(kind),
       onUiKey: (key) => {
         if (key !== 'escape') hud.cancelGroundAim();
+        if (dispatchCollectionAction(key, hud)) return;
         switch (key) {
           case 'interact':
             interactKey();
@@ -1978,26 +1880,12 @@ async function startGame(
           case 'discord':
             toggleDiscordPanel();
             break;
-          case 'deeds':
-            hud.toggleDeeds();
+
+          case 'sheathe':
+            // Cosmetic sheathe toggle (Z): the cue-on-state-change rule lives
+            // in sheathe_toggle.ts, shared with the gamepad dispatch below.
+            toggleSheatheWithCue(world, audio);
             break;
-          case 'professions':
-            hud.toggleProfessions();
-            break;
-          case 'reliquary':
-            hud.toggleReliquary();
-            break;
-          case 'sheathe': {
-            // Cosmetic sheathe toggle (Z). The world owns the rule (dead-gate,
-            // combat auto-unsheathe); play the cue only when the state moved.
-            const wasStowed = world.player.weaponStowed;
-            world.toggleWeaponStow();
-            if (world.player.weaponStowed !== wasStowed) {
-              if (world.player.weaponStowed) audio.weaponSheathe();
-              else audio.weaponUnsheathe();
-            }
-            break;
-          }
           case 'chat':
             openChat();
             break;
@@ -2110,6 +1998,7 @@ async function startGame(
       syncCharacterOpenDiagnostics();
     },
     onBags: () => hud.toggleBags(),
+    onMeters: () => hud.toggleMeters(),
     onCrafting: () => hud.toggleCrafting(),
     onSpellbook: () => hud.toggleSpellbook(),
     onBarEditor: () => hud.toggleBarEditor(),
@@ -2120,6 +2009,7 @@ async function startGame(
     onDailyRewards: () => hud.toggleDailyRewards(),
     onDeeds: () => hud.toggleDeeds(),
     onReliquary: () => hud.toggleReliquary(),
+    onLootExplorer: () => hud.toggleLootExplorer(),
     onMountToggle: () => {
       // Dismount is the shared toggleMounted() path (unchanged); summoning an
       // owned mount from a single tap goes through its reins item directly,
@@ -2384,7 +2274,7 @@ async function startGame(
       input.setDoubleTapDodgeEnabled(settings.set('doubleTapDodge', !!value));
       return;
     }
-    if (key === 'touchPreciseGroundAim') {
+    if (key === 'startAttackOnAbilityUse' || key === 'touchPreciseGroundAim') {
       // No live subsystem to update: the HUD reads these settings at ability-cast
       // time (see hud.castSlot). Persist the choice and we are done.
       settings.set(key, !!value);
@@ -2531,18 +2421,7 @@ async function startGame(
       hud.renderCharIfOpen();
       return;
     }
-    if (key === 'forceHighPerfGpu') {
-      // The push owns the inversion (the shell stores the opt-out) and swallows
-      // a failed write; the shell applies it at its next launch, so nothing in
-      // the running session changes.
-      pushDesktopGpuPref(desktopBridge(), settings.set('forceHighPerfGpu', !!value));
-      return;
-    }
-    if (key === 'discordPresence') {
-      // Same polarity on both sides: the shell drops its RPC connection on false.
-      pushDiscordPresenceEnabled(desktopBridge(), settings.set('discordPresence', !!value));
-      return;
-    }
+    if (applyDesktopShellSetting(key, value, settings, desktopBridge())) return;
     if (key === 'showDevBadges') {
       renderer.showDevBadges = settings.set('showDevBadges', !!value);
       return;
@@ -2553,6 +2432,16 @@ async function startGame(
     }
     if (key === 'showPlayerNameplates') {
       renderer.showPlayerNameplates = settings.set('showPlayerNameplates', !!value);
+      return;
+    }
+    if (key === 'showNameplateDots') {
+      settings.set('showNameplateDots', !!value);
+      setNameplateDotScale(settings.nameplateDotRenderScale());
+      return;
+    }
+    if (key === 'nameplateDotScale') {
+      settings.set('nameplateDotScale', Number(value));
+      setNameplateDotScale(settings.nameplateDotRenderScale());
       return;
     }
     if (key === 'invertLookY') {
@@ -2705,14 +2594,19 @@ async function startGame(
       case 'partyFrameColumns':
         document.documentElement.style.setProperty('--party-frame-columns', String(Math.round(v)));
         break;
+      case 'playerFrameHealthText':
+      case 'targetFrameHealthText':
       case 'partyFrameHealthText':
       case 'partyFrameSort':
       case 'partyFrameStyle':
-        // Read live by Hud.updatePartyFrames; persistence above is the only
-        // page-level work needed.
+        // Read live by Hud.updatePartyFrames / the unit-frame paints; persistence
+        // above is the only page-level work needed.
         break;
       case 'aurasOnPlayerFrame':
         hud.setAurasOnPlayerFrame(!!v);
+        break;
+      case 'auraBarBelowFrame':
+        applyAuraBarSide(document.body, !!v);
         break;
       case 'alwaysShowAllBuffs':
         hud.setAlwaysShowAllBuffs(!!v);
@@ -2786,6 +2680,7 @@ async function startGame(
     next.showDevBadges = settings.get('showDevBadges');
     next.showOwnNameplate = settings.get('showOwnNameplate');
     next.showPlayerNameplates = settings.get('showPlayerNameplates');
+    setNameplateDotScale(settings.nameplateDotRenderScale());
     next.reduceMotionSetting = settings.get('reduceMotion');
     next.setBrightness(settings.get('brightness'));
     next.setCameraFov(settings.get('cameraFov'));
@@ -2812,7 +2707,9 @@ async function startGame(
       graphicsRebuildPaused = paused;
       ktx2RestoreUploadQueue.setPaused(paused);
       if (paused) return;
-      ktx2RestoreUploadQueue.publish(rendererReady ? renderer.backgroundGpuWork : undefined);
+      ktx2RestoreUploadQueue.publish(
+        rendererReady ? { queue: renderer.backgroundGpuWork, host: renderer.webgl } : undefined,
+      );
       movementPrediction.resume();
       last = performance.now();
       acc = 0;
@@ -2877,7 +2774,7 @@ async function startGame(
         initializeGfx: false,
       });
       configureRebuiltRenderer(next);
-      ktx2RestoreUploadQueue.publish(next.backgroundGpuWork);
+      ktx2RestoreUploadQueue.publish({ queue: next.backgroundGpuWork, host: next.webgl });
       return next;
     },
     prepareCurrentZone: (next) =>
@@ -2908,7 +2805,7 @@ async function startGame(
       next.setAudioSink(sfx);
       renderer = next;
       rendererReady = true;
-      ktx2RestoreUploadQueue.publish(next.backgroundGpuWork);
+      ktx2RestoreUploadQueue.publish({ queue: next.backgroundGpuWork, host: next.webgl });
       publishGpuHitchRuntimeReceipt({ search: location.search, renderer: next.perfStats() });
       hud.replaceRenderer(next);
       perf.setRenderer(next);
@@ -3023,13 +2920,18 @@ async function startGame(
     },
     changeLanguage: (lang, onStatus) => changeLanguage(lang, onStatus),
     refreshWocBalance: (force) => refreshWocBalanceOnDemand(force),
-    // Deed-broadcast opt-out: online only (an offline character has no account
-    // row); the options row hides itself when this seam is absent.
+    // Account toggles (deed-broadcast opt-out, queue-pop Discord DM opt-in):
+    // online only (an offline character has no account row); each options row
+    // hides itself when its seam is absent. The fallback is the column default.
     ...(online
       ? {
           deedBroadcasts: {
-            get: () => api.deedBroadcasts(),
-            set: (enabled: boolean) => api.setDeedBroadcasts(enabled),
+            get: () => api.accountToggle('/api/deeds/broadcasts', true),
+            set: (enabled: boolean) => api.setAccountToggle('/api/deeds/broadcasts', enabled),
+          },
+          discordQueuePings: {
+            get: () => api.accountToggle('/api/discord/queue-pings', false),
+            set: (enabled: boolean) => api.setAccountToggle('/api/discord/queue-pings', enabled),
           },
         }
       : {}),
@@ -3082,7 +2984,7 @@ async function startGame(
       // A ground aim armed before the drop is anchored to a stale world; the
       // rebuilt mirror may place the player elsewhere entirely.
       hud.cancelGroundAim();
-      hud.marketResyncAfterReconnect();
+      hud.resyncAfterReconnect();
       // A fresh join hands the server a brand-new PlayerMeta with stopAutoAttackOnTargetSwitch
       // undefined, so the stored preference needs a re-push, the same way it is
       // pushed once on world entry above. onReconnected fires before ClientWorld
@@ -3396,14 +3298,8 @@ async function startGame(
   }
 
   // The R40 per-use effect confirm gate, shared by every gather entry point
-  // (world click, interact key, gathering-tool use): the pure question from
-  // the view core, the ask through the HUD's confirm-dialog family. The
-  // harvest proceeds on either answer; only the charge follows it.
-  const gatherEffectConfirm = {
-    needed: (nodeId: string) => gatherEffectPrompt(world, nodeId),
-    ask: (prompt: { effectId: string; charges: number }, proceed: (confirmed: boolean) => void) =>
-      hud.confirmToolEffectUse(prompt, proceed),
-  };
+  // (world click, interact key, gathering-tool use).
+  const gatherEffectConfirm = createGatherEffectConfirm(world, hud);
   function interactKey(preferNpcId?: number | null): void {
     if (shouldRouteInteractToBgFlag(world.bgInfo, world.player, world.entities)) {
       world.bgFlagAction();
@@ -3414,15 +3310,11 @@ async function startGame(
       tryNearbyInteraction(
         world,
         hud,
-        GATHER_NODES,
-        (node) => gatherNodeToolGateFor(world, node),
-        t('questUi.errors.tooFar'),
-        t('hudChrome.gathering.notReady'),
         t('questUi.errors.escortAway'),
         t('errors.nothingInteract'),
         undefined,
-        gatherEffectConfirm,
         preferNpcId,
+        interactKeyGatherOptions(world, gatherEffectConfirm),
       ),
       input,
       mobileControls,
@@ -5134,6 +5026,7 @@ async function startGame(
         loadPhaseEnd('settle-cover');
         loadPhaseStart('curtain-fade');
         renderer.markGpuHitchReveal();
+        finishShaderWarmup(renderer.webgl);
         hideLoadingScreen();
         // Start the intro clock as the loading screen begins to fade: the camera
         // holds the opening pose until now, so the fade doubles as the cut in.
@@ -5282,6 +5175,7 @@ async function startOffline(
   world?: WorldContent,
   seedOverride?: number,
 ): Promise<void> {
+  stopShaderWarmup();
   if (!(await prepareWorldEntry())) return;
   resetLoadProfile();
   loadPhaseStart('entry');
@@ -5293,25 +5187,16 @@ async function startOffline(
     'sim-build',
     () =>
       new Sim({
-        seed: seedOverride ?? WORLD_SEED,
-        playerClass,
-        playerName: name,
-        devCommands: import.meta.env.DEV,
-        // Live-world features (custom editor play-test maps keep both off).
-        // Directional combat is the normal player runtime contract. The Sim
-        // library itself remains opt-in so old deterministic fixtures do not
-        // silently gain a synthetic aim source.
+        ...offlineWorldConfig({
+          playerClass,
+          name,
+          world,
+          seedOverride,
+          devCommands: import.meta.env.DEV,
+        }),
+        // Directional combat is the local fork's normal runtime contract. Keep
+        // the Sim library opt-in so deterministic fixtures remain unchanged.
         playerDirectionalCombat: true,
-        // The offline world runs the ranked rift portal scheduler like the live
-        // server (custom editor play-test maps keep it off: their zones differ).
-        riftPortals: world === undefined,
-        compulsoryTutorial: world === undefined,
-        // Match the live server's proven-safe idle-AI interest throttle. Ordinary
-        // entity rigs are gone by 96 yd and mob aggro caps at 20 yd, so this removes
-        // full-world wilderness AI from the browser's 20 Hz tick without changing
-        // anything visible or interactable.
-        idleMobTickRadius: PLAYER_INTEREST_DROP_RADIUS,
-        world,
       }),
   );
   sim.setPlayerSkin(sim.playerId, skin);
@@ -5344,10 +5229,7 @@ async function startOffline(
       ...sim.accountCosmetics,
       mechChromaIds: MECH_CHROMAS.map((c) => c.id),
     };
-    // Item-backed wear (uses a real plate), so the described loop holds: only
-    // an equip that consumed the plate returns it to the bag on Unequip.
-    sim.addItem('amber_crimson_armor_plate', 1);
-    sim.useItem('amber_crimson_armor_plate');
+    sim.setPlayerSkin(sim.playerId, 0, 'mech');
     // One weapon per held-model family (sword / axe / mace / dagger / staff / wand
     // / polearm); only the ones this class can wield are granted, so every bag
     // weapon is swappable and the first one auto-equips.
@@ -5928,12 +5810,10 @@ function show(el: string): void {
     authModeApply?.('login');
   }
 
+  const isPlayPanel =
+    el === '#charselect-panel' || el === '#charcreate-panel' || el === '#offline-select';
   const logoImg = $('#title-logo');
-  if (logoImg) {
-    const shouldHideLogo =
-      el === '#charselect-panel' || el === '#charcreate-panel' || el === '#offline-select';
-    logoImg.toggleAttribute('hidden', shouldHideLogo);
-  }
+  if (logoImg) logoImg.toggleAttribute('hidden', isPlayPanel);
 
   if (
     document.activeElement instanceof HTMLInputElement ||
@@ -5946,6 +5826,7 @@ function show(el: string): void {
   // moment the player can actually read it, and the NEW-badge marker should
   // advance only then.
   if (el === '#charselect-panel') {
+    startShaderWarmup();
     void loadCharselectNews($('#charselect-news-feed'), () =>
       fetchReleasesWithFallback(() => api.releases(20)),
     );
@@ -5992,9 +5873,7 @@ function show(el: string): void {
     for (const id of panels) {
       document.querySelector(id)?.toggleAttribute('hidden', id !== el);
     }
-    if (el === '#charselect-panel' || el === '#charcreate-panel' || el === '#offline-select') {
-      updatePreviewContainer(el);
-    }
+    if (isPlayPanel) updatePreviewContainer(el);
     return;
   }
 
@@ -6015,9 +5894,7 @@ function show(el: string): void {
   if (isReducedMotion) {
     fromPanel.toggleAttribute('hidden', true);
     toPanel.toggleAttribute('hidden', false);
-    if (el === '#charselect-panel' || el === '#charcreate-panel' || el === '#offline-select') {
-      updatePreviewContainer(el);
-    }
+    if (isPlayPanel) updatePreviewContainer(el);
     return;
   }
 
@@ -6039,9 +5916,7 @@ function show(el: string): void {
     // Set initial state for fade-in
     toPanel.classList.add('panel-transition', 'panel-fade-in-start');
     toPanel.toggleAttribute('hidden', false);
-    if (el === '#charselect-panel' || el === '#charcreate-panel' || el === '#offline-select') {
-      updatePreviewContainer(el);
-    }
+    if (isPlayPanel) updatePreviewContainer(el);
 
     // Force layout reflow
     void toPanel.offsetHeight;
@@ -6755,10 +6630,6 @@ function closeDeleteCharacterDialog(): void {
   setDeleteCharacterError('');
 }
 
-function normalizeDeleteConfirmation(name: string): string {
-  return name.trim().toLowerCase();
-}
-
 function openDeleteCharacterDialog(character: CharacterSummary): void {
   pendingDeleteCharacter = character;
   const modal = $('#delete-character-modal');
@@ -7071,6 +6942,7 @@ function syncCharselectEnterButton(): void {
 }
 
 async function enterWorld(c: CharacterSummary, button?: HTMLButtonElement): Promise<void> {
+  stopShaderWarmup();
   try {
     if (button) {
       button.disabled = true;
@@ -7432,7 +7304,13 @@ function renderClassDetails(
           } else if (secondaryEffect.type === 'absorb') {
             dmgText = formatClassDetailNumber(secondaryEffect.amount);
           } else if (secondaryEffect.type === 'imbue') {
-            dmgText = formatClassDetailNumber(secondaryEffect.bonus);
+            // Same rule as ability_description's $d: a coat with a damage
+            // rider reads the rider, not its zero flat swing bonus.
+            dmgText = formatClassDetailNumber(
+              secondaryEffect.coat?.rider === 'stackDot'
+                ? Math.max(1, Math.round(secondaryEffect.coat.perTick))
+                : secondaryEffect.bonus,
+            );
           }
         }
       }

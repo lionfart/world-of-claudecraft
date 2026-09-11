@@ -26,16 +26,9 @@ import type { TerritoryMapState } from '../src/world_api';
 
 describe('territory local siege controls', () => {
   it('keeps online display prediction active while freely walking in a siege field', () => {
-    const main = readFileSync(
-      new URL('../src/main.ts', import.meta.url),
-      'utf8',
-    );
-    expect(main).toContain(
-      'selfMotionGateArgs.movementFrozen = movementFrozen();',
-    );
-    expect(main).not.toContain(
-      'movementFrozen() || isTerritorySiegePos(pe.pos.x)',
-    );
+    const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+    expect(main).toContain('selfMotionGateArgs.movementFrozen = movementFrozen();');
+    expect(main).not.toContain('movementFrozen() || isTerritorySiegePos(pe.pos.x)');
   });
 
   it('locks movement only while a siege tool or core channel owns the player', () => {
@@ -68,12 +61,7 @@ describe('territory local siege controls', () => {
     const wall = territorySiegeWallSegmentPlacements()['left:3'];
     const wallX = origin.x + wall.x;
     const z = origin.z + wall.z;
-    const player = createPlayer(
-      1,
-      'warrior',
-      { x: wallX - 5, y: DUNGEON_FLOOR_Y, z },
-      'Predictor',
-    );
+    const player = createPlayer(1, 'warrior', { x: wallX - 5, y: DUNGEON_FLOOR_Y, z }, 'Predictor');
     const territoryState = {
       siege: {
         warId: 'war-1',
@@ -90,21 +78,8 @@ describe('territory local siege controls', () => {
         towerHealth: [],
       },
     } as unknown as TerritoryMapState;
-    const deps = createClientPlayerMotionDeps(
-      7331,
-      undefined,
-      0,
-      () => territoryState,
-    );
-    const blocked = deps.resolveMove(
-      player.pos.x,
-      player.pos.z,
-      wallX + 5,
-      z,
-      0.6,
-      player,
-      false,
-    );
+    const deps = createClientPlayerMotionDeps(7331, undefined, 0, () => territoryState);
+    const blocked = deps.resolveMove(player.pos.x, player.pos.z, wallX + 5, z, 0.6, player, false);
     expect(blocked.x).toBeLessThan(wallX);
   });
 
@@ -135,12 +110,7 @@ describe('territory local siege controls', () => {
         towerHealth: [],
       },
     } as unknown as TerritoryMapState;
-    const deps = createClientPlayerMotionDeps(
-      7331,
-      undefined,
-      0,
-      () => territoryState,
-    );
+    const deps = createClientPlayerMotionDeps(7331, undefined, 0, () => territoryState);
     const blocked = deps.resolveMove(
       player.pos.x,
       player.pos.z,
@@ -171,9 +141,7 @@ describe('territory local siege controls', () => {
       player,
       false,
     );
-    expect(underRamp.z).toBeGreaterThan(
-      origin.z + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
-    );
+    expect(underRamp.z).toBeGreaterThan(origin.z + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z);
   });
 
   it('applies citadel access rules to actual WASD walking', () => {
@@ -195,12 +163,7 @@ describe('territory local siege controls', () => {
         towerHealth: [],
       },
     } as unknown as TerritoryMapState;
-    const deps = createClientPlayerMotionDeps(
-      7331,
-      undefined,
-      0,
-      () => territoryState,
-    );
+    const deps = createClientPlayerMotionDeps(7331, undefined, 0, () => territoryState);
     const input: MoveInput = {
       forward: true,
       back: false,
@@ -230,9 +193,7 @@ describe('territory local siege controls', () => {
       underRamp.prevPos = { ...underRamp.pos };
       stepPlayerMotion(deps, underRamp, input);
     }
-    expect(underRamp.pos.z).toBeGreaterThan(
-      origin.z + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
-    );
+    expect(underRamp.pos.z).toBeGreaterThan(origin.z + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z);
     expect(underRamp.pos.y).toBeLessThan(1);
 
     const stairSide = createPlayer(
@@ -278,9 +239,7 @@ describe('territory local siege controls', () => {
       centralStair.prevPos = { ...centralStair.pos };
       stepPlayerMotion(deps, centralStair, input);
     }
-    expect(centralStair.pos.z).toBeLessThan(
-      origin.z + TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
-    );
+    expect(centralStair.pos.z).toBeLessThan(origin.z + TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z);
     expect(centralStair.pos.y).toBeCloseTo(
       DUNGEON_FLOOR_Y + TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
       4,
@@ -340,9 +299,7 @@ describe('territory local siege controls', () => {
       { x: origin.x, z: origin.z + 27 },
       0.6,
     );
-    expect(
-      Math.hypot(pushed.x - origin.x, pushed.z - (origin.z + 27)),
-    ).toBeGreaterThan(3.2);
+    expect(Math.hypot(pushed.x - origin.x, pushed.z - (origin.z + 27))).toBeGreaterThan(3.2);
 
     host.setTerritorySiegeTeam(1, {
       warId: 'war-1',
@@ -384,22 +341,15 @@ describe('territory local siege controls', () => {
       wallHealth: [{ id: 'left:3', hp: 100 }],
     };
     host.setTerritorySiegeTeam(1, team);
-    expect(
-      territorySimResolveGate(host, 1, outsideX, z, { x: insideX, z }, 0.6).x,
-    ).toBeLessThan(origin.x + wall.x);
+    expect(territorySimResolveGate(host, 1, outsideX, z, { x: insideX, z }, 0.6).x).toBeLessThan(
+      origin.x + wall.x,
+    );
 
     host.setTerritorySiegeTeam(1, {
       ...team,
       wallHealth: [{ id: 'left:3', hp: 0 }],
     });
-    const openBreach = territorySimResolveGate(
-      host,
-      1,
-      outsideX,
-      z,
-      { x: insideX, z },
-      0.6,
-    );
+    const openBreach = territorySimResolveGate(host, 1, outsideX, z, { x: insideX, z }, 0.6);
     expect(openBreach.x).toBeCloseTo(insideX);
     expect(openBreach.z).toBeCloseTo(z);
   });
@@ -420,14 +370,7 @@ describe('territory local siege controls', () => {
       wallHealth: [{ id: 'left:3', hp: 0 }],
     });
     const courtyard = { x: origin.x, z: origin.z - 20 };
-    const resolved = territorySimResolveGate(
-      host,
-      1,
-      courtyard.x,
-      courtyard.z + 1,
-      courtyard,
-      0.6,
-    );
+    const resolved = territorySimResolveGate(host, 1, courtyard.x, courtyard.z + 1, courtyard, 0.6);
     expect(resolved.x).toBeCloseTo(courtyard.x);
     expect(resolved.z).toBeCloseTo(courtyard.z);
   });
@@ -447,14 +390,7 @@ describe('territory local siege controls', () => {
       control: null,
     });
     const outside = { x: origin.x + 210, z: origin.z + 260 };
-    const resolved = territorySimResolveGate(
-      host,
-      1,
-      outside.x - 1,
-      outside.z - 1,
-      outside,
-      0.6,
-    );
+    const resolved = territorySimResolveGate(host, 1, outside.x - 1, outside.z - 1, outside, 0.6);
     expect(resolved.x).toBeCloseTo(outside.x);
     expect(resolved.z).toBeCloseTo(outside.z);
   });

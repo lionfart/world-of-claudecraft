@@ -137,7 +137,7 @@ describe('minimap rim badges', () => {
     // lands the widget beyond the opposite edge; a raw px inset at or past the
     // canvas box is the same escape spelled without the percentage.
     const canvasBoxPx = Number(
-      /<canvas id="minimap" width="(\d+)"/.exec(read('index.html'))?.[1] ?? '0',
+      /<canvas\s+[^>]*id="minimap"[^>]*width="(\d+)"/.exec(read('index.html'))?.[1] ?? '0',
     );
     expect(canvasBoxPx, 'index.html has no sized #minimap canvas').toBeGreaterThan(0);
     for (const selector of RIM_WIDGETS) {

@@ -10,10 +10,10 @@ import {
   type TerritoryMapArtTransform,
   territoryMapArt,
   territoryMapArtIsGround,
-  territoryMapGroundArtKeyForCell,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryMapAuthoredTransitionForCell,
+  territoryMapGroundArtKeyForCell,
   territoryTerrainArtRect,
 } from './territory_map_art';
 import {
