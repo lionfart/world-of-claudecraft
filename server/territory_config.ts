@@ -34,7 +34,7 @@ export function territoryConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Te
     respawnWaveSeconds: whole(env.TERRITORY_RESPAWN_WAVE_SECONDS, 15, 5, 60),
     teamSize: whole(env.TERRITORY_TEAM_SIZE, 20, 1, 20),
     realmWarSlots: whole(env.TERRITORY_REALM_WAR_SLOTS, 4, 1, 16),
-    constructionBaseSeconds: whole(env.TERRITORY_CONSTRUCTION_BASE_SECONDS, 300, 1, 86_400),
+    constructionBaseSeconds: whole(env.TERRITORY_CONSTRUCTION_BASE_SECONDS, 300, 0, 86_400),
     changeRetentionDays: 14,
     closedLiveRetentionDays: 30,
     participantRetentionDays: 180,

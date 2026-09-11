@@ -77,10 +77,10 @@ describeDb('territory persistence (real PostgreSQL)', () => {
     const built = await repository.build(
       { ...actor, commandId: randomUUID(), expectedRevision: placed.delta.revision },
       starter.id,
-      'gate',
-      'gate',
+      'granary',
+      'granary',
     );
-    if (!built.ok || !built.delta) throw new Error('gate build did not commit');
+    if (!built.ok || !built.delta) throw new Error('granary build did not commit');
     const before = await pool.query<{ wood: string; iron: string; grain: string; labor: string }>(
       `SELECT wood, iron, grain, labor FROM territory_guild_state WHERE guild_id = $1`,
       [actor.guildId],
@@ -88,8 +88,8 @@ describeDb('territory persistence (real PostgreSQL)', () => {
     const refused = await repository.build(
       { ...actor, commandId: randomUUID(), expectedRevision: built.delta.revision },
       starter.id,
-      'gate',
-      'gate',
+      'granary',
+      'granary',
     );
     expect(refused).toEqual({ ok: false, error: 'occupied' });
     const after = await pool.query<{ wood: string; iron: string; grain: string; labor: string }>(

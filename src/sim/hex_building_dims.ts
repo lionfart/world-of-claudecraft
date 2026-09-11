@@ -21,22 +21,31 @@ export interface HexBuildingUnit {
   w: number;
   /** unit extent along the model's local z, at scale 1 */
   d: number;
+  /** local-space centre offset measured from the asset origin */
+  cx?: number;
+  /** local-space centre offset measured from the asset origin */
+  cz?: number;
 }
 
 /** Measured unit footprints, keyed by model family (colourway suffix dropped). */
 export const HEX_BUILDING_UNIT: Record<string, HexBuildingUnit> = {
-  castle: { w: 1.9752, d: 2.2561 },
-  barracks: { w: 1.44, d: 1.5662 },
-  townhall: { w: 1.4351, d: 1.5638 },
+  castle: { w: 1.97522, d: 2.2561 },
+  barracks: { w: 1.44004, d: 1.56617, cz: 0.063035 },
+  townhall: { w: 1.43506, d: 1.56376, cx: -0.00129, cz: -0.00183 },
   church: { w: 1.0291, d: 1.155 },
   tavern: { w: 1.1718, d: 1.3324 },
   stables: { w: 1.8587, d: 2.1316 },
-  homeA: { w: 0.7919, d: 0.8537 },
-  homeB: { w: 0.8749, d: 1.0987 },
+  homeA: { w: 0.79194, d: 0.85371, cz: -0.041825 },
+  homeB: { w: 0.87495, d: 1.09875, cx: -0.001285, cz: 0.010675 },
   market: { w: 1.7994, d: 1.3156 },
-  blacksmith: { w: 1.2876, d: 1.2452 },
+  blacksmith: { w: 1.2876, d: 1.24517, cx: 0.0138, cz: 0.062575 },
   archeryrange: { w: 1.6706, d: 1.5509 },
   towerCatapult: { w: 0.9297, d: 1.3033 },
+  towerCannon: { w: 0.92974, d: 1.11103, cz: 0.024435 },
+  tent: { w: 1.51643, d: 1.34502, cx: 0.001935, cz: -0.08402 },
+  watchtower: { w: 1.0449, d: 1.0449 },
+  well: { w: 0.65177, d: 0.75068, cx: 0.010935 },
+  hay: { w: 0.4, d: 0.21586 },
 };
 
 /** `hexrStables` to `stables`, so one table covers all three colourways. */
@@ -54,8 +63,27 @@ export function hexBuildingFamily(key: string): string {
  * for a rotated building. Returns null for a key with no measurement, and the
  * caller keeps its circle.
  */
-export function hexBuildingBox(key: string, scale: number): { hw: number; hd: number } | null {
+export function hexBuildingBox(
+  key: string,
+  scale: number,
+): { hw: number; hd: number } | null {
   const u = HEX_BUILDING_UNIT[hexBuildingFamily(key)];
   if (!u) return null;
   return { hw: (u.w * scale) / 2, hd: (u.d * scale) / 2 };
+}
+
+/** Full measured local footprint, including asymmetric asset-origin offsets. */
+export function hexBuildingBounds(
+  key: string,
+  scaleX: number,
+  scaleZ = scaleX,
+): { hw: number; hd: number; cx: number; cz: number } | null {
+  const unit = HEX_BUILDING_UNIT[hexBuildingFamily(key)];
+  if (!unit) return null;
+  return {
+    hw: (unit.w * scaleX) / 2,
+    hd: (unit.d * scaleZ) / 2,
+    cx: (unit.cx ?? 0) * scaleX,
+    cz: (unit.cz ?? 0) * scaleZ,
+  };
 }

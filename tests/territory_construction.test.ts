@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { territoryConstructionDurationMs } from '../src/sim/territory_construction';
 
 describe('territory construction timing', () => {
+  it('allows the local test preset to complete builds immediately', () => {
+    expect(territoryConstructionDurationMs('keep', 4, 0, 0)).toBe(0);
+  });
+
   it('scales with structure weight and target level', () => {
     expect(territoryConstructionDurationMs('gate', 2, 0, 10)).toBe(60_000);
     expect(territoryConstructionDurationMs('keep', 2, 0, 10)).toBe(100_000);

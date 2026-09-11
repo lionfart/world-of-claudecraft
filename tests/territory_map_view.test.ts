@@ -69,6 +69,43 @@ describe('territory map view', () => {
     );
   });
 
+  it('marks the guild active neutral capture hex as a battle', () => {
+    const manifest = createTerritoryManifest();
+    const centre = manifest.byAxial.get('0:0');
+    if (!centre) throw new Error('compact manifest lost its centre cell');
+    const map = state();
+    map.capture = {
+      id: 'camp:centre:1',
+      cellId: centre.id,
+      slot: 3,
+      biome: 'temperate',
+      difficultyTier: 4,
+      enemyLevel: 20,
+      phase: 'guards',
+      initialGuardsAlive: 6,
+      reinforcementsAlive: 0,
+      participantCount: 0,
+      occupants: 0,
+      progress: 0,
+      registered: false,
+      members: [],
+      inField: false,
+      preparingIn: 0,
+      respawnIn: 0,
+      timeLeft: 3_600,
+      secondsRemaining: 60,
+    };
+    const model = buildTerritoryMapModel({
+      state: map,
+      canvasSize: 560,
+      zoom: 5,
+      center: { x: 0, y: 0 },
+      hoveredCellId: null,
+      selectedCellId: null,
+    });
+    expect(model.visibleCells.find((cell) => cell.cellId === centre.id)?.atWar).toBe(true);
+  });
+
   it('projects neighboring cells on the pointy-top axes used by the supplied art', () => {
     const model = buildTerritoryMapModel({
       state: state(),

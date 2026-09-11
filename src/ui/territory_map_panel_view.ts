@@ -1,3 +1,9 @@
+import {
+  TERRITORY_CASTLE_MAX_LEVEL,
+  territoryActiveCastleLevel,
+  territoryStructureLevelCap,
+  territoryStructureUpgradeAllowed,
+} from '../sim/territory_castle_progression';
 import type { TerritorySiegeBiome } from '../sim/territory_siege_biome';
 import type {
   TerritoryMapState,
@@ -34,17 +40,18 @@ export interface TerritorySlotDescriptor {
     | 'slotForester'
     | 'slotMine'
     | 'slotHouse'
+    | 'slotStockpile'
     | 'slotSiegeWorkshop';
 }
 
 export const TERRITORY_SLOT_DESCRIPTORS: readonly TerritorySlotDescriptor[] = [
   { slot: 'keep_core', kind: 'keep', labelKey: 'slotKeep' },
-  { slot: 'walls', kind: 'walls', labelKey: 'slotWalls' },
   { slot: 'towers', kind: 'towers', labelKey: 'slotTowers' },
   { slot: 'granary', kind: 'granary', labelKey: 'slotGranary' },
   { slot: 'forester', kind: 'forester', labelKey: 'slotForester' },
   { slot: 'mine', kind: 'mine', labelKey: 'slotMine' },
   { slot: 'house', kind: 'house', labelKey: 'slotHouse' },
+  { slot: 'stockpile', kind: 'stockpile', labelKey: 'slotStockpile' },
   { slot: 'siege_workshop', kind: 'siege_workshop', labelKey: 'slotSiegeWorkshop' },
 ];
 
@@ -59,7 +66,9 @@ export type TerritorySlotAction =
 
 export interface TerritorySlotModel extends TerritorySlotDescriptor {
   level: number;
-  state: 'empty' | 'building' | 'active' | 'max' | 'locked';
+  state: 'empty' | 'building' | 'active' | 'max' | 'locked' | 'castle_locked';
+  completesAt: string | null;
+  requiredCastleLevel: number | null;
   action: TerritorySlotAction | null;
 }
 
@@ -86,6 +95,13 @@ export function territorySlotModels(
       : (state.cells.find((cell) => cell.cellId === selectedCellId) ?? null);
   const ownsKeep = !!guild && site?.ownerGuildId === guild.id && site.keepRoot;
   const canManage = ownsKeep && guild.rank !== 'member';
+  const castle =
+    selectedCellId === null
+      ? null
+      : (state.structures.find(
+          (entry) => entry.cellId === selectedCellId && entry.slot === 'keep_core',
+        ) ?? null);
+  const activeCastleLevel = territoryActiveCastleLevel(castle);
   return TERRITORY_SLOT_DESCRIPTORS.map((descriptor) => {
     const structure =
       selectedCellId === null
@@ -93,7 +109,15 @@ export function territorySlotModels(
         : (state.structures.find(
             (entry) => entry.cellId === selectedCellId && entry.slot === descriptor.slot,
           ) ?? null);
-    if (!ownsKeep) return { ...descriptor, level: 0, state: 'locked', action: null };
+    if (!ownsKeep)
+      return {
+        ...descriptor,
+        level: 0,
+        state: 'locked',
+        completesAt: null,
+        requiredCastleLevel: null,
+        action: null,
+      };
     if (!structure) {
       const action =
         canManage && descriptor.slot !== 'keep_core'
@@ -104,18 +128,58 @@ export function territorySlotModels(
               structureKind: descriptor.kind,
             }
           : null;
-      return { ...descriptor, level: 0, state: 'empty', action };
+      return {
+        ...descriptor,
+        level: 0,
+        state: 'empty',
+        completesAt: null,
+        requiredCastleLevel: null,
+        action,
+      };
     }
     if (structure.state === 'building') {
-      return { ...descriptor, level: structure.level, state: 'building', action: null };
+      return {
+        ...descriptor,
+        level: structure.level,
+        state: 'building',
+        completesAt: structure.completesAt,
+        requiredCastleLevel: null,
+        action: null,
+      };
     }
-    if (structure.level >= 5) {
-      return { ...descriptor, level: structure.level, state: 'max', action: null };
+    const cap = territoryStructureLevelCap(descriptor.slot, activeCastleLevel);
+    if (structure.level >= TERRITORY_CASTLE_MAX_LEVEL) {
+      return {
+        ...descriptor,
+        level: structure.level,
+        state: 'max',
+        completesAt: null,
+        requiredCastleLevel: null,
+        action: null,
+      };
+    }
+    if (
+      descriptor.slot !== 'keep_core' &&
+      !territoryStructureUpgradeAllowed(descriptor.slot, structure.level, activeCastleLevel)
+    ) {
+      return {
+        ...descriptor,
+        level: structure.level,
+        state: 'castle_locked',
+        completesAt: null,
+        requiredCastleLevel: Math.min(
+          TERRITORY_CASTLE_MAX_LEVEL,
+          Math.max(structure.level + 1, cap + 1),
+        ),
+        action: null,
+      };
     }
     return {
       ...descriptor,
       level: structure.level,
       state: 'active',
+      completesAt: null,
+      requiredCastleLevel: null,
       action: canManage
         ? { kind: 'upgrade', cellId: selectedCellId as number, slot: descriptor.slot }
         : null,
@@ -139,6 +203,17 @@ export function territoryWarCountdown(totalSeconds: number): string {
   const seconds = total % 60;
   const tail = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   return hours > 0 ? `${hours}:${tail}` : tail;
+}
+
+/** Remaining construction time for a live structure button, or null once complete. */
+export function territoryStructureCountdown(
+  completesAt: string | null,
+  nowMs: number,
+): string | null {
+  if (!completesAt) return null;
+  const deadline = Date.parse(completesAt);
+  if (!Number.isFinite(deadline) || deadline <= nowMs) return null;
+  return territoryWarCountdown((deadline - nowMs) / 1_000);
 }
 
 export function territoryWarNoticeModel(

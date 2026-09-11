@@ -14002,7 +14002,7 @@ export const nl_NL: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.partyFrames': 'Groep',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Speler',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Houdingsbalk',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Verlanglijstherinnering',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Donatiesteun',
   'hudChrome.interfaceUnlock.frameNames.swingBar': 'Automatische Aanval',
   'hudChrome.interfaceUnlock.frameNames.targetFrame': 'Doelwit',
   'hudChrome.interfaceUnlock.frameNames.xpBar': 'XP-balk',

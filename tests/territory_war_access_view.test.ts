@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createTerritoryWarAccess,
   territoryRelatedWar,
+  territoryRelatedWars,
   updateTerritoryWarAccess,
 } from '../src/ui/territory_war_access_view';
 import type { TerritoryMapState, TerritoryWarView } from '../src/world_api';
@@ -59,5 +60,35 @@ describe('war map launcher', () => {
       id: 'war-defender',
       mySide: 'defender',
     });
+  });
+
+  it('keeps simultaneous attacking and defending wars visible for the same guild', () => {
+    const defending = {
+      id: 'war-defender',
+      attackerGuildId: '7',
+      defenderGuildId: '12',
+      status: 'forming',
+      startsAt: '2026-09-03T12:05:00.000Z',
+      mySide: 'defender',
+      registered: true,
+    } as TerritoryWarView;
+    const attacking = {
+      ...defending,
+      id: 'war-attacker',
+      attackerGuildId: '12',
+      defenderGuildId: '19',
+      startsAt: '2026-09-03T12:10:00.000Z',
+      mySide: null,
+      registered: false,
+    } as TerritoryWarView;
+    const map = {
+      guild: { id: '12' },
+      wars: [{ ...defending, mySide: null, registered: false }, attacking],
+    } as unknown as TerritoryMapState;
+
+    expect(territoryRelatedWars(defending, map)).toMatchObject([
+      { id: 'war-defender', mySide: 'defender', registered: true },
+      { id: 'war-attacker', mySide: 'attacker' },
+    ]);
   });
 });

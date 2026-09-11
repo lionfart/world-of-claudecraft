@@ -49,6 +49,7 @@ export const guideStrings = {
     combat: 'Combat',
     talents: 'Talents',
     arena: 'Arena & PvP',
+    territoryWar: 'Territory War',
     thornhollow: 'Thornhollow Fields',
     deeds: 'Book of Deeds',
     reliquary: 'The Reliquary',
@@ -2084,6 +2085,57 @@ export const guideStrings = {
       'Every Warfare piece carries Warfare Offense and Warfare Defense Rating, and those two ratings do nothing at all against monsters. They apply only when you fight another player, in a duel, in the arena, or on the battleground, where Offense adds to the damage you deal and Defense cuts the damage you take, each up to its own ceiling. Each armor family is also a set, and its set bonuses are likewise Warfare rating or effects that only work against players, so a full honor kit is worth nothing on a dungeon boss.',
     warfareTradeBody:
       'That is the deliberate trade. Warfare gear is built for fighting players, not as a shortcut past the dungeon tiers: a Warfare piece never carries the combat ratings a dungeon epic in the same slot does, and everything it does bring is spent on other players. If you want to hold your own in the arena, buy it. If you want to clear heroics faster, earn your gear in the dungeons.',
+  },
+
+  // Guild territory campaigns and their player-visible battlefield rules. Exact
+  // costs, damage, cooldowns, and scheduling constants stay in the simulation.
+  territoryWarPage: {
+    heading: 'Territory War',
+    intro:
+      'Territory War is the guild campaign fought across the seasonal War Map. Guilds claim connected land, develop strongholds and resource buildings, then attack or defend those holdings in instanced siege battles inspired by large-scale realm warfare.',
+    mapHeading: 'Reading the War Map',
+    mapBody:
+      'Open the War Map from its shield button on the right side of the HUD. Each hex shows its terrain, owner, resource deposit, war state, and the battlefield biome used if a siege begins there. Mountains are impassable strategic terrain and cannot be claimed. A red notification dot appears when your guild is attacking or defending an active territory war.',
+    controlHeading: 'Claiming territory',
+    controlBody:
+      'An unclaimed, claimable hex can become a guild holding. The first claim establishes the foothold; later claims must remain connected to land the guild already controls. Ownership, active fronts, and attack paths are drawn directly on the War Map so neighboring threats are visible before a declaration.',
+    expansionHeading: 'Expanding a border',
+    expansionBody:
+      'A guild expands through adjacent claimable hexes rather than jumping across the map. Transition terrain marks the edge between vale, rock, snow, and dune regions, while every siege uses the battlefield biome shown in the selected hex panel.',
+    developmentHeading: 'Developing a holding',
+    developmentBody:
+      'Every newly claimed hex begins as its own level 1 castle and can be developed independently. Castle level upgrades its core, gate, walls, courtyard, and defensive strength together: level 1 uses timber walls and an unpaved dirt yard, level 2 uses the current stone keep over dirt with stone paths, and level 3 uses the heavier Drakelands masonry and a fully paved courtyard. Level 1 buildings cost normal purse coin; level 2 and 3 upgrades also consume guild grain, wood, iron, and labor. Towers, the granary, forester, mine, house, and siege workshop cannot be upgraded above the active castle level, and every structure has a maximum level of 3. A holding earns no grain without a granary, no wood without a forester, no iron without a mine, and no labor without a house. Select an active siege workshop to open its crafting panel; siege weapons can be produced only there using territory resources and coin.',
+    declarationHeading: 'Declaring war',
+    declarationBody:
+      'Guild leaders and authorized officers can declare against an eligible neighboring enemy holding when their guild meets the campaign requirements. The War Map notice shows the attacker, defender, roster state, and start countdown. Joining reserves a seat for the coming battle.',
+    rosterHeading: 'Battle rosters and rejoining',
+    rosterBody:
+      'A siege supports twenty attackers and twenty defenders. The attacking roster locks when the battle begins, but a registered attacker can rejoin after leaving or disconnecting. Defenders can continue filling open defensive seats until the battle is resolved.',
+    rejoinNote:
+      'Leaving the siege instance does not surrender a reserved attacking seat. Open the War Map notice and rejoin while the battle is still active.',
+    battlefieldHeading: 'The siege battlefield',
+    battlefieldBody:
+      'The target hex chooses a vale, rocky, snow, or dune battlefield. The castle gate, individual wall segments, defensive towers, keep core, and every deployed siege weapon have their own health. Select a structure or siege weapon to inspect it. Destroyed wall segments open real breaches, while intact walls block movement and teleport-style shortcuts into the keep.',
+    objectiveHeading: 'Breaking the keep',
+    objectiveBody:
+      'Attackers must destroy the gate or breach a wall segment, reach the keep core, then use the interaction key inside the core area to channel the core laser. The channel can be toggled with the same key and damages the core while it is maintained. Defenders win by preserving the core until the siege expires; attackers win by destroying it.',
+    objectiveNote:
+      'Defenders can approach an intact gate and press the interaction key to pass through it in either direction. Once outside, defenders can roam the battlefield without an artificial return boundary.',
+    ramHeading: 'Battering Ram',
+    ramBody:
+      'A Battering Ram is an attacker siege item. Use it near the marked gate deployment area, where up to three rams form side by side facing the gate without overlapping. One player operates each ram with the interaction key. Its normal strike pressures the gate; its slower empowered strike hits harder and also creates a knockback area around the impact.',
+    mortarHeading: 'Field Mortar',
+    mortarBody:
+      'A Field Mortar can be placed on clear ground and operated by one player. Enter it with the interaction key to use an elevated tactical camera, aim a ground point, and fire after the mortar has turned into alignment. Its shells follow a visible arc and affect players only: choose direct damage, a frost burst that slows, or a venom shell that applies poison and a brief stun. Mortar fire cannot damage gates, walls, towers, the keep core, or other structures.',
+    catapultHeading: 'Field Catapult',
+    catapultBody:
+      'A Field Catapult is placed on clear ground and uses the same one-player tactical controls. It turns toward the chosen target before releasing a visible arcing projectile. A heavy boulder deals stronger damage in a tighter area, while the cluster shot scatters smaller stones across a wider area for lighter damage and a slow. Catapults can damage enemy players, siege weapons, gates, wall segments, and defensive towers.',
+    defenseHeading: 'Defending the walls',
+    defenseBody:
+      'Defensive towers have health, can be selected, and launch visible arcing projectiles at attackers. Defenders should protect breached approaches, destroy hostile siege weapons, interrupt the core channel, and use the intact gate passage to move between the courtyard and the field.',
+    outcomeHeading: 'Victory and control',
+    outcomeBody:
+      'When the keep core falls, the attackers take the territory and the War Map updates the campaign border. If time expires first, the defenders retain the holding. Resource production then follows the buildings that remain available on the claimed city.',
   },
 
   // The Thornhollow Fields 5v5 capture-the-flag battleground page

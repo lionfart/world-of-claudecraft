@@ -13665,7 +13665,7 @@ export const vi_VN: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.partyFrames': 'Tổ Đội',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Người Chơi',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Thanh Thế Đứng',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Nhắc Nhở Danh Sách Ước',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Hỗ Trợ Quyên Góp',
   'hudChrome.interfaceUnlock.frameNames.swingBar': 'Tự Đánh',
   'hudChrome.interfaceUnlock.frameNames.targetFrame': 'Mục Tiêu',
   'hudChrome.interfaceUnlock.frameNames.xpBar': 'Thanh Kinh Nghiệm',

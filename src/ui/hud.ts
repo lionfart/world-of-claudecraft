@@ -15480,6 +15480,7 @@ export class Hud {
           siege.catapults ?? [],
           siege.mortars,
           siege.rams ?? [],
+          siege.castleLevel,
         )
       ) {
         this.showError(t('hudChrome.territoryMap.catapultPlacement'));
@@ -15509,6 +15510,7 @@ export class Hud {
           siege.mortars,
           siege.rams ?? [],
           siege.catapults ?? [],
+          siege.castleLevel,
         )
       ) {
         this.showError(t('hudChrome.territoryMap.mortarPlacement'));

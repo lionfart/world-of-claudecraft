@@ -90,12 +90,12 @@ describe('classifyDiff', () => {
     expect(plan.generic).toHaveLength(0);
   });
 
-  it('maps the Steam wishlist owner to current web and borderless landing evidence', () => {
-    const plan = classifyDiff(['src/ui/steam_wishlist.ts']);
+  it('maps Donate shell edits to current web and borderless landing evidence', () => {
+    const plan = classifyDiff(['index.html']);
     expect(plan.isVisual).toBe(true);
-    expect(plan.specific.map((target: { key: string }) => target.key)).toContain('steam-wishlist');
+    expect(plan.specific.map((target: { key: string }) => target.key)).toContain('donate-surfaces');
     const target = plan.specific.find(
-      (candidate: { key: string }) => candidate.key === 'steam-wishlist',
+      (candidate: { key: string }) => candidate.key === 'donate-surfaces',
     );
     expect(target?.variants).toEqual([
       { key: 'homepage-header-web', landing: true, beforeLoad: expect.any(Function) },

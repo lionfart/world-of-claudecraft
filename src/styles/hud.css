@@ -6699,19 +6699,6 @@
     color: #fff;
     border-color: #ff6b8b;
   }
-  /* Two audiences never see the reminder: a player already inside the Steam
-     build of the desktop app (body.steam-build, stamped from the shell's own
-     answer by syncSteamWishlistVisibility), and the native store shells, which
-     drop outbound store links exactly as they already drop Donate above. This
-     lives in @layer components with !important so it also reaches the shell
-     surfaces in the later @layer shell (important declarations reverse layer
-     order), which is the same mechanism the body.native-app block above uses. */
-  body.steam-wishlist-pending .steam-wishlist,
-  body.native-app .steam-wishlist,
-  body.steam-build .steam-wishlist {
-    display: none !important;
-  }
-
   /* ---------- tooltip ---------- */
   #tooltip {
     position: absolute;

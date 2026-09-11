@@ -67,7 +67,7 @@ describe('hud.css - ambient loops gate on --fx-ambient-anim + --motion-scale', (
     const playStates =
       hudCss.match(/animation-play-state: var\(--fx-ambient-anim, running\);/g) ?? [];
     // combat-flash, rest, talent, fiesta, party-badge, daily-rewards chest + icon,
-    // ai-tag, steam-wishlist sheen
+    // ai-tag, Donate support sheen
     expect(playStates.length).toBe(9);
   });
 

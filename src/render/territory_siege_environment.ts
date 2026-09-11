@@ -7,12 +7,36 @@ import {
   TERRITORY_SIEGE_TREES,
 } from '../sim/territory_siege_environment';
 import {
+  TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
+  TERRITORY_SIEGE_CITADEL_INNER_BACK_Z,
+  TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z,
+  TERRITORY_SIEGE_CITADEL_INNER_HALF_X,
+  TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z,
+  TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH,
+  TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
+  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z,
+  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z,
+  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
+  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
+  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT,
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
   TERRITORY_SIEGE_VISUAL_MARGIN,
   territorySiegeGroundLiftLocal,
   territorySiegeTerrainLiftLocal,
 } from '../sim/territory_siege_ground';
+import {
+  TERRITORY_SIEGE_BACK_WALL_Z,
+  TERRITORY_SIEGE_GATE_Z,
+  TERRITORY_SIEGE_WALL_HALF_X,
+  TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+} from '../sim/territory_siege_layout';
+import {
+  castlePavingMat,
+  FLAGSTONE_TILE_YD,
+  tileCastleUv,
+} from './castle_stone';
 import { surfaceMat } from './gfx';
 import {
   cloneTerritorySiegeAsset,
@@ -21,6 +45,7 @@ import {
   type TerritorySiegeAssetKey,
   type TerritorySiegeTextureKey,
 } from './territory_siege_assets';
+import { showTerritoryCastleTier } from './territory_siege_castle_visual';
 import { territorySiegeGrassPlacements } from './territory_siege_grass_core';
 import { grassTuftTexture } from './textures';
 
@@ -131,10 +156,26 @@ const SURFACE_TEXTURES: Record<
     roughness: TerritorySiegeTextureKey;
   }
 > = {
-  grass: { color: 'grassColor', normal: 'grassNormal', roughness: 'grassRoughness' },
-  dirt: { color: 'dirtColor', normal: 'dirtNormal', roughness: 'dirtRoughness' },
-  snow: { color: 'snowColor', normal: 'snowNormal', roughness: 'snowRoughness' },
-  sand: { color: 'sandColor', normal: 'sandNormal', roughness: 'dirtRoughness' },
+  grass: {
+    color: 'grassColor',
+    normal: 'grassNormal',
+    roughness: 'grassRoughness',
+  },
+  dirt: {
+    color: 'dirtColor',
+    normal: 'dirtNormal',
+    roughness: 'dirtRoughness',
+  },
+  snow: {
+    color: 'snowColor',
+    normal: 'snowNormal',
+    roughness: 'snowRoughness',
+  },
+  sand: {
+    color: 'sandColor',
+    normal: 'sandNormal',
+    roughness: 'dirtRoughness',
+  },
 };
 
 function texturedMaterial(
@@ -152,22 +193,35 @@ function texturedMaterial(
     color: tint,
     map: cloneTerritorySiegeTexture(textures.color, repeatX, repeatY),
     normalMap: cloneTerritorySiegeTexture(textures.normal, repeatX, repeatY),
-    roughnessMap: cloneTerritorySiegeTexture(textures.roughness, repeatX, repeatY),
+    roughnessMap: cloneTerritorySiegeTexture(
+      textures.roughness,
+      repeatX,
+      repeatY,
+    ),
     roughness: 1,
     vertexColors,
   });
   const standard = material as THREE.MeshStandardMaterial;
   if (standard.isMeshStandardMaterial)
-    standard.normalScale.setScalar(kind === 'grass' ? 0.72 : kind === 'snow' ? 0.46 : 0.55);
+    standard.normalScale.setScalar(
+      kind === 'grass' ? 0.72 : kind === 'snow' ? 0.46 : 0.55,
+    );
   surfaceMaterials.set(cacheKey, material);
   return material;
 }
 
 function buildTerrain(biome: TerritorySiegeBiome): THREE.Mesh {
   const style = FIELD_STYLES[biome];
-  const visualHalfX = TERRITORY_SIEGE_FIELD_HALF_X + TERRITORY_SIEGE_VISUAL_MARGIN;
-  const visualHalfZ = TERRITORY_SIEGE_FIELD_HALF_Z + TERRITORY_SIEGE_VISUAL_MARGIN;
-  const geometry = new THREE.PlaneGeometry(visualHalfX * 2, visualHalfZ * 2, 112, 156);
+  const visualHalfX =
+    TERRITORY_SIEGE_FIELD_HALF_X + TERRITORY_SIEGE_VISUAL_MARGIN;
+  const visualHalfZ =
+    TERRITORY_SIEGE_FIELD_HALF_Z + TERRITORY_SIEGE_VISUAL_MARGIN;
+  const geometry = new THREE.PlaneGeometry(
+    visualHalfX * 2,
+    visualHalfZ * 2,
+    112,
+    156,
+  );
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
   const colors = new Float32Array(positions.count * 3);
@@ -180,9 +234,13 @@ function buildTerrain(biome: TerritorySiegeBiome): THREE.Mesh {
     const z = positions.getZ(index);
     const height = territorySiegeTerrainLiftLocal(x, z);
     positions.setY(index, height);
-    const variation = Math.sin(x * 0.083 + z * 0.047) * 0.5 + Math.sin(z * 0.16 - x * 0.027) * 0.3;
+    const variation =
+      Math.sin(x * 0.083 + z * 0.047) * 0.5 +
+      Math.sin(z * 0.16 - x * 0.027) * 0.3;
     const soil = Math.max(0, Math.min(1, 0.42 + variation));
-    color.copy(baseColor).lerp(soilColor, soil * (biome === 'rocky' ? 0.34 : 0.2));
+    color
+      .copy(baseColor)
+      .lerp(soilColor, soil * (biome === 'rocky' ? 0.34 : 0.2));
     const mountain = Math.max(0, Math.min(0.86, (height - 2.2) / 15));
     color.lerp(mountainColor, mountain);
     colors[index * 3] = color.r;
@@ -193,7 +251,10 @@ function buildTerrain(biome: TerritorySiegeBiome): THREE.Mesh {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  const mesh = new THREE.Mesh(geometry, texturedMaterial(style.surface, 0xffffff, 54, 74, true));
+  const mesh = new THREE.Mesh(
+    geometry,
+    texturedMaterial(style.surface, 0xffffff, 54, 74, true),
+  );
   mesh.name = `territory-siege-sculpted-ground:${biome}`;
   mesh.receiveShadow = true;
   return mesh;
@@ -203,7 +264,13 @@ function patchMaterial(biome: TerritorySiegeBiome): THREE.Material {
   const cached = patchMaterials.get(biome);
   if (cached) return cached;
   const style = FIELD_STYLES[biome];
-  const material = texturedMaterial(style.patchSurface, style.patchTint, 1, 1, false);
+  const material = texturedMaterial(
+    style.patchSurface,
+    style.patchTint,
+    1,
+    1,
+    false,
+  );
   material.transparent = true;
   material.opacity = style.patchOpacity;
   material.depthWrite = false;
@@ -230,11 +297,16 @@ function buildLeafLitterClearings(biome: TerritorySiegeBiome): THREE.Mesh {
   for (let patchIndex = 0; patchIndex < placements.length; patchIndex += 1) {
     const patch = placements[patchIndex];
     const base = positions.length / 3;
-    positions.push(patch.x, territorySiegeTerrainLiftLocal(patch.x, patch.z) + 0.045, patch.z);
+    positions.push(
+      patch.x,
+      territorySiegeTerrainLiftLocal(patch.x, patch.z) + 0.045,
+      patch.z,
+    );
     uvs.push(patch.x * 0.12, patch.z * 0.12);
     for (let index = 0; index < segments; index += 1) {
       const angle = (index / segments) * Math.PI * 2;
-      const wobble = 0.82 + hash01(patch.x + index * 4.1, patch.z - index * 3.7) * 0.24;
+      const wobble =
+        0.82 + hash01(patch.x + index * 4.1, patch.z - index * 3.7) * 0.24;
       const px = Math.cos(angle) * patch.rx * wobble;
       const pz = Math.sin(angle) * patch.rz * wobble;
       const x = patch.x + px * Math.cos(patch.yaw) - pz * Math.sin(patch.yaw);
@@ -246,7 +318,10 @@ function buildLeafLitterClearings(biome: TerritorySiegeBiome): THREE.Mesh {
       indices.push(base, base + 1 + index, base + 1 + ((index + 1) % segments));
   }
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(positions, 3),
+  );
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
@@ -280,7 +355,10 @@ function buildApproachRoad(biome: TerritorySiegeBiome): THREE.Mesh {
     }
   }
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(positions, 3),
+  );
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
@@ -297,6 +375,34 @@ function buildApproachRoad(biome: TerritorySiegeBiome): THREE.Mesh {
 function hash01(x: number, z: number): number {
   const value = Math.sin(x * 12.9898 + z * 78.233) * 43_758.5453;
   return value - Math.floor(value);
+}
+
+// Tuck each floor a little below the inner wall skin. The former 85x86 plane
+// stopped about a yard short on every side, exposing the biome terrain as the
+// dark moat-like strip visible in the report.
+const COURTYARD_SEAM_OVERLAP = 0.4;
+const COURTYARD_HALF_WIDTH =
+  TERRITORY_SIEGE_WALL_HALF_X -
+  TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH +
+  COURTYARD_SEAM_OVERLAP;
+const COURTYARD_FRONT_Z =
+  TERRITORY_SIEGE_GATE_Z -
+  TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH +
+  COURTYARD_SEAM_OVERLAP;
+const COURTYARD_BACK_Z =
+  TERRITORY_SIEGE_BACK_WALL_Z +
+  TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH -
+  COURTYARD_SEAM_OVERLAP;
+const COURTYARD_WIDTH = COURTYARD_HALF_WIDTH * 2;
+const COURTYARD_DEPTH = COURTYARD_FRONT_Z - COURTYARD_BACK_Z;
+const COURTYARD_CENTER_Z = (COURTYARD_FRONT_Z + COURTYARD_BACK_Z) / 2;
+
+function insideCastleCourtyard(x: number, z: number): boolean {
+  return (
+    Math.abs(x) < COURTYARD_HALF_WIDTH &&
+    z > COURTYARD_BACK_Z &&
+    z < COURTYARD_FRONT_Z
+  );
 }
 
 function siegeGrassCardGeometry(): THREE.BufferGeometry {
@@ -319,7 +425,10 @@ function siegeGrassCardGeometry(): THREE.BufferGeometry {
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
   }
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(positions, 3),
+  );
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
@@ -348,7 +457,8 @@ function grassMaterial(biome: TerritorySiegeBiome): THREE.MeshStandardMaterial {
         '#include <color_fragment>\nfloat territoryGrassSnow = smoothstep(0.38, 0.92, vMapUv.y);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78, 0.88, 0.94), territoryGrassSnow * 0.92);',
       );
     };
-    material.customProgramCacheKey = () => `${previousCacheKey()}|territory-siege-snow-grass-v1`;
+    material.customProgramCacheKey = () =>
+      `${previousCacheKey()}|territory-siege-snow-grass-v1`;
     material.needsUpdate = true;
     siegeSnowGrassMaterial = material;
   } else {
@@ -359,7 +469,9 @@ function grassMaterial(biome: TerritorySiegeBiome): THREE.MeshStandardMaterial {
 
 /** Lush crossed billboard clumps, patch-gated so the field reads naturally. */
 function buildBillboardGrass(biome: TerritorySiegeBiome): THREE.InstancedMesh {
-  const placements = territorySiegeGrassPlacements(biome);
+  const placements = territorySiegeGrassPlacements(biome).filter(
+    (grass) => !insideCastleCourtyard(grass.x, grass.z),
+  );
   const mesh = new THREE.InstancedMesh(
     siegeGrassCardGeometry(),
     grassMaterial(biome),
@@ -386,12 +498,22 @@ function buildBillboardGrass(biome: TerritorySiegeBiome): THREE.InstancedMesh {
 }
 
 /** Low, clustered pebbles break up the soil without reading as repeated spikes. */
-function buildGroundStoneScatter(biome: TerritorySiegeBiome): THREE.InstancedMesh {
+function buildGroundStoneScatter(
+  biome: TerritorySiegeBiome,
+): THREE.InstancedMesh {
   const style = FIELD_STYLES[biome];
-  const placements: { x: number; z: number; scale: number; yaw: number; color: number }[] = [];
+  const placements: {
+    x: number;
+    z: number;
+    scale: number;
+    yaw: number;
+    color: number;
+  }[] = [];
   for (let patch = 0; patch < style.stonePatches; patch += 1) {
     const side = patch % 2 === 0 ? -1 : 1;
-    const centerX = side * (28 + hash01(patch * 3.7, 2.1) * (TERRITORY_SIEGE_FIELD_HALF_X - 35));
+    const centerX =
+      side *
+      (28 + hash01(patch * 3.7, 2.1) * (TERRITORY_SIEGE_FIELD_HALF_X - 35));
     const centerZ =
       -TERRITORY_SIEGE_FIELD_HALF_Z +
       8 +
@@ -403,12 +525,16 @@ function buildGroundStoneScatter(biome: TerritorySiegeBiome): THREE.InstancedMes
       const x = centerX + Math.cos(angle) * distance;
       const z = centerZ + Math.sin(angle) * distance;
       if (Math.abs(x) > TERRITORY_SIEGE_FIELD_HALF_X - 3) continue;
+      if (insideCastleCourtyard(x, z)) continue;
       placements.push({
         x,
         z,
         scale: (0.32 + hash01(x, z) * 0.72) * style.stoneScale,
         yaw: hash01(z, x) * Math.PI,
-        color: hash01(x + 4, z - 9) > 0.45 ? style.stoneColors[0] : style.stoneColors[1],
+        color:
+          hash01(x + 4, z - 9) > 0.45
+            ? style.stoneColors[0]
+            : style.stoneColors[1],
       });
     }
   }
@@ -453,13 +579,29 @@ function placeAtHeight(
   return asset;
 }
 
-function buildBiomeTrees(root: THREE.Object3D, biome: TerritorySiegeBiome): void {
-  const snowPines: readonly TerritorySiegeAssetKey[] = ['snowPineA', 'snowPineB', 'snowPineC'];
+function buildBiomeTrees(
+  root: THREE.Object3D,
+  biome: TerritorySiegeBiome,
+): void {
+  const snowPines: readonly TerritorySiegeAssetKey[] = [
+    'snowPineA',
+    'snowPineB',
+    'snowPineC',
+  ];
   for (let index = 0; index < TERRITORY_SIEGE_TREES.length; index += 1) {
     const tree = TERRITORY_SIEGE_TREES[index];
+    if (insideCastleCourtyard(tree.x, tree.z)) continue;
     const y = territorySiegeGroundLiftLocal(tree.x, tree.z);
     if (biome === 'desert') {
-      placeAtHeight(root, 'desertTree', tree.x, y, tree.z, tree.scale * 0.92, tree.yaw);
+      placeAtHeight(
+        root,
+        'desertTree',
+        tree.x,
+        y,
+        tree.z,
+        tree.scale * 0.92,
+        tree.yaw,
+      );
       continue;
     }
     if (biome === 'snow') {
@@ -476,15 +618,32 @@ function buildBiomeTrees(root: THREE.Object3D, biome: TerritorySiegeBiome): void
       );
       continue;
     }
-    const key: TerritorySiegeAssetKey = index % 4 === 0 ? 'naturalOak' : 'naturalPine';
-    place(root, key, tree.x, y, tree.z, tree.scale * (biome === 'rocky' ? 0.38 : 0.42), tree.yaw);
+    const key: TerritorySiegeAssetKey =
+      index % 4 === 0 ? 'naturalOak' : 'naturalPine';
+    place(
+      root,
+      key,
+      tree.x,
+      y,
+      tree.z,
+      tree.scale * (biome === 'rocky' ? 0.38 : 0.42),
+      tree.yaw,
+    );
   }
 }
 
-function buildBiomeRocks(root: THREE.Object3D, biome: TerritorySiegeBiome): void {
-  const snowRocks: readonly TerritorySiegeAssetKey[] = ['snowRockA', 'snowRockB', 'snowRockC'];
+function buildBiomeRocks(
+  root: THREE.Object3D,
+  biome: TerritorySiegeBiome,
+): void {
+  const snowRocks: readonly TerritorySiegeAssetKey[] = [
+    'snowRockA',
+    'snowRockB',
+    'snowRockC',
+  ];
   for (let index = 0; index < TERRITORY_SIEGE_ROCKS.length; index += 1) {
     const rock = TERRITORY_SIEGE_ROCKS[index];
+    if (insideCastleCourtyard(rock.x, rock.z)) continue;
     const y = territorySiegeGroundLiftLocal(rock.x, rock.z);
     if (biome === 'desert') {
       placeAtHeight(
@@ -522,10 +681,14 @@ function buildBiomeRocks(root: THREE.Object3D, biome: TerritorySiegeBiome): void
   }
 }
 
-function buildBiomeUndergrowth(root: THREE.Object3D, biome: TerritorySiegeBiome): void {
+function buildBiomeUndergrowth(
+  root: THREE.Object3D,
+  biome: TerritorySiegeBiome,
+): void {
   if (biome === 'snow') return;
   for (let index = 0; index < TERRITORY_SIEGE_BUSHES.length; index += 1) {
     const bush = TERRITORY_SIEGE_BUSHES[index];
+    if (insideCastleCourtyard(bush.x, bush.z)) continue;
     const y = territorySiegeGroundLiftLocal(bush.x, bush.z);
     if (biome === 'desert') {
       placeAtHeight(
@@ -587,15 +750,76 @@ export function buildTerritorySiegeNaturalField(
   buildBiomeUndergrowth(root, biome);
 }
 
-/** Stone lanes, homes and small lived-in details inside the castle walls. */
-export function buildTerritorySiegeCastleSettlement(root: THREE.Object3D): void {
+export interface TerritorySiegeCastleSettlementView {
+  setCastleLevel(level: number): void;
+}
+
+function courtyardPlane(
+  name: string,
+  material: THREE.Material,
+  tileStone: boolean,
+): THREE.Mesh<THREE.PlaneGeometry, THREE.Material> {
+  const geometry = new THREE.PlaneGeometry(COURTYARD_WIDTH, COURTYARD_DEPTH);
+  if (tileStone)
+    tileCastleUv(geometry, COURTYARD_WIDTH, COURTYARD_DEPTH, FLAGSTONE_TILE_YD);
+  geometry.rotateX(-Math.PI / 2);
+  const floor = new THREE.Mesh(geometry, material);
+  floor.name = name;
+  floor.position.set(0, 0.055, COURTYARD_CENTER_Z);
+  floor.receiveShadow = true;
+  return floor;
+}
+
+/** Three prebuilt courtyard surfaces plus the shared lived-in keep dressing. */
+export function buildTerritorySiegeCastleSettlement(
+  root: THREE.Object3D,
+): TerritorySiegeCastleSettlementView {
+  const dirt = new THREE.Group();
+  dirt.name = 'territory-siege-courtyard-tier:1:dirt';
+  dirt.add(
+    courtyardPlane(
+      'territory-siege-courtyard-dirt',
+      texturedMaterial('dirt', 0xaa865a, 18, 20, false),
+      false,
+    ),
+  );
+  for (const home of TERRITORY_SIEGE_HOMES) {
+    place(dirt, 'frontierTent', home.x, 0, home.z, home.scale * 0.59, home.yaw);
+  }
+  place(dirt, 'frontierWatchtower', 0, 0, -63, 5.8, Math.PI);
+  place(dirt, 'frontierTent', -35, 0, -52, 4.6, Math.PI / 5);
+  place(dirt, 'well', 16, 0, -25, 5.4, 0.2);
+  place(dirt, 'hay', -17, 0, -19, 3.2, 0.5);
+  place(dirt, 'hay', -20, 0, -22, 2.8, 1.8);
+  place(dirt, 'flag', -7, 0, 13, 4.5, 0);
+  place(dirt, 'flag', 7, 0, 13, 4.5, 0);
+  root.add(dirt);
+
+  const current = new THREE.Group();
+  current.name = 'territory-siege-courtyard-tier:2:current';
+  current.add(
+    courtyardPlane(
+      'territory-siege-courtyard-current-dirt',
+      texturedMaterial('dirt', 0xaa865a, 18, 20, false),
+      false,
+    ),
+  );
+  root.add(current);
   let roadIndex = 0;
   for (let z = 13; z >= -65; z -= 7.2) {
-    place(root, roadIndex++ % 2 === 0 ? 'roadA' : 'roadB', 0, 0, z, [4.2, 0.72, 4.2], 0);
+    place(
+      current,
+      roadIndex++ % 2 === 0 ? 'roadA' : 'roadB',
+      0,
+      0,
+      z,
+      [4.2, 0.72, 4.2],
+      0,
+    );
   }
   for (let x = -34; x <= 34; x += 7.2) {
     place(
-      root,
+      current,
       roadIndex++ % 2 === 0 ? 'roadA' : 'roadB',
       x,
       0,
@@ -604,13 +828,202 @@ export function buildTerritorySiegeCastleSettlement(root: THREE.Object3D): void 
       Math.PI / 2,
     );
   }
-
   for (const home of TERRITORY_SIEGE_HOMES)
-    place(root, home.kind, home.x, 0, home.z, home.scale, home.yaw);
+    place(current, home.kind, home.x, 0, home.z, home.scale, home.yaw);
+  place(current, 'castle', 0, 0, -63, [5.3, 4.4, 5.3], Math.PI);
+  place(current, 'workshop', -35, 0, -52, [4.4, 4.4, 4.4], Math.PI / 5);
+  place(current, 'well', 16, 0, -25, 7.2, 0.2);
+  place(current, 'hay', -17, 0, -19, 3.2, 0.5);
+  place(current, 'hay', -20, 0, -22, 2.8, 1.8);
+  place(current, 'flag', -7, 0, 13, 5.2, 0);
+  place(current, 'flag', 7, 0, 13, 5.2, 0);
 
-  place(root, 'well', 16, 0, -25, 7.2, 0.2);
-  place(root, 'hay', -17, 0, -19, 3.2, 0.5);
-  place(root, 'hay', -20, 0, -22, 2.8, 1.8);
-  place(root, 'flag', -7, 0, 13, 5.2, 0);
-  place(root, 'flag', 7, 0, 13, 5.2, 0);
+  const drakelands = new THREE.Group();
+  drakelands.name = 'territory-siege-courtyard-tier:3:drakelands';
+  drakelands.add(
+    courtyardPlane(
+      'territory-siege-courtyard-drakelands-paving',
+      castlePavingMat({ color: 0x77716b, roughness: 0.98 }),
+      true,
+    ),
+  );
+  // Premium Drakelands bailey: the same red-roofed civic and military
+  // buildings used inside the Last Keep, kept on the established gameplay
+  // footprints so castle-level changes never move collision under a player.
+  place(drakelands, 'drakelandsHomeA', -27, 0, -5, 8.2, 0.35);
+  place(drakelands, 'drakelandsHomeB', 27, 0, -7, 7.2, -0.3);
+  place(drakelands, 'drakelandsBarracks', -27, 0, -37, 5.1, 0.15);
+  place(drakelands, 'drakelandsTownhall', 27, 0, -39, 5.1, -0.2);
+  place(drakelands, 'drakelandsCastle', 0, 0, -63, 4.6, Math.PI);
+  place(drakelands, 'drakelandsBlacksmith', -35, 0, -52, 5.4, Math.PI / 5);
+  place(drakelands, 'well', 16, 0, -25, 7.2, 0.2);
+  place(drakelands, 'flag', -7, 0, 13, 5.5, 0);
+  place(drakelands, 'flag', 7, 0, 13, 5.5, 0);
+  root.add(drakelands);
+
+  const citadel = new THREE.Group();
+  citadel.name = 'territory-siege-courtyard-tier:4:citadel';
+  citadel.add(
+    courtyardPlane(
+      'territory-siege-courtyard-citadel-paving',
+      castlePavingMat({ color: 0x5f5b58, roughness: 0.96 }),
+      true,
+    ),
+  );
+  const citadelStone = surfaceMat({ color: 0x69635d, roughness: 0.98 });
+  const innerWardWidth = TERRITORY_SIEGE_CITADEL_INNER_HALF_X * 2;
+  const innerWardDepth =
+    TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z -
+    TERRITORY_SIEGE_CITADEL_INNER_BACK_Z;
+  const innerWardCenterZ =
+    (TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z +
+      TERRITORY_SIEGE_CITADEL_INNER_BACK_Z) /
+    2;
+  const innerWard = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      innerWardWidth,
+      TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
+      innerWardDepth,
+    ),
+    citadelStone,
+  );
+  innerWard.name = 'territory-siege-citadel-inner-ward';
+  innerWard.position.set(
+    0,
+    TERRITORY_SIEGE_CITADEL_INNER_HEIGHT / 2,
+    innerWardCenterZ,
+  );
+  innerWard.castShadow = true;
+  innerWard.receiveShadow = true;
+  citadel.add(innerWard);
+  const innerWardTopGeometry = new THREE.PlaneGeometry(
+    innerWardWidth,
+    innerWardDepth,
+  );
+  tileCastleUv(
+    innerWardTopGeometry,
+    innerWardWidth,
+    innerWardDepth,
+    FLAGSTONE_TILE_YD,
+  );
+  innerWardTopGeometry.rotateX(-Math.PI / 2);
+  const innerWardTop = new THREE.Mesh(
+    innerWardTopGeometry,
+    castlePavingMat({ color: 0x77716b, roughness: 0.98 }),
+  );
+  innerWardTop.name = 'territory-siege-citadel-inner-ward-paving';
+  innerWardTop.position.set(
+    0,
+    TERRITORY_SIEGE_CITADEL_INNER_HEIGHT + 0.015,
+    innerWardCenterZ,
+  );
+  innerWardTop.receiveShadow = true;
+  citadel.add(innerWardTop);
+
+  // kcas_stairs_walled is authored as an exact 5 x 4 x 4 module. Its highest
+  // landing is at y=4 (the former y=3 divisor made the mesh overshoot the ward
+  // by 0.8 yd). The shared top-Z includes a small overlap into the raised ward
+  // so the landing and paving meet without a dark seam.
+  const innerStairTreadHeight = 4;
+  const wallStairTreadHeight = 4;
+  const innerRamp = place(
+    citadel,
+    'drakelandsStairsWalled',
+    0,
+    0,
+    TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
+    [
+      (TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH * 2) / 5,
+      TERRITORY_SIEGE_CITADEL_INNER_HEIGHT / innerStairTreadHeight,
+      (TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z -
+        TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z) /
+        4,
+    ],
+    0,
+  );
+  innerRamp.name = 'territory-siege-citadel-inner-stairs';
+
+  const walkThickness = 0.34;
+  const wallAccessWidth = TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH * 2;
+  const wallAccessDepth =
+    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z -
+    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z;
+  const wallAccessCenterZ =
+    (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z +
+      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z) /
+    2;
+  for (const x of [
+    -TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
+    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
+  ]) {
+    const walk = new THREE.Mesh(
+      new THREE.BoxGeometry(wallAccessWidth, walkThickness, wallAccessDepth),
+      citadelStone,
+    );
+    walk.name = 'territory-siege-citadel-outer-wall-walk';
+    walk.position.set(
+      x,
+      TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT - walkThickness / 2,
+      wallAccessCenterZ,
+    );
+    walk.castShadow = true;
+    walk.receiveShadow = true;
+    citadel.add(walk);
+    const walkTopGeometry = new THREE.PlaneGeometry(
+      wallAccessWidth,
+      wallAccessDepth,
+    );
+    tileCastleUv(
+      walkTopGeometry,
+      wallAccessWidth,
+      wallAccessDepth,
+      FLAGSTONE_TILE_YD,
+    );
+    walkTopGeometry.rotateX(-Math.PI / 2);
+    const walkTop = new THREE.Mesh(
+      walkTopGeometry,
+      castlePavingMat({ color: 0x77716b, roughness: 0.98 }),
+    );
+    walkTop.name = 'territory-siege-citadel-outer-wall-walk-paving';
+    walkTop.position.set(
+      x,
+      TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT + 0.012,
+      wallAccessCenterZ,
+    );
+    walkTop.receiveShadow = true;
+    citadel.add(walkTop);
+
+    const ramp = place(
+      citadel,
+      'drakelandsStairsWide',
+      x,
+      0,
+      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
+      [
+        wallAccessWidth / 7,
+        TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT / wallStairTreadHeight,
+        (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z -
+          TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z) /
+          4,
+      ],
+      0,
+    );
+    ramp.name = 'territory-siege-citadel-wall-stairs';
+  }
+  const innerY = TERRITORY_SIEGE_CITADEL_INNER_HEIGHT;
+  place(citadel, 'drakelandsCastle', 0, innerY, -56, 5.1, Math.PI);
+  place(citadel, 'drakelandsBarracks', -15, innerY, -39, 5.35, 0.12);
+  place(citadel, 'drakelandsTownhall', 15, innerY, -40, 5.35, -0.16);
+  place(citadel, 'drakelandsHomeA', -29, 0, -3, 7.8, 0.32);
+  place(citadel, 'drakelandsHomeB', 29, 0, -5, 7, -0.28);
+  place(citadel, 'drakelandsBlacksmith', -34, 0, -50, 5.2, Math.PI / 5);
+  place(citadel, 'well', 16, 0, -15, 7.2, 0.2);
+  for (const x of [-7, 7]) place(citadel, 'flag', x, 0, 13, 5.8, 0);
+  root.add(citadel);
+
+  const tiers = [dirt, current, drakelands, citadel] as const;
+  const setCastleLevel = (level: number): void =>
+    showTerritoryCastleTier(tiers, level);
+  setCastleLevel(2);
+  return { setCastleLevel };
 }

@@ -98,6 +98,7 @@ import {
 import { configureAuthRuntime } from './auth_routes';
 import { createBackgroundDbGate } from './background_db_gate';
 import { computeBankBonus } from './bank_entitlements';
+import { donationRedirectLocation } from './donation_redirect';
 import { BANK_LEDGER_SHUTDOWN_DRAIN_MS, bankLedgerIdle, bankLedgerTailStats } from './bank_ledger';
 import { createBankLedgerGrowthMonitor } from './bank_ledger_growth_monitor';
 import { configureBattlegroundRuntime, readBgLeaderboard } from './battleground';
@@ -1426,6 +1427,28 @@ function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): void 
     return;
   }
   let urlPath = requestUrl.pathname;
+  if (urlPath === '/donate') {
+    const location = donationRedirectLocation(
+      process.env.VITE_DONATION_ADDRESS,
+      process.env.WOC_TEST_TREASURY,
+    );
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    if (!location) {
+      res.writeHead(503, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
+      res.end('Donation wallet is not configured.');
+      return;
+    }
+    res.writeHead(302, { Location: location, 'Cache-Control': 'no-store' });
+    res.end();
+    return;
+  }
   // The curated Guide is the site wiki: a client-routed SPA served at /wiki with its
   // own shell, so deep paths (/wiki/classes/...) fall back to guide.html rather than the
   // game's index.html. (It previously 302'd to a standalone MediaWiki; that is retired.)

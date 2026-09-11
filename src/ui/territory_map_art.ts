@@ -219,9 +219,9 @@ export const TERRITORY_MAP_ART_SOURCES: Readonly<Record<TerritoryMapArtKey, stri
   desertLaborTier1: '/territory_map/resource-desert-labor-1.webp',
   desertLaborTier2: '/territory_map/resource-desert-labor-2.webp',
   desertLaborTier3: '/territory_map/resource-desert-labor-3.webp',
-  keepTier1: '/territory_map/keep-1.webp',
-  keepTier2: '/territory_map/keep-2.webp',
-  keepTier3: '/territory_map/keep-3.webp',
+  keepTier1: '/territory_map/keep-overlay-1.webp',
+  keepTier2: '/territory_map/keep-overlay-2.webp',
+  keepTier3: '/territory_map/keep-overlay-3.webp',
   grasslandWoodlands: '/territory_map/transition-grassland-woodlands.webp',
   grasslandHighland: '/territory_map/transition-grassland-highland.webp',
   grasslandMarsh: '/territory_map/transition-grassland-marsh.webp',
@@ -377,17 +377,7 @@ function resourceBiomeArt(biome: TerritoryVisualBiome): ResourceBiomeArt {
   return 'temperate';
 }
 
-/** Couples every resource identity to a distinct, density-matched tier painting. */
-export function territoryMapArtKeyForCell(cell: TerritoryMapArtCell): TerritoryMapArtKey {
-  if (cell.keepRoot) {
-    const tier = Math.max(1, Math.min(3, Math.floor(cell.structureLevel ?? 1))) as 1 | 2 | 3;
-    return TERRITORY_KEEP_ART_KEYS[tier - 1];
-  }
-  if (cell.resource) {
-    const tier = Math.max(1, Math.min(3, Math.floor(cell.resourceYield))) as 1 | 2 | 3;
-    return RESOURCE_ART_BY_BIOME_AND_TIER[resourceBiomeArt(cell.biome)][cell.resource][tier - 1];
-  }
-
+function biomeArtKey(cell: Pick<TerritoryMapArtCell, 'q' | 'r' | 'biome'>): TerritoryMapArtKey {
   const variant = artHash(cell.q, cell.r, 0x72ce_91b5);
   if (cell.biome === 'grassland') return variant % 3 === 0 ? 'grasslandAlt' : 'grassland';
   if (cell.biome === 'highland') return variant % 2 === 0 ? 'highlandAlt' : 'highland';
@@ -398,6 +388,34 @@ export function territoryMapArtKeyForCell(cell: TerritoryMapArtCell): TerritoryM
   if (cell.biome === 'desertMesa') return variant % 2 === 0 ? 'desertMesaAlt' : 'desertMesa';
   if (cell.biome === 'wastes') return variant % 2 === 0 ? 'wastesAlt' : 'wastes';
   return cell.biome;
+}
+
+/** Bare biome layer used underneath transparent city architecture. */
+export function territoryMapGroundArtKeyForCell(cell: TerritoryMapArtCell): TerritoryMapArtKey {
+  // Forests, peaks, and mesas must not protrude through an open courtyard.
+  // Keep their climate family while selecting that family's bare terrain art.
+  const biome =
+    cell.biome === 'woodlands' || cell.biome === 'forest'
+      ? 'grassland'
+      : cell.biome === 'snowForest' || cell.biome === 'snowMountain'
+        ? 'snowfield'
+        : cell.biome === 'desertMesa'
+          ? 'desert'
+          : cell.biome;
+  return biomeArtKey({ q: cell.q, r: cell.r, biome });
+}
+
+/** Couples landmarks/resources to authored art while ordinary cells use biome ground. */
+export function territoryMapArtKeyForCell(cell: TerritoryMapArtCell): TerritoryMapArtKey {
+  if (cell.keepRoot) {
+    const tier = Math.max(1, Math.min(3, Math.floor(cell.structureLevel ?? 1))) as 1 | 2 | 3;
+    return TERRITORY_KEEP_ART_KEYS[tier - 1];
+  }
+  if (cell.resource) {
+    const tier = Math.max(1, Math.min(3, Math.floor(cell.resourceYield))) as 1 | 2 | 3;
+    return RESOURCE_ART_BY_BIOME_AND_TIER[resourceBiomeArt(cell.biome)][cell.resource][tier - 1];
+  }
+  return biomeArtKey(cell);
 }
 
 const ROTATABLE_ART = new Set<TerritoryMapArtKey>([
@@ -443,7 +461,7 @@ type ArtLoadState = 'idle' | 'loading' | 'ready';
 
 // Public assets keep readable names; invalidate pre-fix resource/keep bitmaps
 // already cached by browsers when this bundle is deployed.
-const ART_REVISION = 'hex-fit-2';
+const ART_REVISION = 'castle-overlay-1';
 
 let loadState: ArtLoadState = 'idle';
 const images: TerritoryMapArt = {};

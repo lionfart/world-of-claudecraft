@@ -2,6 +2,7 @@ import type { InputTickFrame } from '../game/input_tick_sampler';
 import { type MovementWireClient, MovementWireGlue } from '../game/movement_wire_glue';
 import { stepPlayerMotion } from '../sim/player_motion';
 import type { Entity, MoveInput } from '../sim/types';
+import type { TerritoryMapState } from '../world_api';
 import { createClientPlayerMotionDeps } from './client_player_motion';
 import {
   copyMotionState,
@@ -93,11 +94,16 @@ export class MovementPredictionPipeline {
     residual: null,
   };
 
-  constructor(seed: number, riftCollisionToken = 0) {
+  constructor(
+    seed: number,
+    riftCollisionToken = 0,
+    territoryState: () => TerritoryMapState | null = () => null,
+  ) {
     const deps = createClientPlayerMotionDeps(
       seed,
       () => this.wire?.reconMoveSpeedMult ?? 1,
       riftCollisionToken,
+      territoryState,
     );
     this.stepFn = (state, frame) => stepPlayerMotion(deps, state as Entity, frame.mi);
     this.wireGlue.onFrame = (frame) => this.predictFrame(frame);

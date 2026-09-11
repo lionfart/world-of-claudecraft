@@ -104,8 +104,9 @@ export const HUD_FRAME_SPECS: readonly HudFrameSpec[] = [
     fallbackSize: { w: 220, h: 12 },
     detachToUiRoot: false,
   },
-  // The Wishlist on Steam reminder chip (#community-hud, PR 3616), movable
-  // like any other corner chrome so a player can park it out of the way.
+  // The Donate reminder chip (#community-hud), movable like any other corner
+  // chrome so a player can park it out of the way. The stable internal id keeps
+  // existing player layout saves compatible after the Steam reminder removal.
   // Already absolutely positioned in #ui, so no re-home is needed.
   {
     id: 'steamWishlist',

@@ -14082,7 +14082,7 @@ export const it_IT: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.partyFrames': 'Gruppo',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Giocatore',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Barra delle posizioni',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Promemoria lista desideri',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Sostegno con donazione',
   'hudChrome.interfaceUnlock.frameNames.swingBar': 'Attacco automatico',
   'hudChrome.interfaceUnlock.frameNames.targetFrame': 'Bersaglio',
   'hudChrome.interfaceUnlock.frameNames.xpBar': 'Barra PE',

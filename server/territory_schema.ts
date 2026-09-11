@@ -37,15 +37,20 @@ CREATE TABLE IF NOT EXISTS territory_guild_state (
   season_id BIGINT NOT NULL REFERENCES territory_seasons(id) ON DELETE CASCADE,
   guild_id INT NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
   territory_level SMALLINT NOT NULL DEFAULT 1 CHECK (territory_level BETWEEN 1 AND 5),
-  wood BIGINT NOT NULL DEFAULT 250 CHECK (wood >= 0),
-  iron BIGINT NOT NULL DEFAULT 250 CHECK (iron >= 0),
-  grain BIGINT NOT NULL DEFAULT 250 CHECK (grain >= 0),
-  labor BIGINT NOT NULL DEFAULT 250 CHECK (labor >= 0),
+  wood BIGINT NOT NULL DEFAULT 0 CHECK (wood >= 0),
+  iron BIGINT NOT NULL DEFAULT 0 CHECK (iron >= 0),
+  grain BIGINT NOT NULL DEFAULT 0 CHECK (grain >= 0),
+  labor BIGINT NOT NULL DEFAULT 0 CHECK (labor >= 0),
   accrued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (season_id, guild_id)
 );
+ALTER TABLE territory_guild_state
+  ALTER COLUMN wood SET DEFAULT 0,
+  ALTER COLUMN iron SET DEFAULT 0,
+  ALTER COLUMN grain SET DEFAULT 0,
+  ALTER COLUMN labor SET DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS territory_cells (
   season_id BIGINT NOT NULL REFERENCES territory_seasons(id) ON DELETE CASCADE,
@@ -64,12 +69,12 @@ CREATE TABLE IF NOT EXISTS territory_structures (
   season_id BIGINT NOT NULL,
   cell_id INT NOT NULL,
   slot TEXT NOT NULL CHECK (slot IN (
-    'keep_core', 'walls', 'towers', 'granary', 'forester', 'mine', 'house',
+    'keep_core', 'walls', 'towers', 'granary', 'forester', 'mine', 'house', 'stockpile',
     'siege_workshop', 'gate', 'wall', 'tower_north', 'tower_south', 'storehouse',
     'construction_workshop'
   )),
   kind TEXT NOT NULL CHECK (kind IN (
-    'keep', 'walls', 'towers', 'granary', 'forester', 'mine', 'house',
+    'keep', 'walls', 'towers', 'granary', 'forester', 'mine', 'house', 'stockpile',
     'siege_workshop', 'gate', 'wall', 'defense_tower', 'storehouse',
     'construction_workshop'
   )),
@@ -91,12 +96,12 @@ ALTER TABLE territory_structures
 ALTER TABLE territory_structures DROP CONSTRAINT IF EXISTS territory_structures_slot_check;
 ALTER TABLE territory_structures DROP CONSTRAINT IF EXISTS territory_structures_kind_check;
 ALTER TABLE territory_structures ADD CONSTRAINT territory_structures_slot_check CHECK (slot IN (
-  'keep_core', 'walls', 'towers', 'granary', 'forester', 'mine', 'house',
+  'keep_core', 'walls', 'towers', 'granary', 'forester', 'mine', 'house', 'stockpile',
   'siege_workshop', 'gate', 'wall', 'tower_north', 'tower_south', 'storehouse',
   'construction_workshop'
 ));
 ALTER TABLE territory_structures ADD CONSTRAINT territory_structures_kind_check CHECK (kind IN (
-  'keep', 'walls', 'towers', 'granary', 'forester', 'mine', 'house',
+  'keep', 'walls', 'towers', 'granary', 'forester', 'mine', 'house', 'stockpile',
   'siege_workshop', 'gate', 'wall', 'defense_tower', 'storehouse',
   'construction_workshop'
 ));

@@ -13939,7 +13939,7 @@ export const pl_PL: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.partyFrames': 'Drużyna',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Gracz',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Pasek postaw',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Przypomnienie o liście życzeń',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Wsparcie darowizną',
   'hudChrome.interfaceUnlock.frameNames.swingBar': 'Automatyczny atak',
   'hudChrome.interfaceUnlock.frameNames.targetFrame': 'Cel',
   'hudChrome.interfaceUnlock.frameNames.xpBar': 'Pasek doświadczenia',

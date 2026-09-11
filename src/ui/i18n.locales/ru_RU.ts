@@ -799,7 +799,7 @@ export const ru_RU: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.actionBar1': 'Панель команд',
   'hudChrome.interfaceUnlock.frameNames.actionBar2': 'Панель команд 2',
   'hudChrome.interfaceUnlock.frameNames.actionBar3': 'Панель команд 3',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Напоминание о списке желаемого',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Поддержка пожертвованием',
   'hudChrome.interfaceUnlock.frameNames.minimap': 'Мини-карта',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Панель стоек',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Игрок',

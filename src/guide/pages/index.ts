@@ -33,6 +33,7 @@ import { social } from './social';
 import { stats } from './stats';
 import { talents } from './talents';
 import { thornhollowFields } from './thornhollow_fields';
+import { territoryWar } from './territory_war';
 import type { GuidePage, PageContext } from './types';
 import { wishIKnew } from './wish_i_knew';
 import { world } from './world';
@@ -57,6 +58,7 @@ const PAGES: Record<string, GuidePage> = {
   rifts,
   mounts,
   arena,
+  'territory-war': territoryWar,
   'thornhollow-fields': thornhollowFields,
   deeds,
   reliquary,

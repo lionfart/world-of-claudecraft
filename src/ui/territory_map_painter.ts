@@ -6,8 +6,11 @@ import type { TerritoryMapState } from '../world_api';
 import { t } from './i18n';
 import {
   type TerritoryMapArt,
+  type TerritoryMapArtKey,
+  type TerritoryMapArtTransform,
   territoryMapArt,
   territoryMapArtIsGround,
+  territoryMapGroundArtKeyForCell,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryMapAuthoredTransitionForCell,
@@ -200,7 +203,12 @@ export class TerritoryMapPainter {
         const key = `${cell.ownerColor ? 'owned' : 'neutral'}:${color}`;
         const group = groups.get(key);
         if (group) group.cells.push(cell);
-        else groups.set(key, { color, alpha: cell.ownerColor ? 0.78 : 0.58, cells: [cell] });
+        else
+          groups.set(key, {
+            color,
+            alpha: cell.ownerColor ? 0.78 : 0.58,
+            cells: [cell],
+          });
       }
       for (const group of groups.values()) {
         ctx.beginPath();
@@ -281,40 +289,78 @@ export class TerritoryMapPainter {
     const sorted = [...cells].sort((a, b) => a.my - b.my || a.mx - b.mx);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    // Every cell owns one complete painting. Transition cells use one of the
-    // full two-biome hexes, so there are no runtime edge overlays to double up.
+    // Most cells own one complete painting. A keep owns two: bare biome ground
+    // followed by transparent level-specific architecture.
     for (const cell of sorted) {
+      if (cell.keepRoot) {
+        const groundKey = territoryMapGroundArtKeyForCell(cell);
+        const groundImage = art[groundKey];
+        if (groundImage)
+          this.drawArtTile(
+            ctx,
+            cell,
+            groundKey,
+            groundImage,
+            territoryMapArtTransformForCell(cell, groundKey),
+          );
+        const featureKey = territoryMapArtKeyForCell(cell);
+        const featureImage = art[featureKey];
+        if (featureImage)
+          this.drawArtTile(
+            ctx,
+            cell,
+            featureKey,
+            featureImage,
+            territoryMapArtTransformForCell(cell, featureKey),
+          );
+        continue;
+      }
       const authoredTransition = territoryMapAuthoredTransitionForCell(cell);
       const key = authoredTransition?.key ?? territoryMapArtKeyForCell(cell);
       const image = art[key];
       if (!image) continue;
-      const footprintRect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
-      const groundOnly = territoryMapArtIsGround(key);
-      // The supplied sprites include a bevel around the authored hex. Slightly
-      // overfilling ground art moves that bevel outside the clipped footprint,
-      // so adjacent cells read as one landscape rather than stacked counters.
-      const groundScale = 1.16;
-      const rect = groundOnly
-        ? {
-            x: cell.mx + (footprintRect.x - cell.mx) * groundScale,
-            y: cell.my + (footprintRect.y - cell.my) * groundScale,
-            width: footprintRect.width * groundScale,
-            height: footprintRect.height * groundScale,
-          }
-        : footprintRect;
-      const transform = authoredTransition ?? territoryMapArtTransformForCell(cell, key);
-      ctx.save();
-      if (groundOnly) {
-        ctx.beginPath();
-        this.hexPath(ctx, cell, 0.02);
-        ctx.clip();
-      }
-      ctx.translate(cell.mx, cell.my);
-      if (transform.rotationSteps) ctx.rotate((transform.rotationSteps * Math.PI) / 3);
-      if (transform.mirrorX) ctx.scale(-1, 1);
-      ctx.drawImage(image, rect.x - cell.mx, rect.y - cell.my, rect.width, rect.height);
-      ctx.restore();
+      this.drawArtTile(
+        ctx,
+        cell,
+        key,
+        image,
+        authoredTransition ?? territoryMapArtTransformForCell(cell, key),
+      );
     }
+  }
+
+  private drawArtTile(
+    ctx: CanvasRenderingContext2D,
+    cell: TerritoryMapHex,
+    key: TerritoryMapArtKey,
+    image: HTMLImageElement,
+    transform: TerritoryMapArtTransform,
+  ): void {
+    const footprintRect = territoryTerrainArtRect(cell.mx, cell.my, cell.radiusPx);
+    const groundOnly = territoryMapArtIsGround(key);
+    // The supplied sprites include a bevel around the authored hex. Slightly
+    // overfilling ground art moves that bevel outside the clipped footprint,
+    // so adjacent cells read as one landscape rather than stacked counters.
+    const groundScale = 1.16;
+    const rect = groundOnly
+      ? {
+          x: cell.mx + (footprintRect.x - cell.mx) * groundScale,
+          y: cell.my + (footprintRect.y - cell.my) * groundScale,
+          width: footprintRect.width * groundScale,
+          height: footprintRect.height * groundScale,
+        }
+      : footprintRect;
+    ctx.save();
+    if (groundOnly) {
+      ctx.beginPath();
+      this.hexPath(ctx, cell, 0.02);
+      ctx.clip();
+    }
+    ctx.translate(cell.mx, cell.my);
+    if (transform.rotationSteps) ctx.rotate((transform.rotationSteps * Math.PI) / 3);
+    if (transform.mirrorX) ctx.scale(-1, 1);
+    ctx.drawImage(image, rect.x - cell.mx, rect.y - cell.my, rect.width, rect.height);
+    ctx.restore();
   }
 
   private artForCell(cell: TerritoryMapHex, art: TerritoryMapArt): HTMLImageElement | undefined {

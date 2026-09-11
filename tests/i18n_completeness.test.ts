@@ -209,6 +209,8 @@ describe('i18n whole-catalog completeness', () => {
     const isPendingTerritoryTranslation = (key: string) =>
       key.startsWith('hudChrome.territoryMap.') ||
       key.startsWith('hudChrome.guildTerritory.') ||
+      key === 'guide.nav.territoryWar' ||
+      key.startsWith('guide.territoryWarPage.') ||
       key.startsWith('entities.items.territory_');
     const nonLatin: SupportedLanguage[] = ['zh_CN', 'zh_TW', 'ja_JP', 'ko_KR', 'ru_RU'];
     const leaks: string[] = [];

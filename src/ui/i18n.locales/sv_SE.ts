@@ -13877,7 +13877,7 @@ export const sv_SE: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.partyFrames': 'Grupp',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Spelare',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Ställningsfält',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Önskelistepåminnelse',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Donationsstöd',
   'hudChrome.interfaceUnlock.frameNames.swingBar': 'Autoattack',
   'hudChrome.interfaceUnlock.frameNames.targetFrame': 'Mål',
   'hudChrome.interfaceUnlock.frameNames.xpBar': 'XP-mätare',

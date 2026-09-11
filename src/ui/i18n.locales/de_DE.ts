@@ -14127,7 +14127,7 @@ export const de_DE: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.partyFrames': 'Gruppe',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Spieler',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Haltungsleiste',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Wunschlisten-Erinnerung',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Spendenunterstützung',
   'hudChrome.interfaceUnlock.frameNames.swingBar': 'Automatischer Angriff',
   'hudChrome.interfaceUnlock.frameNames.targetFrame': 'Ziel',
   'hudChrome.interfaceUnlock.frameNames.xpBar': 'Erfahrungsleiste',

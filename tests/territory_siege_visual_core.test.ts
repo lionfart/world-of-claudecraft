@@ -5,6 +5,8 @@ import {
   TERRITORY_SIEGE_GATE_VISUAL_WIDTH,
   TERRITORY_SIEGE_RAM_SUPPORT_X,
   TERRITORY_SIEGE_RAM_SUPPORT_Z,
+  territorySiegeGuideVisibility,
+  territorySiegeObjectiveSelectable,
   territorySiegeVisualState,
 } from '../src/render/territory_siege_visual_core';
 import { TERRITORY_SIEGE_GATE_HALF_WIDTH } from '../src/sim/territory_siege_layout';
@@ -13,6 +15,7 @@ import type { TerritorySiegeView } from '../src/world_api';
 const siege: TerritorySiegeView = {
   warId: 'war',
   biome: 'temperate',
+  castleLevel: 2,
   state: 'active',
   mySide: 'attacker',
   attackerCount: 1,
@@ -37,6 +40,11 @@ const siege: TerritorySiegeView = {
   coreChannelProgress: 0.5,
   coreChannels: [{ x: 10, z: 20 }],
   defenseTowerLevel: 1,
+  wallHealth: [{ id: 'left:0', hp: 100, maxHp: 100 }],
+  towerHealth: [
+    { id: 'left', hp: 100, maxHp: 100 },
+    { id: 'right', hp: 100, maxHp: 100 },
+  ],
   towerZones: [],
   respawnIn: 0,
   timeLeft: 100,
@@ -59,7 +67,9 @@ describe('territory siege prototype visual state', () => {
   it('keeps the four ram supports tight to the cart and drives the head longitudinally', () => {
     expect(TERRITORY_SIEGE_RAM_SUPPORT_X).toBeLessThanOrEqual(1.2);
     expect(TERRITORY_SIEGE_RAM_SUPPORT_Z).toBeLessThanOrEqual(0.9);
-    expect(territorySiegeVisualState({ ...siege, ramCooldown: 0 }, 0.2).ramThrust).toBe(0);
+    expect(
+      territorySiegeVisualState({ ...siege, ramCooldown: 0 }, 0.2).ramThrust,
+    ).toBe(0);
     expect(territorySiegeVisualState(siege, 0.2).ramThrust).not.toBe(
       territorySiegeVisualState(siege, 0.4).ramThrust,
     );
@@ -79,10 +89,63 @@ describe('territory siege prototype visual state', () => {
 
   it('shows core health after either a gate or wall breach', () => {
     expect(territorySiegeVisualState(siege, 0).coreHealthVisible).toBe(false);
-    expect(territorySiegeVisualState({ ...siege, gateOpen: true }, 0).coreHealthVisible).toBe(true);
     expect(
-      territorySiegeVisualState({ ...siege, wallHealth: [{ id: 'left:3', hp: 0, maxHp: 100 }] }, 0)
+      territorySiegeVisualState({ ...siege, gateOpen: true }, 0)
         .coreHealthVisible,
     ).toBe(true);
+    expect(
+      territorySiegeVisualState(
+        { ...siege, wallHealth: [{ id: 'left:3', hp: 0, maxHp: 100 }] },
+        0,
+      ).coreHealthVisible,
+    ).toBe(true);
+  });
+
+  it('shows tactical guides only for the currently selected live objective', () => {
+    expect(territorySiegeGuideVisibility(siege, null, 0)).toEqual({
+      ramDeployment: false,
+      towerRanges: [false, false],
+    });
+    expect(territorySiegeGuideVisibility(siege, { kind: 'gate' }, 0)).toEqual({
+      ramDeployment: true,
+      towerRanges: [false, false],
+    });
+    expect(
+      territorySiegeGuideVisibility(siege, { kind: 'tower', id: 'right' }, 0),
+    ).toEqual({
+      ramDeployment: false,
+      towerRanges: [false, true],
+    });
+    expect(
+      territorySiegeGuideVisibility(
+        { ...siege, towerHealth: [{ id: 'right', hp: 0, maxHp: 100 }] },
+        { kind: 'tower', id: 'right' },
+        0,
+      ).towerRanges,
+    ).toEqual([false, false]);
+  });
+
+  it('never exposes a selection ring for missing or destroyed objectives', () => {
+    expect(
+      territorySiegeObjectiveSelectable(siege, { kind: 'wall', id: 'left:0' }),
+    ).toBe(true);
+    expect(
+      territorySiegeObjectiveSelectable(siege, { kind: 'wall', id: 'left:1' }),
+    ).toBe(false);
+    expect(
+      territorySiegeObjectiveSelectable(
+        { ...siege, wallHealth: [{ id: 'left:0', hp: 0, maxHp: 100 }] },
+        { kind: 'wall', id: 'left:0' },
+      ),
+    ).toBe(false);
+    expect(
+      territorySiegeObjectiveSelectable(
+        { ...siege, towerHealth: undefined },
+        {
+          kind: 'tower',
+          id: 'right',
+        },
+      ),
+    ).toBe(false);
   });
 });

@@ -9,6 +9,7 @@ import type {
   TerritorySiegeWallId,
   TerritoryWarSide,
 } from '../world_api';
+import { territoryCastleLevel } from './territory_castle_progression';
 import type { TerritorySiegeBiome } from './territory_siege_biome';
 import {
   TERRITORY_SIEGE_GATE_Z,
@@ -396,7 +397,13 @@ function artilleryAim(
 
 function artilleryDisplayYaw(
   targetYaw: number,
-  pending: { fromYaw: number; launchAtMs: number; impact: { launchDelayMs?: number } } | undefined,
+  pending:
+    | {
+        fromYaw: number;
+        launchAtMs: number;
+        impact: { launchDelayMs?: number };
+      }
+    | undefined,
   nowMs: number,
 ): number {
   const delayMs = pending?.impact.launchDelayMs ?? 0;
@@ -457,9 +464,10 @@ export function territorySiegeControlFor(
 }
 
 export function createTerritorySiege(definition: TerritorySiegeDefinition): TerritorySiegeState {
-  const gateMaxHp = structureHp(100, Math.max(1, definition.gateLevel));
-  const coreMaxHp = structureHp(150, definition.coreLevel);
-  const wallMaxHp = structureHp(120, definition.gateLevel);
+  const castleLevel = territoryCastleLevel(definition.coreLevel);
+  const gateMaxHp = structureHp(100, castleLevel);
+  const coreMaxHp = structureHp(150, castleLevel);
+  const wallMaxHp = structureHp(120, castleLevel);
   const towerLevel = Math.max(0, definition.defenseTowerLevel ?? 0);
   const towerMaxHp = towerLevel > 0 ? structureHp(90, towerLevel) : 0;
   return {
@@ -478,7 +486,7 @@ export function createTerritorySiege(definition: TerritorySiegeDefinition): Terr
     catapults: new Map(),
     nextCatapultId: 1,
     wallHp: Object.fromEntries(
-      Object.keys(territorySiegeWallSegmentPlacements()).map((id) => [id, wallMaxHp]),
+      Object.keys(territorySiegeWallSegmentPlacements(castleLevel)).map((id) => [id, wallMaxHp]),
     ) as Record<TerritorySiegeWallId, number>,
     wallMaxHp,
     towerHp: { left: towerMaxHp, right: towerMaxHp },
@@ -499,7 +507,7 @@ export function createTerritorySiege(definition: TerritorySiegeDefinition): Terr
 export function territorySiegeTowerShot(
   state: TerritorySiegeState,
   nowMs: number,
-  eligible: (characterId: number) => boolean = () => true,
+  eligible: (characterId: number, towerId: 'left' | 'right') => boolean = () => true,
 ): { characterId: number; damage: number; towerId: 'left' | 'right' } | null {
   const level = Math.max(0, Math.floor(state.definition.defenseTowerLevel ?? 0));
   const livingTowerIds = (['left', 'right'] as const).filter((id) => state.towerHp[id] > 0);
@@ -512,24 +520,22 @@ export function territorySiegeTowerShot(
   )
     return null;
   state.nextTowerShotAtMs = nowMs + Math.max(1_500, 4_000 - level * 300);
-  const targets = [...state.seats.values()]
-    .filter(
-      (seat) =>
-        seat.side === 'attacker' &&
-        seat.connected &&
-        seat.deadUntilMs === null &&
-        eligible(seat.characterId),
-    )
+  const attackers = [...state.seats.values()]
+    .filter((seat) => seat.side === 'attacker' && seat.connected && seat.deadUntilMs === null)
     .sort((a, b) => a.seatNo - b.seatNo || a.characterId - b.characterId);
-  if (targets.length === 0) return null;
-  const target = targets[state.towerCursor % targets.length];
-  const towerId = livingTowerIds[state.towerCursor % livingTowerIds.length];
-  state.towerCursor += 1;
-  return {
-    characterId: target.characterId,
-    damage: 4 + level * 3 + livingTowers * 2,
-    towerId,
-  };
+  for (let offset = 0; offset < livingTowerIds.length; offset += 1) {
+    const towerId = livingTowerIds[(state.towerCursor + offset) % livingTowerIds.length];
+    const targets = attackers.filter((seat) => eligible(seat.characterId, towerId));
+    if (targets.length === 0) continue;
+    const target = targets[state.towerCursor % targets.length];
+    state.towerCursor += 1;
+    return {
+      characterId: target.characterId,
+      damage: 4 + level * 3 + livingTowers * 2,
+      towerId,
+    };
+  }
+  return null;
 }
 
 /** Restores a DB-assigned seat while warming a process after deploy/restart. */
@@ -764,7 +770,9 @@ export function territorySiegeApplyCatapultStructureImpact(
     changed = true;
   }
   if (impact.side === 'attacker') {
-    for (const [id, wall] of Object.entries(territorySiegeWallSegmentPlacements()) as [
+    for (const [id, wall] of Object.entries(
+      territorySiegeWallSegmentPlacements(territoryCastleLevel(state.definition.coreLevel)),
+    ) as [
       TerritorySiegeWallId,
       ReturnType<typeof territorySiegeWallSegmentPlacements>[TerritorySiegeWallId],
     ][]) {
@@ -911,6 +919,7 @@ export function territorySiegeApplyAction(
           state.mortars.values(),
           state.rams.values(),
           state.catapults.values(),
+          territoryCastleLevel(state.definition.coreLevel),
         )
       ) {
         return { ok: false, reason: 'mortar_out_of_zone' };
@@ -1065,6 +1074,7 @@ export function territorySiegeApplyAction(
           state.catapults.values(),
           state.mortars.values(),
           state.rams.values(),
+          territoryCastleLevel(state.definition.coreLevel),
         )
       ) {
         return { ok: false, reason: 'catapult_out_of_zone' };
@@ -1134,7 +1144,10 @@ export function territorySiegeApplyAction(
       }
       const nextAt = cluster ? catapult.nextClusterAtMs : catapult.nextShotAtMs;
       if (nowMs < nextAt) {
-        return { ok: false, reason: cluster ? 'catapult_cluster_cooldown' : 'catapult_cooldown' };
+        return {
+          ok: false,
+          reason: cluster ? 'catapult_cluster_cooldown' : 'catapult_cooldown',
+        };
       }
       const fromYaw = catapult.yaw;
       const aim = artilleryAim(catapult, aimX, aimZ);
@@ -1261,6 +1274,7 @@ export function territorySiegeViewFor(
   return {
     warId: state.definition.warId,
     biome: state.definition.biome,
+    castleLevel: territoryCastleLevel(state.definition.coreLevel),
     state: state.phase,
     mySide: seat.side,
     attackerCount: countSide(state, 'attacker'),
@@ -1341,7 +1355,9 @@ export function territorySiegeViewFor(
     })),
     controlledCatapultId: catapult?.id ?? null,
     catapultShots: [],
-    wallHealth: Object.keys(territorySiegeWallSegmentPlacements()).map((id) => ({
+    wallHealth: Object.keys(
+      territorySiegeWallSegmentPlacements(territoryCastleLevel(state.definition.coreLevel)),
+    ).map((id) => ({
       id: id as TerritorySiegeWallId,
       hp: state.wallHp[id as TerritorySiegeWallId],
       maxHp: state.wallMaxHp,

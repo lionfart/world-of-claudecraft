@@ -1,7 +1,9 @@
 import { apiUrl } from '../client_origin';
 import { applyTerritoryDelta, type TerritoryDelta } from '../sim/territory_delta';
+import type { TerritoryResourceKind } from '../sim/territory_manifest';
 import type {
   ClientCommand,
+  TerritoryCaptureView,
   TerritoryMapState,
   TerritorySiegeAction,
   TerritorySiegeView,
@@ -56,6 +58,20 @@ export class TerritoryClient {
       void this.loadSnapshot();
       return true;
     }
+    if (msg.t === 'territory_capture') {
+      if (!this.state) {
+        void this.loadSnapshot();
+        return true;
+      }
+      const capture =
+        msg.capture &&
+        typeof msg.capture === 'object' &&
+        typeof (msg.capture as Record<string, unknown>).id === 'string'
+          ? (msg.capture as TerritoryCaptureView)
+          : null;
+      this.state = { ...this.state, capture };
+      return true;
+    }
     if (msg.t !== 'territory_siege') return false;
     if (!this.state) {
       void this.loadSnapshot();
@@ -83,6 +99,12 @@ export class TerritoryClient {
   }
   claim(cellId: number): void {
     this.mutate({ cmd: 'territory_claim', cellId });
+  }
+  harvest(cellId: number, resource: TerritoryResourceKind): void {
+    this.mutate({ cmd: 'territory_harvest', cellId, resource });
+  }
+  captureAction(action: 'join' | 'enter' | 'leave'): void {
+    this.send({ cmd: 'territory_capture_action', action });
   }
   build(cellId: number, slot: TerritoryStructureSlot, kind: TerritoryStructureKind): void {
     this.mutate({ cmd: 'territory_build', cellId, slot, kind });
@@ -233,6 +255,16 @@ export function installTerritoryClient<T extends object>(prototype: T): void {
     territoryClaim: {
       value(this: T, cellId: number) {
         client(this).claim(cellId);
+      },
+    },
+    territoryHarvest: {
+      value(this: T, cellId: number, resource: TerritoryResourceKind) {
+        client(this).harvest(cellId, resource);
+      },
+    },
+    territoryCaptureAction: {
+      value(this: T, action: 'enter' | 'leave') {
+        client(this).captureAction(action);
       },
     },
     territoryBuild: {

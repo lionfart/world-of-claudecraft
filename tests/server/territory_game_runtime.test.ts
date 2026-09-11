@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import type { TerritoryRepository } from '../../server/territory_db';
 import { TerritoryGameRuntime } from '../../server/territory_game_runtime';
+import { PLAYER_START, territorySiegeOrigin } from '../../src/sim/data';
 import type { Sim } from '../../src/sim/sim';
 import { createTerritoryManifest } from '../../src/sim/territory_manifest';
 import type { TerritoryMapState } from '../../src/world_api';
@@ -75,7 +76,7 @@ describe('territory game runtime entry notice', () => {
       () =>
         guildLoaded ? { characterId: 11, guildId: 8, guildName: 'Eight', rank: 'member' } : null,
       {
-        sim: {} as Sim,
+        sim: { meta: () => null, entities: new Map() } as unknown as Sim,
         sessions: () => [session],
         sessionByCharacterId: () => session,
         send: (_session, message) => sent.push(message),
@@ -108,5 +109,45 @@ describe('territory game runtime entry notice', () => {
 
     expect(socialInit).toBeGreaterThanOrEqual(0);
     expect(refresh).toBeGreaterThan(socialInit);
+  });
+
+  it('returns a reconnected player stranded in siege coordinates to the main world', () => {
+    const session = {
+      accountId: 1,
+      characterId: 11,
+      pid: 101,
+      left: false,
+      linkdead: false,
+    };
+    const origin = territorySiegeOrigin(0);
+    const entity = {
+      pos: { x: origin.x, y: 0, z: origin.z },
+      facing: 1.25,
+      prevFacing: 1.25,
+      dead: false,
+    };
+    const teleport = vi.fn();
+    const setTerritorySiegeTeam = vi.fn();
+    const runtime = new TerritoryGameRuntime(repositoryFake(), () => null, {
+      sim: {
+        meta: () => null,
+        entities: new Map([[session.pid, entity]]),
+        setTerritorySiegeTeam,
+      } as unknown as Sim,
+      sessions: () => [session],
+      sessionByCharacterId: () => session,
+      send: () => undefined,
+      sendRaw: () => undefined,
+      teleport,
+    });
+
+    (
+      runtime as unknown as {
+        broadcastSieges(): void;
+      }
+    ).broadcastSieges();
+
+    expect(teleport).toHaveBeenCalledWith(session, PLAYER_START);
+    expect(setTerritorySiegeTeam).toHaveBeenCalledWith(session.pid, null);
   });
 });

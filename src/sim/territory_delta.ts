@@ -12,7 +12,10 @@ export interface TerritoryDelta {
   cellsUpsert?: TerritoryOwnedCellView[];
   cellsRemove?: number[];
   structuresUpsert?: TerritoryStructureView[];
-  structuresRemove?: Array<{ cellId: number; slot: TerritoryStructureView['slot'] }>;
+  structuresRemove?: Array<{
+    cellId: number;
+    slot: TerritoryStructureView['slot'];
+  }>;
   warsUpsert?: TerritoryWarView[];
   warsRemove?: string[];
   guild?: TerritoryMapState['guild'];
@@ -55,7 +58,24 @@ export function applyTerritoryDelta(
     ),
     wars: replaceByKey(
       current.wars.filter((value) => !removedWars.has(value.id)),
-      delta.warsUpsert ?? [],
+      (delta.warsUpsert ?? []).map((war) => {
+        if (war.mySide) return war;
+        const existing = current.wars.find((candidate) => candidate.id === war.id);
+        const guildId = current.guild?.id ?? null;
+        const mySide =
+          guildId === war.attackerGuildId
+            ? 'attacker'
+            : guildId === war.defenderGuildId
+              ? 'defender'
+              : null;
+        return {
+          ...war,
+          mySide,
+          // Public deltas intentionally carry false here. Do not erase a
+          // viewer-private registration until its personalized notice arrives.
+          registered: existing?.registered ?? war.registered,
+        };
+      }),
       (value) => value.id,
     ),
     guild: delta.guild === undefined ? current.guild : delta.guild,

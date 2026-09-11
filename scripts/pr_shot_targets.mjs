@@ -10415,9 +10415,9 @@ export const TARGETS = [
     },
   },
   {
-    key: 'steam-wishlist',
-    label: 'Steam wishlist reminder on the landing shell and desktop/mobile chrome',
-    when: ['src/ui/steam_wishlist'],
+    key: 'donate-surfaces',
+    label: 'Donate actions on the landing shell and desktop/mobile chrome',
+    when: ['index.html', 'play.html'],
     variants: [
       { key: 'homepage-header-web', landing: true, beforeLoad: lowGraphicsSeed },
       {
@@ -10446,10 +10446,6 @@ export const TARGETS = [
       if (variant?.communityTray) {
         await page.setViewport({ width: 1120, height: 560 });
         await dismissEntryOverlays(page);
-        await page.waitForFunction(
-          () => !document.body.classList.contains('steam-wishlist-pending'),
-          { timeout: 10000, polling: 100 },
-        );
         await page.evaluate(() => {
           document.querySelector('#tutorial-greeting')?.remove();
           const menu = document.querySelector('#community-menu');

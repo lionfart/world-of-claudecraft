@@ -1190,8 +1190,8 @@ describe('client HTML shell', () => {
     // The tap targets: the account panel with the invite as the logged-out /
     // offline fallback (discordInviteUrl() itself falls back to
     // DEFAULT_DISCORD_INVITE_URL in discord_status.ts).
-    // Operator fork: the ko-fi fundraiser is gone; every donate surface points
-    // at the operator's Solana wallet via build-time VITE_DONATION_ADDRESS.
+    // Operator fork: the ko-fi fundraiser is gone; every donation link points at
+    // the operator's Solana wallet when VITE_DONATION_ADDRESS is configured.
     expect(mainTs).toContain('const DONATE_URL =');
     expect(mainTs).not.toContain('ko-fi.com');
     expect(mainTs).toContain("window.open(discordInviteUrl(), '_blank', 'noopener,noreferrer');");
@@ -1205,7 +1205,9 @@ describe('client HTML shell', () => {
       ['play.html', playHtml],
     ] as const) {
       expect(entry, name).not.toContain('ko-fi.com/worldofclaudecraft');
-      expect(entry.match(/data-donate-sol/g), name).toHaveLength(2);
+      expect(entry.match(/data-donate-sol/g), name).toHaveLength(3);
+      expect(entry, name).not.toContain('Wishlist on Steam');
+      expect(entry, name).not.toContain('store.steampowered.com/app/4897790');
       expect(entry, name).not.toContain('https://github.com/sponsors/levy-street');
     }
   });

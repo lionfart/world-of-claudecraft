@@ -121,6 +121,7 @@ export function buildTerritoryMapModel(input: {
       )
       .map((war) => war.targetCellId),
   );
+  if (input.state.capture) warCells.add(input.state.capture.cellId);
 
   const margin = 2;
   const minX = center.x - spanX / 2 - margin;

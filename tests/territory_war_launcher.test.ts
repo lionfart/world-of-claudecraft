@@ -131,6 +131,44 @@ describe.each(['index.html', 'play.html'])('%s territory war launcher', (file) =
     expect(world.territoryJoinWar).toHaveBeenCalledWith(war.id);
   });
 
+  it('shows both the guild defense and its separate attack in the expandable notice', () => {
+    const { controller, world, state, war } = fixture(file);
+    const attacking = {
+      ...war,
+      id: 'war-2',
+      targetCellId: 9,
+      attackerGuildId: war.defenderGuildId,
+      attackerGuildName: war.defenderGuildName,
+      defenderGuildId: 'c',
+      defenderGuildName: 'Emberguard',
+      startsAt: new Date(Date.now() + 599000).toISOString(),
+      mySide: null,
+      registered: false,
+    };
+    state.guild = {
+      id: war.defenderGuildId,
+      name: war.defenderGuildName,
+      color: '#41c7bd',
+      rank: 'member',
+      territoryLevel: 1,
+      cellCapacity: 5,
+      ownedCellCount: 1,
+      resources: { wood: 0, iron: 0, grain: 0, labor: 0 },
+      resourceCapacity: 1_000,
+      accruedAt: new Date().toISOString(),
+    };
+    state.wars = [{ ...war, mySide: null }, attacking];
+
+    controller.updateSiegeHud();
+    get('mm-territory').click();
+    const entries = [...document.querySelectorAll<HTMLElement>('.territory-war-notice-entry')];
+    expect(entries).toHaveLength(2);
+    expect(entries.map((entry) => entry.dataset.side)).toEqual(['defender', 'attacker']);
+    expect(entries[1].textContent).toContain('Emberguard');
+    entries[1].querySelector<HTMLButtonElement>('button')?.click();
+    expect(world.territoryJoinWar).toHaveBeenCalledWith('war-2');
+  });
+
   it('shows unread alerts without opening; both rails toggle the map and notice together', () => {
     const { controller, world, war, writes, open, close } = fixture(file);
     expect(get('map-window').contains(get('territory-war-dock'))).toBe(true);
@@ -196,6 +234,7 @@ describe.each(['index.html', 'play.html'])('%s territory war launcher', (file) =
     state.siege = {
       warId: 'war-1',
       biome: 'snow',
+      castleLevel: 2,
       state: 'active',
       mySide: 'attacker',
       attackerCount: 12,
@@ -309,6 +348,7 @@ describe.each(['index.html', 'play.html'])('%s territory war launcher', (file) =
     state.siege = {
       warId: 'war-1',
       biome: 'temperate',
+      castleLevel: 2,
       state: 'active',
       mySide: 'defender',
       attackerCount: 1,

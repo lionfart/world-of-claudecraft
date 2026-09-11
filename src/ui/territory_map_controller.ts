@@ -1,24 +1,39 @@
 import { territorySiegeOrigin, territorySiegeOriginAt } from '../sim/data';
 import { territoryCellClaimable, territoryResourceProfile } from '../sim/territory_biome';
-import { TERRITORY_SIEGE_RECIPES, type TerritorySiegeCraftKind } from '../sim/territory_economy';
+import { TERRITORY_CASTLE_MAX_LEVEL } from '../sim/territory_castle_progression';
+import {
+  TERRITORY_SIEGE_RECIPES,
+  type TerritorySiegeCraftKind,
+  territoryResourceProductionPerHour,
+  territoryStockpileCapacity,
+  territoryStructureCost,
+} from '../sim/territory_economy';
 import { createTerritoryManifest, type TerritoryResourceKind } from '../sim/territory_manifest';
 import { territorySiegeBiomeForCell } from '../sim/territory_siege_biome';
 import {
+  TERRITORY_SIEGE_GATE_Z,
   territorySiegeActionPoint,
-  territorySiegeDefenderPortalDestination,
+  territorySiegeDefenderGateDestination,
   territorySiegeNearestCatapult,
   territorySiegeNearestMortar,
   territorySiegeNearestRam,
 } from '../sim/territory_siege_layout';
-import type { IWorld, TerritoryMapState, TerritoryStructureSlot } from '../world_api';
-import { formatDateTime, t } from './i18n';
+import type {
+  IWorld,
+  TerritoryMapState,
+  TerritoryStructureSlot,
+  TerritoryWarView,
+} from '../world_api';
+import { formatDateTime, formatMoney, formatNumber, t } from './i18n';
 import type { PainterHostWriters } from './painter_host';
 import { TerritoryMapPainter } from './territory_map_painter';
 import {
   TERRITORY_SLOT_DESCRIPTORS,
+  type TerritorySlotModel,
   territoryCellPanelMode,
   territorySiegeMapLabelKey,
   territorySlotModels,
+  territoryStructureCountdown,
   territoryWarCountdown,
   territoryWarNoticeModel,
 } from './territory_map_panel_view';
@@ -32,7 +47,7 @@ import {
 } from './territory_map_view';
 import {
   createTerritoryWarAccess,
-  territoryRelatedWar,
+  territoryRelatedWars,
   updateTerritoryWarAccess,
 } from './territory_war_access_view';
 
@@ -40,6 +55,8 @@ type PrimaryAction =
   | { kind: 'place'; cellId: number }
   | { kind: 'claim'; cellId: number }
   | { kind: 'war'; cellId: number }
+  | { kind: 'capture-join' }
+  | { kind: 'capture-enter' }
   | { kind: 'join'; warId: string }
   | { kind: 'leave'; warId: string };
 interface TerritoryDrag {
@@ -49,11 +66,38 @@ interface TerritoryDrag {
   cy: number;
 }
 
+interface TerritoryWarNoticeEntryRefs {
+  warId: string;
+  root: HTMLElement;
+  role: HTMLElement;
+  title: HTMLElement;
+  queue: HTMLElement;
+  start: HTMLElement;
+  countdown: HTMLElement;
+  teleport: HTMLElement;
+  action: HTMLButtonElement;
+}
+
+const TERRITORY_SLOT_RESOURCE = {
+  granary: 'grain',
+  forester: 'wood',
+  mine: 'iron',
+  house: 'labor',
+} as const satisfies Partial<Record<TerritoryStructureSlot, TerritoryResourceKind>>;
+
+function territorySlotResource(slot: TerritoryStructureSlot): TerritoryResourceKind | null {
+  return slot in TERRITORY_SLOT_RESOURCE
+    ? TERRITORY_SLOT_RESOURCE[slot as keyof typeof TERRITORY_SLOT_RESOURCE]
+    : null;
+}
+
 function element<T extends HTMLElement>(selector: string): T {
   const found = document.querySelector<T>(selector);
   if (!found) throw new Error(`missing territory UI element: ${selector}`);
   return found;
 }
+
+const TERRITORY_RESOURCE_KINDS = ['wood', 'iron', 'grain', 'labor'] as const;
 
 /** Cold DOM/canvas adapter for the strategic map and its live siege HUD. */
 export class TerritoryMapController {
@@ -64,6 +108,12 @@ export class TerritoryMapController {
   private hoverCell: number | null = null;
   private selectedCell: number | null = null;
   private warNoticeExpanded = true;
+  private warNoticeExtraKey = '';
+  private warNoticeExtraRows: TerritoryWarNoticeEntryRefs[] = [];
+  private workshopPanelOpen = false;
+  private stockpilePanelOpen = false;
+  private structurePanelSlot: TerritoryStructureSlot | null = null;
+  private constructionClockSecond = -1;
   private paintKey: string | null = null;
   private paintModel: TerritoryMapModel | null = null;
   private drag: TerritoryDrag | null = null;
@@ -98,11 +148,40 @@ export class TerritoryMapController {
         this.performSlot(descriptor.slot),
       );
     }
+    element('#territory-structure-detail-close').addEventListener('click', () => {
+      this.structurePanelSlot = null;
+      this.renderPanel();
+    });
+    element('#territory-structure-detail-action').addEventListener('click', () =>
+      this.performStructureAction(),
+    );
     for (const kind of ['ram', 'mortar', 'catapult'] as const) {
       element(`#territory-craft-${kind}`).addEventListener('click', () =>
         this.performSiegeCraft(kind),
       );
     }
+    element('#territory-workshop-close').addEventListener('click', () => {
+      this.workshopPanelOpen = false;
+      this.renderPanel();
+    });
+    element('#territory-workshop-upgrade').addEventListener('click', () =>
+      this.performWorkshopUpgrade(),
+    );
+    element('#territory-stockpile-close').addEventListener('click', () => {
+      this.stockpilePanelOpen = false;
+      this.renderPanel();
+    });
+    for (const button of document.querySelectorAll<HTMLButtonElement>(
+      '[data-territory-stockpile-withdraw]',
+    )) {
+      button.addEventListener('click', () => {
+        const resource = button.dataset.territoryStockpileWithdraw as TerritoryResourceKind;
+        this.performStockpileWithdraw(resource);
+      });
+    }
+    element('#territory-stockpile-upgrade').addEventListener('click', () =>
+      this.performStockpileUpgrade(),
+    );
     element('#territory-war-action').addEventListener('click', () => this.performWarNoticeAction());
     element('#territory-war-notice-toggle').addEventListener('click', () => {
       this.warNoticeExpanded = !this.warNoticeExpanded;
@@ -131,6 +210,13 @@ export class TerritoryMapController {
       const warId = this.world.territoryMap?.siege?.warId;
       if (warId) this.world.territoryLeaveWar(warId);
     });
+    element('#territory-capture-action').addEventListener('click', () => {
+      const capture = this.world.territoryMap?.capture;
+      if (!capture || capture.preparingIn > 0 || capture.respawnIn > 0) return;
+      this.world.territoryCaptureAction(
+        capture.inField ? 'leave' : capture.registered ? 'enter' : 'join',
+      );
+    });
   }
 
   /** Shared keyboard/mobile Interact route for siege-weapon use/exit and the core switch. */
@@ -154,8 +240,8 @@ export class TerritoryMapController {
       this.world.territorySiegeAction(ramAction === 'exit' ? 'leave_ram' : 'enter_ram');
       return true;
     }
-    if (this.defenderPortalInteractAvailable(siege)) {
-      this.world.territorySiegeAction('defender_portal');
+    if (this.defenderGateInteractAvailable(siege)) {
+      this.world.territorySiegeAction('defender_gate');
       return true;
     }
     if (!this.coreInteractAvailable(siege)) return false;
@@ -260,7 +346,13 @@ export class TerritoryMapController {
     this.zoom = TERRITORY_MAP_OPEN_ZOOM;
     this.center = { x: 0, y: 0 };
     this.selectedCell = null;
+    this.workshopPanelOpen = false;
+    this.stockpilePanelOpen = false;
+    this.structurePanelSlot = null;
     this.writers.setDisplay(element('#territory-panel'), 'none');
+    this.writers.setDisplay(element('#territory-workshop-crafting'), 'none');
+    this.writers.setDisplay(element('#territory-stockpile-panel'), 'none');
+    this.writers.setDisplay(element('#territory-structure-detail-panel'), 'none');
     this.world.territoryOpen();
     this.updateSiegeHud();
   }
@@ -268,7 +360,13 @@ export class TerritoryMapController {
   close(): void {
     this.access.open = false;
     this.selectedCell = null;
+    this.workshopPanelOpen = false;
+    this.stockpilePanelOpen = false;
+    this.structurePanelSlot = null;
     this.writers.setDisplay(element('#territory-panel'), 'none');
+    this.writers.setDisplay(element('#territory-workshop-crafting'), 'none');
+    this.writers.setDisplay(element('#territory-stockpile-panel'), 'none');
+    this.writers.setDisplay(element('#territory-structure-detail-panel'), 'none');
     this.world.territoryClose();
     this.updateSiegeHud();
   }
@@ -294,7 +392,12 @@ export class TerritoryMapController {
 
   pointerDown(event: PointerEvent, pinching: boolean): void {
     if (pinching || !this.view || this.zoom <= 1) return;
-    this.drag = { px: event.clientX, py: event.clientY, cx: this.center.x, cy: this.center.y };
+    this.drag = {
+      px: event.clientX,
+      py: event.clientY,
+      cx: this.center.x,
+      cy: this.center.y,
+    };
     this.canvas.setPointerCapture(event.pointerId);
     this.canvas.style.cursor = 'grabbing';
   }
@@ -313,18 +416,27 @@ export class TerritoryMapController {
   click(canvasX: number, canvasY: number): void {
     const state = this.world.territoryMap;
     if (!state || !this.view) return;
-    this.selectedCell = territoryCellAt(
+    const nextCell = territoryCellAt(
       createTerritoryManifest(state.season.radius),
       this.view,
       this.canvas.width,
       canvasX,
       canvasY,
     );
+    if (nextCell !== this.selectedCell) {
+      this.workshopPanelOpen = false;
+      this.stockpilePanelOpen = false;
+      this.structurePanelSlot = null;
+    }
+    this.selectedCell = nextCell;
     this.repaint();
   }
 
   private dismissPanel(): void {
     this.selectedCell = null;
+    this.workshopPanelOpen = false;
+    this.stockpilePanelOpen = false;
+    this.structurePanelSlot = null;
     this.paintKey = null;
     this.writers.setDisplay(element('#territory-panel'), 'none');
     this.repaint();
@@ -348,6 +460,7 @@ export class TerritoryMapController {
       this.center.y,
       this.hoverCell ?? 0,
       this.selectedCell ?? 0,
+      state?.capture?.id ?? 'no-capture',
       title,
     ].join(':');
     if (key !== this.paintKey) {
@@ -377,16 +490,44 @@ export class TerritoryMapController {
   }
 
   updateSiegeHud(): void {
+    const constructionClockSecond = Math.floor(Date.now() / 1_000);
+    if (
+      this.access.open &&
+      this.selectedCell !== null &&
+      constructionClockSecond !== this.constructionClockSecond
+    ) {
+      this.constructionClockSecond = constructionClockSecond;
+      this.renderPanel();
+    }
     const siege = this.world.territoryMap?.siege ?? null;
-    const war = territoryRelatedWar(this.world.territoryWarNotice, this.world.territoryMap);
+    const capture = this.world.territoryMap?.capture ?? null;
+    const relatedWars = territoryRelatedWars(
+      this.world.territoryWarNotice,
+      this.world.territoryMap,
+    );
+    const war = relatedWars[0] ?? null;
+    const relatedWarAccess = relatedWars.length
+      ? {
+          id: relatedWars
+            .map((candidate) => candidate.id)
+            .sort()
+            .join('|'),
+          status: relatedWars.some((candidate) => candidate.status === 'active')
+            ? ('active' as const)
+            : ('forming' as const),
+        }
+      : null;
     updateTerritoryWarAccess(
       this.access,
-      siege && siege.state !== 'ended' ? { id: siege.warId, status: siege.state } : war,
+      siege && siege.state !== 'ended'
+        ? { id: siege.warId, status: siege.state }
+        : capture
+          ? { id: capture.id, status: 'active' }
+          : relatedWarAccess,
     );
-    const phase = siege?.state ?? war?.status;
+    const phase = siege?.state ?? (capture ? 'active' : war?.status);
     const hasGuildWar =
-      (!!siege && siege.state !== 'ended') ||
-      (!!war && ['declared', 'forming', 'active'].includes(war.status));
+      (!!siege && siege.state !== 'ended') || capture !== null || relatedWars.length > 0;
     const label = this.access.unread
       ? `${t('hudChrome.territoryMap.title')} · ${t(phase === 'active' ? 'hudChrome.territoryMap.warOngoing' : 'hudChrome.territoryMap.warStarting')}`
       : t('hudChrome.territoryMap.title');
@@ -405,9 +546,101 @@ export class TerritoryMapController {
     const result = element('#territory-siege-result');
     const resultVisible = !!siege && siege.state === 'ended' && siege.winner !== null;
     const liveSiege = !!siege && siege.state !== 'ended';
-    this.writers.setDisplay(this.warDock, this.access.open && !liveSiege ? 'block' : 'none');
-    this.updateWarNotice(siege !== null);
+    this.writers.setDisplay(
+      this.warDock,
+      this.access.open && !liveSiege && !capture ? 'block' : 'none',
+    );
+    this.updateWarNotice(siege !== null || capture !== null);
     this.writers.setDisplay(element('#territory-siege-hud'), liveSiege ? 'block' : 'none');
+    const captureHud = element('#territory-capture-hud');
+    this.writers.setDisplay(captureHud, capture ? 'block' : 'none');
+    if (capture) {
+      this.writers.setText(
+        element('#territory-capture-title'),
+        t('hudChrome.territoryMap.captureTierTitle', {
+          tier: capture.difficultyTier,
+          level: capture.enemyLevel,
+        }),
+      );
+      this.writers.setText(
+        element('#territory-capture-status'),
+        capture.preparingIn > 0
+          ? t('hudChrome.territoryMap.capturePreparing', {
+              seconds: capture.preparingIn,
+            })
+          : capture.respawnIn > 0
+            ? t('hudChrome.territoryMap.captureRespawn', {
+                seconds: capture.respawnIn,
+              })
+            : !capture.registered
+              ? t('hudChrome.territoryMap.captureAvailable', {
+                  seconds: capture.timeLeft,
+                })
+              : !capture.inField
+                ? t('hudChrome.territoryMap.captureRegistered', {
+                    seconds: capture.timeLeft,
+                  })
+                : capture.phase === 'guards'
+                  ? t('hudChrome.territoryMap.captureGuards', {
+                      count: capture.initialGuardsAlive,
+                    })
+                  : t('hudChrome.territoryMap.captureHold', {
+                      seconds: capture.secondsRemaining,
+                    }),
+      );
+      this.writers.setWidth(
+        element('#territory-capture-fill'),
+        `${Math.round(capture.progress * 100)}%`,
+      );
+      this.writers.setText(
+        element('#territory-capture-detail'),
+        capture.preparingIn > 0
+          ? t('hudChrome.territoryMap.captureSafeStaging')
+          : capture.phase === 'guards'
+            ? t('hudChrome.territoryMap.captureLocked')
+            : t('hudChrome.territoryMap.captureWave', {
+                occupants: capture.occupants,
+                count: capture.reinforcementsAlive,
+              }),
+      );
+      this.writers.setText(
+        element('#territory-capture-roster'),
+        [
+          t('hudChrome.territoryMap.captureRoster', {
+            registered: capture.participantCount,
+            inside: capture.members.filter((member) => member.connected && member.inField).length,
+          }),
+          ...capture.members.map((member) =>
+            t('hudChrome.territoryMap.captureMember', {
+              name: member.name,
+              status: t(
+                !member.connected
+                  ? 'hudChrome.territoryMap.captureMemberOffline'
+                  : member.respawnIn > 0
+                    ? 'hudChrome.territoryMap.captureMemberRespawning'
+                    : member.preparingIn > 0
+                      ? 'hudChrome.territoryMap.captureMemberPreparing'
+                      : member.inField
+                        ? 'hudChrome.territoryMap.captureMemberInside'
+                        : 'hudChrome.territoryMap.captureMemberRegistered',
+              ),
+            }),
+          ),
+        ].join('\n'),
+      );
+      const captureAction = element<HTMLButtonElement>('#territory-capture-action');
+      this.writers.setText(
+        captureAction,
+        t(
+          capture.inField
+            ? 'hudChrome.territoryMap.captureLeave'
+            : capture.registered
+              ? 'hudChrome.territoryMap.captureEnter'
+              : 'hudChrome.territoryMap.captureJoin',
+        ),
+      );
+      captureAction.disabled = capture.preparingIn > 0 || capture.respawnIn > 0;
+    }
     const interact = element('#territory-siege-interact');
     const catapultInteractAction = siege ? this.catapultInteractAction(siege) : null;
     const mortarInteractAction =
@@ -421,19 +654,19 @@ export class TerritoryMapController {
       !catapultInteractAction &&
       !mortarInteractAction &&
       !ramInteractAction &&
-      !this.defenderPortalInteractAvailable(siege) &&
+      !this.defenderGateInteractAvailable(siege) &&
       this.coreInteractAvailable(siege);
-    const defenderPortalVisible =
+    const defenderGateVisible =
       !!siege &&
       !catapultInteractAction &&
       !mortarInteractAction &&
       !ramInteractAction &&
-      this.defenderPortalInteractAvailable(siege);
+      this.defenderGateInteractAvailable(siege);
     const interactVisible =
       !!catapultInteractAction ||
       !!mortarInteractAction ||
       !!ramInteractAction ||
-      defenderPortalVisible ||
+      defenderGateVisible ||
       coreInteractVisible;
     this.writers.setDisplay(interact, interactVisible ? 'flex' : 'none');
     if (interactVisible && siege) {
@@ -452,10 +685,10 @@ export class TerritoryMapController {
                     ? 'hudChrome.territoryMap.ramInteractExit'
                     : ramInteractAction === 'enter'
                       ? 'hudChrome.territoryMap.ramInteractUse'
-                      : defenderPortalVisible
-                        ? this.siegeLocalPlayerPosition().z > 18
-                          ? 'hudChrome.territoryMap.defenderPortalEnter'
-                          : 'hudChrome.territoryMap.defenderPortalExit'
+                      : defenderGateVisible
+                        ? this.siegeLocalPlayerPosition().z > TERRITORY_SIEGE_GATE_Z
+                          ? 'hudChrome.territoryMap.defenderGateEnter'
+                          : 'hudChrome.territoryMap.defenderGateExit'
                         : siege.coreChanneling
                           ? 'hudChrome.territoryMap.coreLaserStop'
                           : 'hudChrome.territoryMap.coreLaserStart',
@@ -491,7 +724,9 @@ export class TerritoryMapController {
       );
       this.writers.setText(
         element('#territory-result-return'),
-        t('hudChrome.territoryMap.resultReturn', { seconds: siege.resultReturnIn }),
+        t('hudChrome.territoryMap.resultReturn', {
+          seconds: siege.resultReturnIn,
+        }),
       );
     }
     if (!siege || siege.state === 'ended') return;
@@ -716,13 +951,17 @@ export class TerritoryMapController {
   private siegeLocalPlayerPosition(): { x: number; z: number } {
     const slot = territorySiegeOriginAt(this.world.player.pos.z).slot;
     const origin = territorySiegeOrigin(slot);
-    return { x: this.world.player.pos.x - origin.x, z: this.world.player.pos.z - origin.z };
+    return {
+      x: this.world.player.pos.x - origin.x,
+      z: this.world.player.pos.z - origin.z,
+    };
   }
 
-  private defenderPortalInteractAvailable(siege: NonNullable<TerritoryMapState['siege']>): boolean {
+  private defenderGateInteractAvailable(siege: NonNullable<TerritoryMapState['siege']>): boolean {
     if (
       siege.state !== 'active' ||
       siege.mySide !== 'defender' ||
+      siege.gateOpen ||
       siege.respawnIn > 0 ||
       this.isSiegeWeaponOperating() ||
       siege.coreChanneling
@@ -730,12 +969,14 @@ export class TerritoryMapController {
       return false;
     }
     const position = this.siegeLocalPlayerPosition();
-    return territorySiegeDefenderPortalDestination(position.x, position.z) !== null;
+    return territorySiegeDefenderGateDestination(position.x, position.z) !== null;
   }
 
   private updateWarNotice(siegeVisible: boolean): void {
-    const war = territoryRelatedWar(this.world.territoryWarNotice, this.world.territoryMap);
-    const model = territoryWarNoticeModel(war, Date.now());
+    const wars = territoryRelatedWars(this.world.territoryWarNotice, this.world.territoryMap);
+    const war = wars[0] ?? null;
+    const nowMs = Date.now();
+    const model = territoryWarNoticeModel(war, nowMs);
     const root = element('#territory-war-notice');
     const visible = this.access.open && !siegeVisible;
     this.writers.setDisplay(root, visible ? 'block' : 'none');
@@ -755,16 +996,24 @@ export class TerritoryMapController {
       ),
     );
     if (empty) {
+      root.dataset.side = '';
+      element<HTMLElement>('#territory-war-notice-primary').dataset.side = '';
+      this.updateAdditionalWarNotices([], nowMs);
       this.writers.setText(element('#territory-war-kicker'), t('hudChrome.territoryMap.title'));
       this.writers.setText(element('#territory-war-title'), t('hudChrome.guildTerritory.noWars'));
       return;
     }
-    this.writers.setText(
-      element('#territory-war-kicker'),
-      model.active
-        ? t('hudChrome.territoryMap.warOngoing')
-        : t('hudChrome.territoryMap.warStarting'),
+    root.dataset.side = war.mySide ?? '';
+    element<HTMLElement>('#territory-war-notice-primary').dataset.side = war.mySide ?? '';
+    const phaseLabel = model.active
+      ? t('hudChrome.territoryMap.warOngoing')
+      : t('hudChrome.territoryMap.warStarting');
+    const roleLabel = t(
+      war.mySide === 'attacker'
+        ? 'hudChrome.guildTerritory.attacking'
+        : 'hudChrome.guildTerritory.defending',
     );
+    this.writers.setText(element('#territory-war-kicker'), `${roleLabel} · ${phaseLabel}`);
     this.writers.setText(
       element('#territory-war-title'),
       t('hudChrome.territoryMap.warTitle', {
@@ -784,7 +1033,9 @@ export class TerritoryMapController {
       model.active
         ? ''
         : t('hudChrome.territoryMap.warStartsAt', {
-            time: formatDateTime(new Date(war.startsAt), { timeStyle: 'short' }),
+            time: formatDateTime(new Date(war.startsAt), {
+              timeStyle: 'short',
+            }),
           }),
     );
     this.writers.setText(
@@ -815,6 +1066,119 @@ export class TerritoryMapController {
     action.disabled =
       war.mySide === null ||
       (war.status === 'active' && war.mySide === 'attacker' && !war.registered);
+    this.updateAdditionalWarNotices(wars.slice(1), nowMs);
+  }
+
+  private updateAdditionalWarNotices(wars: TerritoryWarView[], nowMs: number): void {
+    const container = element<HTMLElement>('#territory-war-notice-extra');
+    const key = wars.map((war) => `${war.id}:${war.mySide}`).join('|');
+    if (key !== this.warNoticeExtraKey) {
+      this.warNoticeExtraKey = key;
+      this.warNoticeExtraRows = [];
+      container.replaceChildren();
+      for (const war of wars) {
+        const root = document.createElement('section');
+        root.className = 'territory-war-notice-entry territory-war-notice-extra-entry';
+        root.dataset.side = war.mySide ?? '';
+        const role = document.createElement('div');
+        role.className = 'territory-war-entry-role';
+        const title = document.createElement('div');
+        title.className = 'territory-war-entry-title';
+        const meta = document.createElement('div');
+        meta.className = 'territory-war-entry-meta';
+        const queue = document.createElement('div');
+        const start = document.createElement('div');
+        meta.append(queue, start);
+        const countdown = document.createElement('div');
+        countdown.className = 'territory-war-entry-countdown';
+        const teleport = document.createElement('div');
+        teleport.className = 'territory-war-entry-teleport';
+        const action = document.createElement('button');
+        action.type = 'button';
+        action.className = 'btn territory-war-entry-action';
+        action.addEventListener('click', () => this.performWarNoticeAction(war.id));
+        root.append(role, title, meta, countdown, teleport, action);
+        container.append(root);
+        this.warNoticeExtraRows.push({
+          warId: war.id,
+          root,
+          role,
+          title,
+          queue,
+          start,
+          countdown,
+          teleport,
+          action,
+        });
+      }
+    }
+    for (const refs of this.warNoticeExtraRows) {
+      const war = wars.find((candidate) => candidate.id === refs.warId);
+      if (!war) continue;
+      const model = territoryWarNoticeModel(war, nowMs);
+      refs.root.dataset.side = war.mySide ?? '';
+      this.writers.setText(
+        refs.role,
+        `${t(
+          war.mySide === 'attacker'
+            ? 'hudChrome.guildTerritory.attacking'
+            : 'hudChrome.guildTerritory.defending',
+        )} · ${t(
+          model.active ? 'hudChrome.territoryMap.warOngoing' : 'hudChrome.territoryMap.warStarting',
+        )}`,
+      );
+      this.writers.setText(
+        refs.title,
+        t('hudChrome.territoryMap.warTitle', {
+          attacker: war.attackerGuildName,
+          defender: war.defenderGuildName,
+        }),
+      );
+      this.writers.setText(
+        refs.queue,
+        t('hudChrome.territoryMap.warQueue', {
+          attackers: war.attackerCount,
+          defenders: war.defenderCount,
+        }),
+      );
+      this.writers.setText(
+        refs.start,
+        model.active
+          ? ''
+          : t('hudChrome.territoryMap.warStartsAt', {
+              time: formatDateTime(new Date(war.startsAt), {
+                timeStyle: 'short',
+              }),
+            }),
+      );
+      this.writers.setText(
+        refs.countdown,
+        model.active
+          ? t('hudChrome.territoryMap.warOngoingCountdown', {
+              time: territoryWarCountdown(model.secondsRemaining),
+            })
+          : t('hudChrome.territoryMap.warStartingCountdown', {
+              time: territoryWarCountdown(model.secondsUntilStart),
+            }),
+      );
+      this.writers.setText(
+        refs.teleport,
+        model.automaticTeleport
+          ? `${t('hudChrome.territoryMap.warTeleport', { seconds: model.secondsUntilStart })} · ${t('hudChrome.territoryMap.warTeleportNote')}`
+          : '',
+      );
+      this.writers.setText(
+        refs.action,
+        t(
+          !model.active && war.registered
+            ? 'hudChrome.territoryMap.leaveWar'
+            : 'hudChrome.territoryMap.joinWar',
+        ),
+      );
+      refs.action.disabled =
+        war.mySide === null ||
+        (war.status === 'active' && war.mySide === 'attacker' && !war.registered);
+    }
   }
 
   private updateHover(clientX: number, clientY: number): void {
@@ -844,9 +1208,15 @@ export class TerritoryMapController {
         entry.targetCellId === cellId && ['declared', 'forming', 'active'].includes(entry.status),
     );
     if (war?.mySide) return { kind: war.registered ? 'leave' : 'join', warId: war.id };
+    if (state.capture?.cellId === cellId) {
+      if (!state.capture.registered) return { kind: 'capture-join' };
+      if (!state.capture.inField && state.capture.preparingIn <= 0)
+        return { kind: 'capture-enter' };
+      return null;
+    }
     if (state.guild.rank === 'member') return null;
-    const owned = state.cells.find((entry) => entry.cellId === cellId);
     const manifestCell = createTerritoryManifest(state.season.radius).byId.get(cellId);
+    const owned = state.cells.find((entry) => entry.cellId === cellId);
     if (!owned) {
       if (!territoryCellClaimable(manifestCell, state.season.radius)) return null;
       if (state.guild.ownedCellCount === 0) {
@@ -879,7 +1249,11 @@ export class TerritoryMapController {
     const action = this.primaryAction();
     if (!action) return;
     if (action.kind === 'place') this.world.territoryPlaceKeep(action.cellId);
-    else if (action.kind === 'claim') this.world.territoryClaim(action.cellId);
+    else if (action.kind === 'claim') {
+      this.world.territoryClaim(action.cellId);
+      this.close();
+    } else if (action.kind === 'capture-join') this.world.territoryCaptureAction('join');
+    else if (action.kind === 'capture-enter') this.world.territoryCaptureAction('enter');
     else if (action.kind === 'war') this.world.territoryDeclareWar(action.cellId);
     else if (action.kind === 'join') this.world.territoryJoinWar(action.warId);
     else this.world.territoryLeaveWar(action.warId);
@@ -888,20 +1262,89 @@ export class TerritoryMapController {
   private performSlot(slot: TerritoryStructureSlot): void {
     const state = this.world.territoryMap;
     if (!state) return;
-    const action = territorySlotModels(state, this.selectedCell).find(
+    const model = territorySlotModels(state, this.selectedCell).find(
       (model) => model.slot === slot,
-    )?.action;
+    );
+    if (
+      slot === 'siege_workshop' &&
+      model &&
+      (model.state === 'active' || model.state === 'max' || model.state === 'castle_locked')
+    ) {
+      this.workshopPanelOpen = !this.workshopPanelOpen;
+      this.stockpilePanelOpen = false;
+      this.structurePanelSlot = null;
+      this.renderPanel();
+      return;
+    }
+    if (
+      slot === 'stockpile' &&
+      model &&
+      (model.state === 'active' || model.state === 'max' || model.state === 'castle_locked')
+    ) {
+      this.stockpilePanelOpen = !this.stockpilePanelOpen;
+      this.workshopPanelOpen = false;
+      this.structurePanelSlot = null;
+      this.renderPanel();
+      return;
+    }
+    this.workshopPanelOpen = false;
+    this.stockpilePanelOpen = false;
+    this.structurePanelSlot = model && this.structurePanelSlot !== slot ? slot : null;
+    this.renderPanel();
+  }
+
+  private performStructureAction(): void {
+    const state = this.world.territoryMap;
+    const slot = this.structurePanelSlot;
+    const model =
+      state && slot
+        ? territorySlotModels(state, this.selectedCell).find((candidate) => candidate.slot === slot)
+        : null;
+    const action = model?.action;
     if (action?.kind === 'build')
       this.world.territoryBuild(action.cellId, action.slot, action.structureKind);
     else if (action?.kind === 'upgrade') this.world.territoryUpgrade(action.cellId, action.slot);
+  }
+
+  private performWorkshopUpgrade(): void {
+    const state = this.world.territoryMap;
+    const model = state
+      ? territorySlotModels(state, this.selectedCell).find(
+          (candidate) => candidate.slot === 'siege_workshop',
+        )
+      : null;
+    if (model?.action?.kind === 'upgrade') {
+      this.world.territoryUpgrade(model.action.cellId, model.action.slot);
+    }
+  }
+
+  private performStockpileWithdraw(resource: TerritoryResourceKind): void {
+    const cellId = this.selectedCell;
+    if (cellId === null || !['wood', 'iron', 'grain', 'labor'].includes(resource)) return;
+    this.world.territoryHarvest(cellId, resource);
+  }
+
+  private performStockpileUpgrade(): void {
+    const state = this.world.territoryMap;
+    const model = state
+      ? territorySlotModels(state, this.selectedCell).find(
+          (candidate) => candidate.slot === 'stockpile',
+        )
+      : null;
+    if (model?.action?.kind === 'upgrade') {
+      this.world.territoryUpgrade(model.action.cellId, model.action.slot);
+    }
   }
 
   private performSiegeCraft(kind: TerritorySiegeCraftKind): void {
     this.world.territoryCraftSiege(kind);
   }
 
-  private performWarNoticeAction(): void {
-    const war = territoryRelatedWar(this.world.territoryWarNotice, this.world.territoryMap);
+  private performWarNoticeAction(warId?: string): void {
+    const wars = territoryRelatedWars(this.world.territoryWarNotice, this.world.territoryMap);
+    const war = warId
+      ? (wars.find((candidate) => candidate.id === warId) ?? null)
+      : (wars[0] ?? null);
     if (!war?.mySide) return;
     if (war.status === 'active') this.world.territoryJoinWar(war.id);
     else if (war.registered) this.world.territoryLeaveWar(war.id);
@@ -927,11 +1370,15 @@ export class TerritoryMapController {
       this.writers.setText(detail, '');
       this.writers.setText(battlefield, '');
       this.writers.setDisplay(battlefield, 'none');
-      this.writers.setText(economy, '');
       this.writers.setDisplay(economy, 'none');
       this.writers.setDisplay(actions, 'none');
       this.writers.setDisplay(structures, 'none');
       this.writers.setDisplay(element('#territory-workshop-crafting'), 'none');
+      this.writers.setDisplay(element('#territory-stockpile-panel'), 'none');
+      this.writers.setDisplay(element('#territory-structure-detail-panel'), 'none');
+      this.workshopPanelOpen = false;
+      this.stockpilePanelOpen = false;
+      this.structurePanelSlot = null;
       primary.disabled = true;
       this.renderStructureSlots(null);
       return;
@@ -946,11 +1393,15 @@ export class TerritoryMapController {
       this.writers.setText(detail, t('hudChrome.territoryMap.mountainNotice'));
       this.writers.setText(battlefield, '');
       this.writers.setDisplay(battlefield, 'none');
-      this.writers.setText(economy, '');
       this.writers.setDisplay(economy, 'none');
       this.writers.setDisplay(actions, 'none');
       this.writers.setDisplay(structures, 'none');
       this.writers.setDisplay(element('#territory-workshop-crafting'), 'none');
+      this.writers.setDisplay(element('#territory-stockpile-panel'), 'none');
+      this.writers.setDisplay(element('#territory-structure-detail-panel'), 'none');
+      this.workshopPanelOpen = false;
+      this.stockpilePanelOpen = false;
+      this.structurePanelSlot = null;
       primary.disabled = true;
       this.renderStructureSlots(null);
       panel.dataset.revision = String(state.revision);
@@ -977,13 +1428,8 @@ export class TerritoryMapController {
       }),
     );
     this.writers.setDisplay(battlefield, 'block');
-    this.writers.setText(
-      economy,
-      state.guild
-        ? t('hudChrome.territoryMap.resources', state.guild.resources)
-        : t('hudChrome.territoryMap.noGuild'),
-    );
-    this.writers.setDisplay(economy, 'block');
+    this.writers.setDisplay(economy, state.guild ? 'none' : 'block');
+    this.writers.setDisplay(element('#territory-economy-empty'), state.guild ? 'none' : 'block');
     const action = this.primaryAction();
     primary.disabled = !action;
     this.writers.setDisplay(actions, action ? 'flex' : 'none');
@@ -992,50 +1438,244 @@ export class TerritoryMapController {
         ? 'placeKeep'
         : action?.kind === 'claim'
           ? 'claim'
-          : action?.kind === 'war'
-            ? 'declareWar'
-            : action?.kind === 'leave'
-              ? 'leaveWar'
-              : 'joinWar';
+          : action?.kind === 'capture-join'
+            ? 'captureJoin'
+            : action?.kind === 'capture-enter'
+              ? 'captureEnter'
+              : action?.kind === 'war'
+                ? 'declareWar'
+                : action?.kind === 'leave'
+                  ? 'leaveWar'
+                  : 'joinWar';
     this.writers.setText(primary, t(`hudChrome.territoryMap.${actionKey}`));
     this.writers.setDisplay(structures, owned ? 'block' : 'none');
     this.renderStructureSlots(owned ? state : null);
+    this.renderStructureDetail(owned ? state : null, cellId);
     this.renderWorkshopCrafting(owned ? state : null, cellId);
+    this.renderStockpile(state, cellId);
     panel.dataset.revision = String(state.revision);
+  }
+
+  private structureStatus(model: TerritorySlotModel | null): string {
+    return !model || model.state === 'locked'
+      ? t('hudChrome.territoryMap.slotUnavailable')
+      : model.state === 'empty'
+        ? t('hudChrome.territoryMap.slotEmpty')
+        : model.state === 'building'
+          ? t('hudChrome.territoryMap.slotBuilding', { level: model.level })
+          : model.state === 'castle_locked'
+            ? t('hudChrome.territoryMap.slotCastleRequired', {
+                level: model.requiredCastleLevel ?? model.level + 1,
+              })
+            : model.state === 'max'
+              ? t('hudChrome.territoryMap.slotMax', { level: model.level })
+              : model.action
+                ? t('hudChrome.territoryMap.slotLevel', { level: model.level })
+                : t('hudChrome.territoryMap.slotLevelReadOnly', { level: model.level });
   }
 
   private renderStructureSlots(state: TerritoryMapState | null): void {
     const models = state ? territorySlotModels(state, this.selectedCell) : [];
+    const manifestCell =
+      state && this.selectedCell !== null
+        ? createTerritoryManifest(state.season.radius).byId.get(this.selectedCell)
+        : null;
+    const resourceProfile =
+      state && manifestCell ? territoryResourceProfile(manifestCell, state.season.radius) : null;
     for (const descriptor of TERRITORY_SLOT_DESCRIPTORS) {
       const button = element<HTMLButtonElement>(`[data-territory-slot="${descriptor.slot}"]`);
       const model = models.find((candidate) => candidate.slot === descriptor.slot);
-      const status = !model
-        ? t('hudChrome.territoryMap.slotUnavailable')
-        : model.state === 'locked'
-          ? t('hudChrome.territoryMap.slotUnavailable')
-          : model.state === 'empty'
-            ? t('hudChrome.territoryMap.slotEmpty')
-            : model.state === 'building'
-              ? t('hudChrome.territoryMap.slotBuilding', { level: model.level })
-              : model.state === 'max'
-                ? t('hudChrome.territoryMap.slotMax')
-                : model.action
-                  ? t('hudChrome.territoryMap.slotLevel', { level: model.level })
-                  : t('hudChrome.territoryMap.slotLevelReadOnly', { level: model.level });
+      const constructionCountdown = model
+        ? territoryStructureCountdown(model.completesAt, Date.now())
+        : null;
+      const status = this.structureStatus(model ?? null);
+      const canOpenWorkshop =
+        descriptor.slot === 'siege_workshop' &&
+        !!model &&
+        (model.state === 'active' || model.state === 'max' || model.state === 'castle_locked');
+      const canOpenStockpile =
+        descriptor.slot === 'stockpile' &&
+        !!model &&
+        (model.state === 'active' || model.state === 'max' || model.state === 'castle_locked');
+      const canOpenDetail = !!model && !canOpenWorkshop && !canOpenStockpile;
+      const nextLevel = model?.action?.kind === 'build' ? 1 : (model?.level ?? 0) + 1;
+      const cost = model?.action ? this.structureCostLabel(descriptor.kind, nextLevel) : null;
+      const producedResource = territorySlotResource(descriptor.slot);
+      const productionActive = !!model && ['active', 'max', 'castle_locked'].includes(model.state);
+      const hourlyProduction =
+        producedResource && resourceProfile?.kind === producedResource && productionActive
+          ? territoryResourceProductionPerHour(producedResource, resourceProfile.yield, {
+              [descriptor.slot]: model.level,
+            })
+          : 0;
+      const productionLabel = producedResource
+        ? t('hudChrome.territoryMap.productionRate', {
+            amount: formatNumber(hourlyProduction, {
+              maximumFractionDigits: 0,
+            }),
+          })
+        : null;
       this.writers.setText(element(`#territory-slot-${descriptor.slot}-status`), status);
+      this.writers.setText(
+        element(`#territory-slot-${descriptor.slot}-countdown`),
+        constructionCountdown ?? '',
+      );
+      if (producedResource) {
+        this.writers.setText(
+          element(`#territory-slot-${descriptor.slot}-production`),
+          productionLabel ?? '',
+        );
+      }
       this.writers.setAttr(
         button,
         'aria-label',
-        `${t(`hudChrome.territoryMap.${descriptor.labelKey}`)} · ${status}`,
+        `${t(`hudChrome.territoryMap.${descriptor.labelKey}`)} · ${status}${constructionCountdown ? ` · ${constructionCountdown}` : ''}${productionLabel ? ` · ${productionLabel}` : ''}${cost ? ` · ${cost}` : ''}`,
       );
-      this.writers.toggleClass(button, 'is-actionable', model?.action !== null && !!model);
+      this.writers.setAttr(
+        button,
+        'title',
+        `${t(`hudChrome.territoryMap.${descriptor.labelKey}`)} · ${status}${constructionCountdown ? ` · ${constructionCountdown}` : ''}${productionLabel ? ` · ${productionLabel}` : ''}${cost ? `\n${cost}` : ''}`,
+      );
+      this.writers.toggleClass(
+        button,
+        'is-actionable',
+        canOpenDetail || canOpenWorkshop || canOpenStockpile,
+      );
+      this.writers.toggleClass(
+        button,
+        'is-selected',
+        (descriptor.slot === 'siege_workshop' && this.workshopPanelOpen) ||
+          (descriptor.slot === 'stockpile' && this.stockpilePanelOpen) ||
+          (descriptor.slot === this.structurePanelSlot && canOpenDetail),
+      );
       this.writers.toggleClass(
         button,
         'is-built',
         !!model && model.state !== 'empty' && model.state !== 'locked',
       );
       this.writers.toggleClass(button, 'is-building', model?.state === 'building');
-      button.disabled = !model?.action;
+      button.disabled = !model;
+    }
+  }
+
+  private renderStructureDetail(state: TerritoryMapState | null, cellId: number): void {
+    const root = element('#territory-structure-detail-panel');
+    const slot = this.structurePanelSlot;
+    const model =
+      state && slot
+        ? (territorySlotModels(state, cellId).find((candidate) => candidate.slot === slot) ?? null)
+        : null;
+    const descriptor = slot
+      ? (TERRITORY_SLOT_DESCRIPTORS.find((candidate) => candidate.slot === slot) ?? null)
+      : null;
+    const visible = !!model && !!descriptor && !this.workshopPanelOpen && !this.stockpilePanelOpen;
+    if (!visible && this.structurePanelSlot) this.structurePanelSlot = null;
+    this.writers.setDisplay(root, visible ? 'block' : 'none');
+    if (!visible || !model || !descriptor) return;
+
+    const status = this.structureStatus(model);
+    const countdown = territoryStructureCountdown(model.completesAt, Date.now());
+    const nextLevel = model.action?.kind === 'build' ? 1 : model.level + 1;
+    const cost = model.action ? this.structureCostLabel(descriptor.kind, nextLevel) : '';
+    const action = element<HTMLButtonElement>('#territory-structure-detail-action');
+    this.writers.setText(
+      element('#territory-structure-detail-title'),
+      t(`hudChrome.territoryMap.${descriptor.labelKey}`),
+    );
+    this.writers.setText(
+      element('#territory-structure-detail-status'),
+      `${status}${countdown ? ` · ${countdown}` : ''}`,
+    );
+    this.writers.setText(element('#territory-structure-detail-cost'), cost);
+    this.writers.setDisplay(element('#territory-structure-detail-cost'), cost ? 'block' : 'none');
+    this.writers.setText(
+      action,
+      model.action?.kind === 'build'
+        ? t('hudChrome.territoryMap.build')
+        : model.action?.kind === 'upgrade'
+          ? t('hudChrome.territoryMap.upgrade')
+          : status,
+    );
+    action.disabled = !model.action;
+  }
+
+  private renderStockpile(state: TerritoryMapState, cellId: number): void {
+    const root = element('#territory-stockpile-panel');
+    const guild = state.guild;
+    const stockpile = state.structures.find(
+      (structure) =>
+        structure.cellId === cellId &&
+        structure.slot === 'stockpile' &&
+        structure.state === 'active',
+    );
+    const ownsCity = state.cells.some(
+      (cell) => cell.cellId === cellId && cell.ownerGuildId === guild?.id,
+    );
+    const visible = this.stockpilePanelOpen && ownsCity && !!stockpile && !!guild;
+    if (!visible && this.stockpilePanelOpen) this.stockpilePanelOpen = false;
+    this.writers.setDisplay(root, visible ? 'block' : 'none');
+    if (!visible || !guild || !stockpile) return;
+
+    const model = territorySlotModels(state, cellId).find(
+      (candidate) => candidate.slot === 'stockpile',
+    );
+    const upgrade = element<HTMLButtonElement>('#territory-stockpile-upgrade');
+    const upgradeAction = model?.action?.kind === 'upgrade' ? model.action : null;
+    const nextLevel = Math.min(TERRITORY_CASTLE_MAX_LEVEL, stockpile.level + 1);
+    this.writers.setText(
+      element('#territory-stockpile-capacity'),
+      t('hudChrome.territoryMap.stockpileCapacity', {
+        city: territoryStockpileCapacity(stockpile.level),
+        total: guild.resourceCapacity,
+      }),
+    );
+    this.writers.setText(
+      upgrade,
+      upgradeAction
+        ? t('hudChrome.territoryMap.stockpileUpgrade', { level: nextLevel })
+        : model?.state === 'castle_locked'
+          ? t('hudChrome.territoryMap.stockpileNeedsCastle', {
+              level: model.requiredCastleLevel ?? nextLevel,
+            })
+          : t('hudChrome.territoryMap.stockpileMax'),
+    );
+    upgrade.disabled = !upgradeAction;
+
+    const canManage = guild.rank === 'leader' || guild.rank === 'officer';
+    for (const resource of TERRITORY_RESOURCE_KINDS) {
+      const stored = Math.max(0, Math.floor(guild.resources[resource] ?? 0));
+      const formattedStored = formatNumber(stored, {
+        maximumFractionDigits: 0,
+      });
+      this.writers.setText(element(`#territory-stockpile-${resource}-stored`), formattedStored);
+      const card = element<HTMLElement>(
+        `#territory-stockpile-resources [data-resource="${resource}"]`,
+      );
+      this.writers.setAttr(
+        card,
+        'aria-label',
+        t('hudChrome.territoryMap.stockpileResourceSummary', {
+          resource: this.resourceLabel(resource),
+          stored: formattedStored,
+        }),
+      );
+      const withdraw = element<HTMLButtonElement>(
+        `[data-territory-stockpile-withdraw="${resource}"]`,
+      );
+      this.writers.setText(
+        withdraw,
+        canManage
+          ? t('hudChrome.territoryMap.stockpileWithdraw')
+          : t('hudChrome.territoryMap.stockpileOfficerOnly'),
+      );
+      this.writers.setAttr(
+        withdraw,
+        'title',
+        t('hudChrome.territoryMap.stockpileWithdrawResource', {
+          resource: this.resourceLabel(resource),
+        }),
+      );
+      withdraw.disabled = !canManage || stored <= 0;
     }
   }
 
@@ -1051,19 +1691,88 @@ export class TerritoryMapController {
         structure.slot === 'siege_workshop' &&
         structure.state === 'active',
     );
-    const visible = ownsKeep && !!workshop && !!guild;
+    const visible = this.workshopPanelOpen && ownsKeep && !!workshop && !!guild;
+    if (!visible && this.workshopPanelOpen) this.workshopPanelOpen = false;
     this.writers.setDisplay(root, visible ? 'block' : 'none');
+    const workshopModel = state
+      ? territorySlotModels(state, cellId).find((model) => model.slot === 'siege_workshop')
+      : null;
+    const upgrade = element<HTMLButtonElement>('#territory-workshop-upgrade');
+    const upgradeAction = workshopModel?.action?.kind === 'upgrade' ? workshopModel.action : null;
+    const upgradeLevel = Math.min(TERRITORY_CASTLE_MAX_LEVEL, (workshopModel?.level ?? 0) + 1);
+    this.writers.setText(
+      upgrade,
+      upgradeAction
+        ? t('hudChrome.territoryMap.workshopUpgrade', { level: upgradeLevel })
+        : workshopModel?.state === 'castle_locked'
+          ? t('hudChrome.territoryMap.workshopNeedsCastle', {
+              level: workshopModel.requiredCastleLevel ?? upgradeLevel,
+            })
+          : workshopModel?.state === 'max'
+            ? t('hudChrome.territoryMap.workshopMax')
+            : t('hudChrome.territoryMap.workshopLevel', {
+                level: workshopModel?.level ?? 1,
+              }),
+    );
+    upgrade.disabled = !visible || !upgradeAction;
+    if (upgradeAction) {
+      const upgradeCost = this.structureCostLabel('siege_workshop', upgradeLevel);
+      this.writers.setAttr(upgrade, 'title', upgradeCost);
+      this.writers.setAttr(
+        upgrade,
+        'aria-label',
+        `${t('hudChrome.territoryMap.workshopUpgrade', { level: upgradeLevel })} · ${upgradeCost}`,
+      );
+    }
     for (const kind of ['ram', 'mortar', 'catapult'] as const) {
       const button = element<HTMLButtonElement>(`#territory-craft-${kind}`);
       const recipe = TERRITORY_SIEGE_RECIPES[kind];
+      const cost = this.recipeCostLabel(kind);
+      this.writers.setText(element(`#territory-craft-${kind}-cost`), cost);
+      this.writers.setText(element(`#territory-craft-${kind}-tooltip-cost`), cost);
+      this.writers.setAttr(
+        button,
+        'aria-label',
+        `${t(`hudChrome.territoryMap.${kind === 'ram' ? 'craftRam' : kind === 'mortar' ? 'craftMortar' : 'craftCatapult'}`)} · ${cost}`,
+      );
       button.disabled =
         !visible ||
         !guild ||
         this.world.copper < recipe.copper ||
         Object.entries(recipe.resources).some(
-          ([resource, cost]) => guild.resources[resource as TerritoryResourceKind] < cost,
+          ([resource, cost]) =>
+            (guild.inventoryResources ?? guild.resources)[resource as TerritoryResourceKind] < cost,
         );
     }
+  }
+
+  private recipeCostLabel(kind: TerritorySiegeCraftKind): string {
+    const recipe = TERRITORY_SIEGE_RECIPES[kind];
+    return [
+      ...Object.entries(recipe.resources)
+        .filter(([, amount]) => amount > 0)
+        .map(
+          ([resource, amount]) =>
+            `${amount} ${this.resourceLabel(resource as TerritoryResourceKind)}`,
+        ),
+      formatMoney(recipe.copper),
+    ].join(' · ');
+  }
+
+  private structureCostLabel(
+    kind: Parameters<typeof territoryStructureCost>[0],
+    level: number,
+  ): string {
+    const cost = territoryStructureCost(kind, level);
+    return [
+      formatMoney(cost.copper),
+      ...Object.entries(cost.resources)
+        .filter(([, amount]) => amount > 0)
+        .map(
+          ([resource, amount]) =>
+            `${amount} ${this.resourceLabel(resource as TerritoryResourceKind)}`,
+        ),
+    ].join(' · ');
   }
 
   private resourceLabel(resource: TerritoryResourceKind): string {

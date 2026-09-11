@@ -47,10 +47,42 @@ function match(gateLevel = 1) {
 }
 
 describe('territory siege', () => {
+  it('uses one castle level for gate, wall, and core durability', () => {
+    const state = createTerritorySiege({
+      ...match().definition,
+      gateLevel: 1,
+      coreLevel: 3,
+    });
+    expect(state.gateMaxHp).toBe(175);
+    expect(state.wallMaxHp).toBe(195);
+    expect(state.coreMaxHp).toBe(225);
+    expect(territorySiegeJoin(state, 1, 'attacker', 0, rules)).toMatchObject({
+      ok: true,
+    });
+    expect(territorySiegeViewFor(state, 1, 0)?.castleLevel).toBe(3);
+  });
+
+  it('creates the level-four inner curtain as authoritative wall health entries', () => {
+    const state = createTerritorySiege({
+      ...match().definition,
+      coreLevel: 4,
+    });
+    expect(state.gateMaxHp).toBe(200);
+    expect(state.wallMaxHp).toBe(220);
+    expect(state.coreMaxHp).toBe(250);
+    expect(Object.keys(state.wallHp)).toHaveLength(47);
+    expect(state.wallHp['inner_left:0']).toBe(220);
+    expect(state.wallHp['inner_back:4']).toBe(220);
+  });
+
   it('keeps a registered attacker seat reconnectable for the entire battle', () => {
     const state = match();
-    expect(territorySiegeJoin(state, 10, 'attacker', 0, rules)).toMatchObject({ ok: true });
-    expect(territorySiegeJoin(state, 11, 'attacker', 0, rules)).toMatchObject({ ok: true });
+    expect(territorySiegeJoin(state, 10, 'attacker', 0, rules)).toMatchObject({
+      ok: true,
+    });
+    expect(territorySiegeJoin(state, 11, 'attacker', 0, rules)).toMatchObject({
+      ok: true,
+    });
     expect(territorySiegeJoin(state, 12, 'attacker', 0, rules)).toEqual({
       ok: false,
       reason: 'team_full',
@@ -274,7 +306,10 @@ describe('territory siege', () => {
       }),
     ).toMatchObject({ ok: true, consumeMortar: true });
     expect(
-      territorySiegeApplyAction(state, 20, 'enter_mortar', 2_500, rules, { x: 0, z: -18 }).ok,
+      territorySiegeApplyAction(state, 20, 'enter_mortar', 2_500, rules, {
+        x: 0,
+        z: -18,
+      }).ok,
     ).toBe(true);
     const shot = territorySiegeApplyAction(state, 20, 'mortar_fire', 3_000, rules, {
       aimX: 0,
@@ -345,7 +380,11 @@ describe('territory siege', () => {
         hasCatapultItem: true,
       }),
     ).toMatchObject({ ok: true, consumeCatapult: true });
-    expect([...state.catapults.values()][0]).toMatchObject({ x: 20, z: 52, yaw: 1.25 });
+    expect([...state.catapults.values()][0]).toMatchObject({
+      x: 20,
+      z: 52,
+      yaw: 1.25,
+    });
     expect(
       territorySiegeApplyAction(state, 10, 'enter_catapult', 2_500, rules, {
         x: 20,
@@ -411,7 +450,10 @@ describe('territory siege', () => {
   });
 
   it('lets attacker catapult landings damage individual wall segments and built towers', () => {
-    const state = createTerritorySiege({ ...match().definition, defenseTowerLevel: 2 });
+    const state = createTerritorySiege({
+      ...match().definition,
+      defenseTowerLevel: 2,
+    });
     territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
     const gateBefore = state.gateHp;
     expect(
@@ -563,7 +605,10 @@ describe('territory siege', () => {
   });
 
   it('rotates deterministic defense-tower shots across live attackers', () => {
-    const state = createTerritorySiege({ ...match().definition, defenseTowerLevel: 2 });
+    const state = createTerritorySiege({
+      ...match().definition,
+      defenseTowerLevel: 2,
+    });
     territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
     territorySiegeJoin(state, 11, 'attacker', 1_000, rules);
     expect(territorySiegeTowerShot(state, 1_000)).toEqual({
@@ -580,7 +625,10 @@ describe('territory siege', () => {
   });
 
   it('skips attackers outside the authoritative tower radius', () => {
-    const state = createTerritorySiege({ ...match().definition, defenseTowerLevel: 2 });
+    const state = createTerritorySiege({
+      ...match().definition,
+      defenseTowerLevel: 2,
+    });
     territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
     territorySiegeJoin(state, 11, 'attacker', 1_000, rules);
     expect(territorySiegeTowerShot(state, 1_000, (characterId) => characterId === 11)).toEqual({
@@ -588,5 +636,20 @@ describe('territory siege', () => {
       damage: 14,
       towerId: 'left',
     });
+  });
+
+  it('only assigns a target to the tower whose own marked radius contains it', () => {
+    const state = createTerritorySiege({
+      ...match().definition,
+      defenseTowerLevel: 2,
+    });
+    territorySiegeJoin(state, 10, 'attacker', 1_000, rules);
+    expect(
+      territorySiegeTowerShot(
+        state,
+        1_000,
+        (characterId, towerId) => characterId === 10 && towerId === 'right',
+      ),
+    ).toEqual({ characterId: 10, damage: 14, towerId: 'right' });
   });
 });

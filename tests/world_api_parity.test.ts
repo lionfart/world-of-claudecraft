@@ -294,6 +294,8 @@ export const IWORLD_MEMBERS = [
   { name: 'territoryClose', kind: 'method' },
   { name: 'territoryPlaceKeep', kind: 'method' },
   { name: 'territoryClaim', kind: 'method' },
+  { name: 'territoryHarvest', kind: 'method' },
+  { name: 'territoryCaptureAction', kind: 'method' },
   { name: 'territoryBuild', kind: 'method' },
   { name: 'territoryUpgrade', kind: 'method' },
   { name: 'territoryRepair', kind: 'method' },
@@ -680,9 +682,9 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
     // even when the total agrees. Only running the suite says what these
     // numbers really are; never reconcile them by arithmetic in the diff (the
     // numbers below were set from a suite run, not from this narrative).
-    expect(IWORLD_MEMBERS.length).toBe(360);
+    expect(IWORLD_MEMBERS.length).toBe(362);
     expect(DATA_MEMBERS.length).toBe(97);
-    expect(METHOD_MEMBERS.length).toBe(263);
+    expect(METHOD_MEMBERS.length).toBe(265);
   });
   it('has no duplicate member names', () => {
     const names = IWORLD_MEMBERS.map((m) => m.name);
@@ -1012,10 +1014,12 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'targetNearestFriendly',
       'territoryBuild',
       'territoryCancelWar',
+      'territoryCaptureAction',
       'territoryClaim',
       'territoryClose',
       'territoryCraftSiege',
       'territoryDeclareWar',
+      'territoryHarvest',
       'territoryJoinWar',
       'territoryLeaveWar',
       'territoryMap',
@@ -1391,10 +1395,12 @@ describe('IWORLD_MEMBERS is the pinned IWorld contract (anti-loosening)', () => 
       'targetNearestFriendly',
       'territoryBuild',
       'territoryCancelWar',
+      'territoryCaptureAction',
       'territoryClaim',
       'territoryClose',
       'territoryCraftSiege',
       'territoryDeclareWar',
+      'territoryHarvest',
       'territoryJoinWar',
       'territoryLeaveWar',
       'territoryOpen',
@@ -1761,6 +1767,8 @@ const FACET_TERRITORY = [
   'territoryClose',
   'territoryPlaceKeep',
   'territoryClaim',
+  'territoryHarvest',
+  'territoryCaptureAction',
   'territoryBuild',
   'territoryUpgrade',
   'territoryRepair',
@@ -2096,8 +2104,8 @@ describe('W1: aggregate IWorld member set equals the disjoint union of the facet
 
   it('the facet union equals the pinned IWORLD_MEMBERS set', () => {
     const union = Object.values(FACET_MEMBER_ARRAYS).flatMap((arr) => [...arr]);
-    expect(union.length, 'union size before dedup (catches a duplicated member)').toBe(360);
-    expect(new Set(union).size, 'union size after dedup (catches a duplicated member)').toBe(360);
+    expect(union.length, 'union size before dedup (catches a duplicated member)').toBe(362);
+    expect(new Set(union).size, 'union size after dedup (catches a duplicated member)').toBe(362);
     const sortedUnion = [...union].sort();
     const pinned = IWORLD_MEMBERS.map((m) => m.name).sort();
     expect(sortedUnion).toEqual(pinned);

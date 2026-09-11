@@ -783,7 +783,7 @@ export const zh_CN: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.actionBar1': '动作条',
   'hudChrome.interfaceUnlock.frameNames.actionBar2': '动作条 2',
   'hudChrome.interfaceUnlock.frameNames.actionBar3': '动作条 3',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': '愿望单提醒',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': '捐款支持',
   'hudChrome.interfaceUnlock.frameNames.minimap': '小地图',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': '姿态栏',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': '玩家',

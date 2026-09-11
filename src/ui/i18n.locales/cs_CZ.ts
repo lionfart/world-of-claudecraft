@@ -13814,7 +13814,7 @@ export const cs_CZ: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.partyFrames': 'Skupina',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Hráč',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Lišta postojů',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Připomínka seznamu přání',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Podpora darem',
   'hudChrome.interfaceUnlock.frameNames.swingBar': 'Automatický útok',
   'hudChrome.interfaceUnlock.frameNames.targetFrame': 'Cíl',
   'hudChrome.interfaceUnlock.frameNames.xpBar': 'Lišta zkušeností',

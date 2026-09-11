@@ -78,8 +78,8 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 // directional combat branch adds the dodge pair, and seasonal territory warfare
 // adds its territory watch/claim/build/war/siege command pairs, including the
 // officer-plus pre-battle declaration withdrawal command.
-const EXPECTED_SEND_COUNT = 220;
-const EXPECTED_DISPATCH_COUNT = 233;
+const EXPECTED_SEND_COUNT = 222;
+const EXPECTED_DISPATCH_COUNT = 235;
 const EXPECTED_DISPATCH_ONLY_COUNT = 13;
 
 // The chat sub-channel routing switch (server/game.ts `switch

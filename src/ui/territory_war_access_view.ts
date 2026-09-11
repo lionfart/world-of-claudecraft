@@ -18,23 +18,37 @@ export function territoryRelatedWar(
   notice: TerritoryWarView | null,
   state: TerritoryMapState | null,
 ): TerritoryWarView | null {
+  return territoryRelatedWars(notice, state)[0] ?? null;
+}
+
+/**
+ * Resolve every live war involving the viewer's guild. The private push is
+ * merged over the public rows so its character-specific registration flag is
+ * retained, while the public map keeps simultaneous attack and defense wars
+ * visible in the launcher.
+ */
+export function territoryRelatedWars(
+  notice: TerritoryWarView | null,
+  state: TerritoryMapState | null,
+): TerritoryWarView[] {
   const guildId = state?.guild?.id ?? null;
+  const candidates = new Map<string, TerritoryWarView>();
+  if (guildId) {
+    for (const war of state?.wars ?? []) {
+      if (!LIVE_WAR_STATUSES.has(war.status)) continue;
+      const side = sideForGuild(war, guildId);
+      if (side) candidates.set(war.id, { ...war, mySide: side });
+    }
+  }
   if (notice && LIVE_WAR_STATUSES.has(notice.status)) {
     const side = notice.mySide ?? (guildId ? sideForGuild(notice, guildId) : null);
-    if (side) return notice.mySide === side ? notice : { ...notice, mySide: side };
+    if (side)
+      candidates.set(notice.id, notice.mySide === side ? notice : { ...notice, mySide: side });
   }
-  if (!guildId) return null;
-  const candidates = (state?.wars ?? [])
-    .flatMap((war) => {
-      if (!LIVE_WAR_STATUSES.has(war.status)) return [];
-      const side = sideForGuild(war, guildId);
-      return side ? [{ ...war, mySide: side }] : [];
-    })
-    .sort((a, b) => {
-      const activeOrder = Number(b.status === 'active') - Number(a.status === 'active');
-      return activeOrder || a.startsAt.localeCompare(b.startsAt);
-    });
-  return candidates[0] ?? null;
+  return [...candidates.values()].sort((a, b) => {
+    const activeOrder = Number(b.status === 'active') - Number(a.status === 'active');
+    return activeOrder || a.startsAt.localeCompare(b.startsAt);
+  });
 }
 
 export interface TerritoryWarAccess {

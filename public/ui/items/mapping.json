@@ -6367,6 +6367,30 @@
       ]
     },
     {
+      "batchId": "territory-resource-items-2026-09-07",
+      "source": "OpenAI built-in image generation",
+      "owner": "World of ClaudeCraft",
+      "license": "World of ClaudeCraft project-generated art, project asset, rights reserved",
+      "styleContract": {
+        "id": "woc-item-icon-v1",
+        "document": "docs/design/item-icon-art-style.md"
+      },
+      "styleReference": "woc-item-icon-v1 painted catalog contract; one centered tactile supply on an opaque charcoal/umber/navy vignette with warm top-left light and cool lower-right shadow.",
+      "acceptedSourcePaths": {
+        "territory_wood": "C:/Users/Bahri/.codex/generated_images/01a043ff-fb4e-7220-a3a3-d6afad52f234/exec-aa934f19-6ddc-45f8-9c8d-a2b63deef75c.png",
+        "territory_iron": "C:/Users/Bahri/.codex/generated_images/01a043ff-fb4e-7220-a3a3-d6afad52f234/exec-e809c0ce-efc5-43ed-b4e9-4eea2740acb5.png",
+        "territory_grain": "C:/Users/Bahri/.codex/generated_images/01a043ff-fb4e-7220-a3a3-d6afad52f234/exec-14f11e9e-c28c-44d2-884d-50d5c5018e24.png",
+        "territory_labor": "C:/Users/Bahri/.codex/generated_images/01a043ff-fb4e-7220-a3a3-d6afad52f234/exec-d87dfda9-fc13-4849-baf5-7df783b0a8ab.png"
+      },
+      "commonPrompt": "Premium hand-painted classic dark-fantasy MMORPG inventory icon, readable at 22–40 pixels, one centered tangible territory supply at about 72 percent fill, opaque dark painted vignette, warm top-left key, cool lower-right shadow, crisp silhouette; no text, runes, frame, UI chrome, transparency, watermark, scenery, hands, characters, or crop.",
+      "itemIds": [
+        "territory_wood",
+        "territory_iron",
+        "territory_grain",
+        "territory_labor"
+      ]
+    },
+    {
       "batchId": "territory-field-catapult-2026-09-03",
       "source": "User-provided Catapult.obj rendered locally in Blender",
       "owner": "World of ClaudeCraft project owner",

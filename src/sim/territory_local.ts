@@ -4,13 +4,22 @@ import type {
   TerritoryStructureKind,
   TerritoryStructureSlot,
 } from '../world_api/territory';
+import {
+  territoryActiveCastleLevel,
+  territoryStructureSlotBuildable,
+  territoryStructureUpgradeAllowed,
+} from './territory_castle_progression';
+import { territoryStockpileCapacity } from './territory_economy';
 import { createTerritoryManifest } from './territory_manifest';
 import type { TerritorySiegeControl } from './territory_siege';
 import {
   clampTerritorySiegeCatapults,
+  clampTerritorySiegeFieldForSide,
   clampTerritorySiegeGate,
   clampTerritorySiegeMortars,
   clampTerritorySiegeRams,
+  resolveTerritorySiegeCitadelElevationTransition,
+  resolveTerritorySiegeCourtyardStructures,
   resolveTerritorySiegeDestructibleStructures,
   sealTerritorySiegeGateForSide,
   territorySiegeProjectilePathClear,
@@ -21,6 +30,9 @@ export interface TerritorySimTeam {
   warId: string;
   side: 'attacker' | 'defender';
   slot: number;
+  castleLevel?: number;
+  /** Neutral-camp expeditions use the battlefield band without castle walls/gates. */
+  capture?: boolean;
   gateOpen: boolean;
   control: TerritorySiegeControl | null;
   /** Server-authored local positions for the at-most-three deployed ram carts. */
@@ -32,8 +44,9 @@ export interface TerritorySimTeam {
   towerHealth?: readonly Readonly<{ id: 'left' | 'right'; hp: number }>[];
 }
 
-const STARTING_RESOURCES = 250;
-const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>> = {
+const SLOT_KIND: Readonly<
+  Record<TerritoryStructureSlot, TerritoryStructureKind>
+> = {
   keep_core: 'keep',
   walls: 'walls',
   towers: 'towers',
@@ -41,6 +54,7 @@ const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>
   forester: 'forester',
   mine: 'mine',
   house: 'house',
+  stockpile: 'stockpile',
   gate: 'gate',
   wall: 'wall',
   tower_north: 'defense_tower',
@@ -79,12 +93,12 @@ export class LocalTerritoryState {
         cellCapacity: this.manifest.cells.length,
         ownedCellCount: 0,
         resources: {
-          wood: STARTING_RESOURCES,
-          iron: STARTING_RESOURCES,
-          grain: STARTING_RESOURCES,
-          labor: STARTING_RESOURCES,
+          wood: 0,
+          iron: 0,
+          grain: 0,
+          labor: 0,
         },
-        resourceCapacity: 2_000,
+        resourceCapacity: 0,
         accruedAt: '1970-01-01T00:00:00.000Z',
       },
       siege: null,
@@ -94,7 +108,11 @@ export class LocalTerritoryState {
   placeKeep(cellId: number): boolean {
     const cell = this.manifest.byId.get(cellId);
     const guild = this.state.guild;
-    if (!cell || !guild || this.state.cells.some((owned) => owned.ownerGuildId === guild.id))
+    if (
+      !cell ||
+      !guild ||
+      this.state.cells.some((owned) => owned.ownerGuildId === guild.id)
+    )
       return false;
     this.state.cells.push({
       cellId,
@@ -113,6 +131,15 @@ export class LocalTerritoryState {
       state: 'active',
       completesAt: null,
     });
+    this.state.structures.push({
+      cellId,
+      slot: 'stockpile',
+      kind: 'stockpile',
+      level: 1,
+      state: 'active',
+      completesAt: null,
+    });
+    guild.resourceCapacity += territoryStockpileCapacity(1);
     guild.ownedCellCount = 1;
     this.state.revision += 1;
     return true;
@@ -121,7 +148,8 @@ export class LocalTerritoryState {
   claim(cellId: number): boolean {
     const guild = this.state.guild;
     const cell = this.manifest.byId.get(cellId);
-    if (!guild || !cell || guild.ownedCellCount >= guild.cellCapacity) return false;
+    if (!guild || !cell || guild.ownedCellCount >= guild.cellCapacity)
+      return false;
     const owned = new Set(this.state.cells.map((entry) => entry.cellId));
     if (!isTerritoryClaimAdjacent(this.manifest, owned, cellId)) return false;
     this.state.cells.push({
@@ -129,16 +157,37 @@ export class LocalTerritoryState {
       ownerGuildId: guild.id,
       ownerGuildName: guild.name,
       ownerColor: guild.color,
-      keepRoot: false,
+      keepRoot: true,
       terrain: cell.terrain,
       resource: cell.resource,
     });
+    this.state.structures.push({
+      cellId,
+      slot: 'keep_core',
+      kind: 'keep',
+      level: 1,
+      state: 'active',
+      completesAt: null,
+    });
+    this.state.structures.push({
+      cellId,
+      slot: 'stockpile',
+      kind: 'stockpile',
+      level: 1,
+      state: 'active',
+      completesAt: null,
+    });
+    guild.resourceCapacity += territoryStockpileCapacity(1);
     guild.ownedCellCount += 1;
     this.state.revision += 1;
     return true;
   }
 
-  build(cellId: number, slot: TerritoryStructureSlot, kind: TerritoryStructureKind): boolean {
+  build(
+    cellId: number,
+    slot: TerritoryStructureSlot,
+    kind: TerritoryStructureKind,
+  ): boolean {
     const guild = this.state.guild;
     const ownsCell = this.state.cells.some(
       (cell) => cell.cellId === cellId && cell.ownerGuildId === guild?.id,
@@ -148,7 +197,7 @@ export class LocalTerritoryState {
       guild.rank === 'member' ||
       !ownsCell ||
       SLOT_KIND[slot] !== kind ||
-      slot === 'keep_core' ||
+      !territoryStructureSlotBuildable(slot) ||
       this.state.structures.some(
         (structure) => structure.cellId === cellId && structure.slot === slot,
       )
@@ -171,8 +220,29 @@ export class LocalTerritoryState {
     const structure = this.state.structures.find(
       (entry) => entry.cellId === cellId && entry.slot === slot,
     );
-    if (!structure || structure.level >= 5 || this.state.guild?.rank === 'member') return false;
+    const castle = this.state.structures.find(
+      (entry) => entry.cellId === cellId && entry.slot === 'keep_core',
+    );
+    const castleLevel = territoryActiveCastleLevel(castle ?? null);
+    if (
+      structure?.state !== 'active' ||
+      this.state.guild?.rank === 'member' ||
+      !territoryStructureUpgradeAllowed(slot, structure.level, castleLevel)
+    ) {
+      return false;
+    }
+    const previousLevel = structure.level;
     structure.level += 1;
+    if (slot === 'stockpile' && this.state.guild) {
+      this.state.guild.resourceCapacity +=
+        territoryStockpileCapacity(structure.level) -
+        territoryStockpileCapacity(previousLevel);
+    }
+    if (slot === 'keep_core' && this.state.guild)
+      this.state.guild.territoryLevel = Math.max(
+        this.state.guild.territoryLevel,
+        structure.level,
+      );
     this.state.revision += 1;
     return true;
   }
@@ -203,7 +273,11 @@ export class TerritorySimRuntime {
   claim(cellId: number): void {
     this.authority().claim(cellId);
   }
-  build(cellId: number, slot: TerritoryStructureSlot, kind: TerritoryStructureKind): void {
+  build(
+    cellId: number,
+    slot: TerritoryStructureSlot,
+    kind: TerritoryStructureKind,
+  ): void {
     this.authority().build(cellId, slot, kind);
   }
   upgrade(cellId: number, slot: TerritoryStructureSlot): void {
@@ -247,7 +321,10 @@ export function territorySimHasTeam(host: object, pid: number): boolean {
   return simTerritory(host).hasTeam(pid);
 }
 
-export function territorySimTeamFor(host: object, pid: number): TerritorySimTeam | null {
+export function territorySimTeamFor(
+  host: object,
+  pid: number,
+): TerritorySimTeam | null {
   return simTerritory(host).team(pid);
 }
 
@@ -255,16 +332,22 @@ export function territorySimLocksMovement(host: object, pid: number): boolean {
   return !!territorySimTeamFor(host, pid)?.control;
 }
 
-export function territorySimResolveGate(
-  host: object,
-  pid: number,
+export function resolveTerritorySiegeTeamMovement(
+  team: TerritorySimTeam,
   fromX: number,
   fromZ: number,
   position: { x: number; z: number },
   radius: number,
+  fromFeetY?: number,
 ): { x: number; z: number } {
-  const team = territorySimTeamFor(host, pid);
-  if (!team) return position;
+  if (team.capture)
+    return clampTerritorySiegeFieldForSide(
+      team.slot,
+      'attacker',
+      position.x,
+      position.z,
+      radius,
+    );
   const swept = clampTerritorySiegeGate(
     team.slot,
     team.gateOpen,
@@ -285,11 +368,23 @@ export function territorySimResolveGate(
   const clearOfRams =
     team.control?.kind === 'ram' || !team.rams?.length
       ? sealed
-      : clampTerritorySiegeRams(team.slot, team.rams, sealed.x, sealed.z, radius);
+      : clampTerritorySiegeRams(
+          team.slot,
+          team.rams,
+          sealed.x,
+          sealed.z,
+          radius,
+        );
   const clearOfMortars =
     team.control?.kind === 'mortar' || !team.mortars?.length
       ? clearOfRams
-      : clampTerritorySiegeMortars(team.slot, team.mortars, clearOfRams.x, clearOfRams.z, radius);
+      : clampTerritorySiegeMortars(
+          team.slot,
+          team.mortars,
+          clearOfRams.x,
+          clearOfRams.z,
+          radius,
+        );
   const clearOfCatapults =
     team.control?.kind === 'catapult' || !team.catapults?.length
       ? clearOfMortars
@@ -300,16 +395,69 @@ export function territorySimResolveGate(
           clearOfMortars.z,
           radius,
         );
-  return resolveTerritorySiegeDestructibleStructures(
+  const castleLevel = team.castleLevel ?? 3;
+  const clearOfCourtyard = resolveTerritorySiegeCourtyardStructures(
     team.slot,
-    Object.fromEntries((team.wallHealth ?? []).map((entry) => [entry.id, entry.hp > 0])),
-    Object.fromEntries((team.towerHealth ?? []).map((entry) => [entry.id, entry.hp > 0])),
     fromX,
     fromZ,
     clearOfCatapults.x,
     clearOfCatapults.z,
     radius,
+    castleLevel,
   );
+  const clearOfStructures = resolveTerritorySiegeDestructibleStructures(
+    team.slot,
+    Object.fromEntries(
+      (team.wallHealth ?? []).map((entry) => [entry.id, entry.hp > 0]),
+    ),
+    Object.fromEntries(
+      (team.towerHealth ?? []).map((entry) => [entry.id, entry.hp > 0]),
+    ),
+    fromX,
+    fromZ,
+    clearOfCourtyard.x,
+    clearOfCourtyard.z,
+    radius,
+    castleLevel,
+  );
+  const clearOfLedges = resolveTerritorySiegeCitadelElevationTransition(
+    team.slot,
+    fromX,
+    fromZ,
+    clearOfStructures.x,
+    clearOfStructures.z,
+    castleLevel,
+    fromFeetY,
+  );
+  return clampTerritorySiegeFieldForSide(
+    team.slot,
+    team.side,
+    clearOfLedges.x,
+    clearOfLedges.z,
+    radius,
+  );
+}
+
+export function territorySimResolveGate(
+  host: object,
+  pid: number,
+  fromX: number,
+  fromZ: number,
+  position: { x: number; z: number },
+  radius: number,
+  fromFeetY?: number,
+): { x: number; z: number } {
+  const team = territorySimTeamFor(host, pid);
+  return team
+    ? resolveTerritorySiegeTeamMovement(
+        team,
+        fromX,
+        fromZ,
+        position,
+        radius,
+        fromFeetY,
+      )
+    : position;
 }
 
 export function territorySimProjectilePathClear(
@@ -321,7 +469,13 @@ export function territorySimProjectilePathClear(
 ): boolean {
   const team = territorySimTeamFor(host, pid);
   return team
-    ? territorySiegeProjectilePathClear(team.slot, team.gateOpen, from, to, radius)
+    ? territorySiegeProjectilePathClear(
+        team.slot,
+        team.gateOpen,
+        from,
+        to,
+        radius,
+      )
     : true;
 }
 
@@ -367,8 +521,15 @@ export function installTerritorySim<T extends object>(prototype: T): void {
         territory(this).claim(cellId);
       },
     },
+    territoryHarvest: { value() {} },
+    territoryCaptureAction: { value() {} },
     territoryBuild: {
-      value(this: T, cellId: number, slot: TerritoryStructureSlot, kind: TerritoryStructureKind) {
+      value(
+        this: T,
+        cellId: number,
+        slot: TerritoryStructureSlot,
+        kind: TerritoryStructureKind,
+      ) {
         territory(this).build(cellId, slot, kind);
       },
     },

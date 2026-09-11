@@ -690,6 +690,7 @@ import {
 } from './temporal_hourglass_visual';
 import { buildTerrain, hasTerrainSplatAssets, type TerrainView } from './terrain';
 import { TerritorySiegeBand } from './territory_siege_band';
+import { territorySiegeRaisedGroundHeight } from './territory_siege_ground_reference';
 import { runTexturePrepLane } from './texture_prep_lane';
 import { sweepMaterialTextures, sweepObjectTextures } from './texture_prewarm';
 import { uploadDataTextureInChunks } from './texture_upload';
@@ -9397,10 +9398,10 @@ export class Renderer {
     this.vistaEntrySettlePending = false;
     const inTerritorySiege = inside && isTerritorySiegePos(px);
     if (inTerritorySiege) {
-      this.territorySiegeBand ??= new TerritorySiegeBand(
-        this.scene,
-        () => this.sim.territoryMap?.siege ?? null,
-      );
+      this.territorySiegeBand ??= new TerritorySiegeBand(this.scene, () => ({
+        siege: this.sim.territoryMap?.siege ?? null,
+        capture: this.sim.territoryMap?.capture ?? null,
+      }));
       this.territorySiegeBand.sync(px, pz, this.time);
     }
     const biome = zoneBiomeAt(this.sim.player.pos.x, pz);
@@ -11163,15 +11164,15 @@ export class Renderer {
       // hitches transiently lift the sampled pose off the terrain, and a
       // single-frame false positive flips the base state to `jump` and back,
       // replaying the jump clip's crouch (the world-entry anim glitch).
-      // In a rift, the raised-tier height field lifts a standing player's Y above
-      // the flat dungeon floor; without accounting for it the foot-height heuristic
-      // (and the self predictor's kernel) read the lift as airborne and freeze the
-      // jump pose, and stairs never animate as walking. Add the platform lift to the
-      // ground reference (regenerated from the floor descriptor, memoised) so the
-      // raised tier reads as solid floor. Also force the heuristic path over the
-      // predictor's onGround inside a rift (the predictor samples the same flat
-      // ground, so it would still report airborne on the platform).
+      // Raised instance floors lift a standing player's Y above the flat dungeon
+      // floor. Include that lift in the presentation ground reference so walking
+      // on rift platforms and the level-four citadel never freezes in a jump pose.
       const inRift = isRiftPos(ax) && this.sim.riftFloor !== null;
+      const siege = this.sim.territoryMap?.siege ?? null;
+      const raisedSiegeGround = siege
+        ? territorySiegeRaisedGroundHeight(ax, az, siege.castleLevel)
+        : null;
+      const onRaisedInstanceFloor = inRift || raisedSiegeGround !== null;
       if (e.kind === 'player' && e.onGround && !swimming) {
         const heurSeed = this.sim.cfg.seed;
         let effGround = groundHeight(ax, az, heurSeed);
@@ -11181,6 +11182,7 @@ export class Renderer {
           const floor = generateRiftFloor(rf.seed, rf.baseLevel, rf.floorIndex, rf.upgrade);
           effGround += riftLiftAt(floor, ax - rf.origin.x, az - rf.origin.z);
         }
+        if (raisedSiegeGround !== null) effGround = raisedSiegeGround;
         // The standing surface is that ground reference OR a standable prop top
         // under the feet (parkour: crates/rocks are walkable), else a player
         // perched on a crate would read as permanently airborne and loop the
@@ -11194,7 +11196,7 @@ export class Renderer {
       const airborne =
         !visuallyDead &&
         !swimming &&
-        (animFromDisplay && this.selfRender.predictor && !inRift
+        (animFromDisplay && this.selfRender.predictor && !onRaisedInstanceFloor
           ? !this.selfRender.predictor.onGround
           : !e.onGround || v.airborneHeurFrames >= 2);
       // Grounded presentation polish, both display-only (see the cores).

@@ -49,7 +49,6 @@ const BOX_SHADOW_CONTROLS = [
   'lang-select-dropdown',
   'homepage-music-btn',
   'donate-cta',
-  'steam-wishlist-cta',
   'wallet-cta',
 ];
 

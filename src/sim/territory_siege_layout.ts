@@ -6,10 +6,11 @@ import type {
 } from '../world_api';
 import type { Collider } from './colliders';
 import { DUNGEON_FLOOR_Y, territorySiegeOrigin } from './data';
+import { hexBuildingBounds } from './hex_building_dims';
 import {
-  TERRITORY_SIEGE_HOMES,
   TERRITORY_SIEGE_ROCKS,
   TERRITORY_SIEGE_TREES,
+  territorySiegeCourtyardFootprints,
 } from './territory_siege_environment';
 
 export {
@@ -20,6 +21,7 @@ export {
 import {
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
+  resolveTerritorySiegeCitadelElevationTransitionLocal,
 } from './territory_siege_ground';
 
 export const TERRITORY_SIEGE_FLOOR_Y = DUNGEON_FLOOR_Y;
@@ -27,17 +29,23 @@ export const TERRITORY_SIEGE_GATE_Z = 18;
 export const TERRITORY_SIEGE_GATE_HALF_WIDTH = 10;
 export const TERRITORY_SIEGE_WALL_HALF_X = 44;
 export const TERRITORY_SIEGE_BACK_WALL_Z = -72;
+export const TERRITORY_SIEGE_INNER_WALL_HALF_X = 28;
+export const TERRITORY_SIEGE_INNER_BACK_WALL_Z = -66;
+export const TERRITORY_SIEGE_INNER_FRONT_WALL_Z = -22;
+export const TERRITORY_SIEGE_INNER_GATE_HALF_WIDTH = 6;
 export const TERRITORY_SIEGE_TOWER_X = TERRITORY_SIEGE_WALL_HALF_X;
 export const TERRITORY_SIEGE_TOWER_Z = TERRITORY_SIEGE_GATE_Z;
 // Covers the gate and a useful slice of the approach instead of merely touching
 // the gate centre at one tangent point. The attacker spawn row remains safe.
 export const TERRITORY_SIEGE_TOWER_RANGE = 58;
+export const TERRITORY_SIEGE_TOWER_IMPACT_RADIUS = 5;
 export const TERRITORY_SIEGE_CORE_Z = -42;
 export const TERRITORY_SIEGE_CORE_ATTACK_RADIUS = 12;
 export const TERRITORY_SIEGE_CORE_COLLIDER_RADIUS = 2.8;
-export const TERRITORY_SIEGE_DEFENDER_PORTAL_X = -14;
-export const TERRITORY_SIEGE_DEFENDER_PORTAL_Z = TERRITORY_SIEGE_GATE_Z;
-export const TERRITORY_SIEGE_DEFENDER_PORTAL_RADIUS = 4.75;
+export const TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_HALF_WIDTH =
+  TERRITORY_SIEGE_GATE_HALF_WIDTH - 1;
+export const TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_DEPTH = 5.5;
+export const TERRITORY_SIEGE_DEFENDER_GATE_TRANSIT_OFFSET = 4.25;
 export const TERRITORY_SIEGE_MAX_RAMS = 3;
 export const TERRITORY_SIEGE_RAM_COLLIDER_RADIUS = 2.65;
 export const TERRITORY_SIEGE_RAM_INTERACT_RADIUS = 5;
@@ -61,19 +69,30 @@ export interface TerritorySiegeRamPlacement {
 }
 
 /**
- * Returns the opposite side of the front wall for a defender standing at the
- * portal. Attackers are rejected by the server before this helper is called.
+ * Returns the opposite side of the closed castle gate for a nearby defender.
+ * Attackers and destroyed gates are rejected by the caller before this helper
+ * is used. Keeping the destination inside the actual doorway prevents the
+ * former side-portal shortcut from clipping through an adjacent wall segment.
  */
-export function territorySiegeDefenderPortalDestination(
+export function territorySiegeDefenderGateDestination(
   x: number,
   z: number,
 ): { x: number; z: number } | null {
-  const d2 =
-    (x - TERRITORY_SIEGE_DEFENDER_PORTAL_X) ** 2 + (z - TERRITORY_SIEGE_DEFENDER_PORTAL_Z) ** 2;
-  if (d2 > TERRITORY_SIEGE_DEFENDER_PORTAL_RADIUS ** 2) return null;
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(z) ||
+    Math.abs(x) > TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_HALF_WIDTH ||
+    Math.abs(z - TERRITORY_SIEGE_GATE_Z) >
+      TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_DEPTH
+  ) {
+    return null;
+  }
   return {
-    x: TERRITORY_SIEGE_DEFENDER_PORTAL_X,
-    z: z > TERRITORY_SIEGE_GATE_Z ? TERRITORY_SIEGE_GATE_Z - 4.25 : TERRITORY_SIEGE_GATE_Z + 4.25,
+    x,
+    z:
+      z > TERRITORY_SIEGE_GATE_Z
+        ? TERRITORY_SIEGE_GATE_Z - TERRITORY_SIEGE_DEFENDER_GATE_TRANSIT_OFFSET
+        : TERRITORY_SIEGE_GATE_Z + TERRITORY_SIEGE_DEFENDER_GATE_TRANSIT_OFFSET,
   };
 }
 
@@ -82,9 +101,10 @@ export function territorySiegeDefenderPortalDestination(
  * same gate distance, sit abreast rather than in rows, and pivot their noses
  * toward the gate centre.
  */
-export const TERRITORY_SIEGE_RAM_FORMATION: readonly Omit<TerritorySiegeRamPlacement, 'id'>[] = [
-  -0.6, 0, 0.6,
-].map((yaw) => ({
+export const TERRITORY_SIEGE_RAM_FORMATION: readonly Omit<
+  TerritorySiegeRamPlacement,
+  'id'
+>[] = [-0.6, 0, 0.6].map((yaw) => ({
   x: Math.sin(yaw) * 9.5,
   z: TERRITORY_SIEGE_GATE_Z + Math.cos(yaw) * 9.5,
   yaw,
@@ -118,9 +138,16 @@ export function territorySiegeCatapultDeployPlacement(
   return { x, z, yaw: Number.isFinite(yaw) ? yaw : 0, side };
 }
 
-function circleOverlapsCollider(x: number, z: number, radius: number, collider: Collider): boolean {
+function circleOverlapsCollider(
+  x: number,
+  z: number,
+  radius: number,
+  collider: Collider,
+): boolean {
   if (collider.type === 'circle') {
-    return (x - collider.x) ** 2 + (z - collider.z) ** 2 < (radius + collider.r) ** 2;
+    return (
+      (x - collider.x) ** 2 + (z - collider.z) ** 2 < (radius + collider.r) ** 2
+    );
   }
   const cosine = Math.cos(-collider.rot);
   const sine = Math.sin(-collider.rot);
@@ -133,28 +160,33 @@ function circleOverlapsCollider(x: number, z: number, radius: number, collider: 
   return (localX - nearestX) ** 2 + (localZ - nearestZ) ** 2 < radius ** 2;
 }
 
-function overlapsTerritorySiegeStructureFootprint(x: number, z: number, radius: number): boolean {
-  for (const wall of territorySiegeWallPlacements()) {
+function overlapsTerritorySiegeStructureFootprint(
+  x: number,
+  z: number,
+  radius: number,
+  castleLevel: number,
+): boolean {
+  for (const wall of territorySiegeWallPlacements(castleLevel)) {
     if (
       circleOverlapsCollider(x, z, radius, {
         type: 'obb',
         x: wall.x,
         z: wall.z,
-        hw: wall.scaleX,
-        hd: TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+        hw: territorySiegeWallColliderHalfLength(wall, castleLevel),
+        hd: territorySiegeWallColliderHalfDepth(castleLevel, wall.index),
         rot: wall.yaw,
       })
     ) {
       return true;
     }
   }
-  return [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].some((towerX) =>
-    circleOverlapsCollider(x, z, radius, {
-      type: 'circle',
-      x: towerX,
-      z: TERRITORY_SIEGE_TOWER_Z,
-      r: 4,
-    }),
+  return (['left', 'right'] as const).some((towerId) =>
+    circleOverlapsCollider(
+      x,
+      z,
+      radius,
+      territorySiegeTowerCollider(towerId, castleLevel),
+    ),
   );
 }
 
@@ -169,6 +201,7 @@ export function territorySiegeMortarPlacementAllowed(
   mortars: Iterable<Pick<TerritorySiegeMortarPlacement, 'x' | 'z'>>,
   rams: Iterable<Pick<TerritorySiegeRamPlacement, 'x' | 'z'>> = [],
   catapults: Iterable<Pick<TerritorySiegeCatapultPlacement, 'x' | 'z'>> = [],
+  castleLevel = 3,
 ): boolean {
   const radius = TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS;
   if (
@@ -186,15 +219,16 @@ export function territorySiegeMortarPlacementAllowed(
     return false;
   }
   if (
-    overlapsTerritorySiegeStructureFootprint(x, z, radius) ||
-    territorySiegeLocalColliders().some((collider) =>
+    overlapsTerritorySiegeStructureFootprint(x, z, radius, castleLevel) ||
+    territorySiegeLocalColliders(castleLevel).some((collider) =>
       circleOverlapsCollider(x, z, radius, collider),
     )
   ) {
     return false;
   }
   for (const mortar of mortars) {
-    if ((x - mortar.x) ** 2 + (z - mortar.z) ** 2 < (radius * 2) ** 2) return false;
+    if ((x - mortar.x) ** 2 + (z - mortar.z) ** 2 < (radius * 2) ** 2)
+      return false;
   }
   for (const ram of rams) {
     const minimum = radius + TERRITORY_SIEGE_RAM_COLLIDER_RADIUS;
@@ -202,12 +236,15 @@ export function territorySiegeMortarPlacementAllowed(
   }
   for (const catapult of catapults) {
     const minimum = radius + TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS;
-    if ((x - catapult.x) ** 2 + (z - catapult.z) ** 2 < minimum ** 2) return false;
+    if ((x - catapult.x) ** 2 + (z - catapult.z) ** 2 < minimum ** 2)
+      return false;
   }
   return true;
 }
 
-export function territorySiegeNearestMortar<T extends TerritorySiegeMortarPlacement>(
+export function territorySiegeNearestMortar<
+  T extends TerritorySiegeMortarPlacement,
+>(
   x: number,
   z: number,
   mortars: Iterable<T>,
@@ -234,7 +271,8 @@ export function territorySiegeMortarTargetAllowed(
     Number.isFinite(z) &&
     Math.abs(x) <= TERRITORY_SIEGE_FIELD_HALF_X &&
     Math.abs(z) <= TERRITORY_SIEGE_FIELD_HALF_Z &&
-    (x - mortar.x) ** 2 + (z - mortar.z) ** 2 <= TERRITORY_SIEGE_MORTAR_RANGE ** 2
+    (x - mortar.x) ** 2 + (z - mortar.z) ** 2 <=
+      TERRITORY_SIEGE_MORTAR_RANGE ** 2
   );
 }
 
@@ -244,6 +282,7 @@ export function territorySiegeCatapultPlacementAllowed(
   catapults: Iterable<Pick<TerritorySiegeCatapultPlacement, 'x' | 'z'>>,
   mortars: Iterable<Pick<TerritorySiegeMortarPlacement, 'x' | 'z'>> = [],
   rams: Iterable<Pick<TerritorySiegeRamPlacement, 'x' | 'z'>> = [],
+  castleLevel = 3,
 ): boolean {
   const radius = TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS;
   if (
@@ -261,15 +300,16 @@ export function territorySiegeCatapultPlacementAllowed(
     return false;
   }
   if (
-    overlapsTerritorySiegeStructureFootprint(x, z, radius) ||
-    territorySiegeLocalColliders().some((collider) =>
+    overlapsTerritorySiegeStructureFootprint(x, z, radius, castleLevel) ||
+    territorySiegeLocalColliders(castleLevel).some((collider) =>
       circleOverlapsCollider(x, z, radius, collider),
     )
   ) {
     return false;
   }
   for (const catapult of catapults) {
-    if ((x - catapult.x) ** 2 + (z - catapult.z) ** 2 < (radius * 2) ** 2) return false;
+    if ((x - catapult.x) ** 2 + (z - catapult.z) ** 2 < (radius * 2) ** 2)
+      return false;
   }
   for (const mortar of mortars) {
     const minimum = radius + TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS;
@@ -282,7 +322,9 @@ export function territorySiegeCatapultPlacementAllowed(
   return true;
 }
 
-export function territorySiegeNearestCatapult<T extends TerritorySiegeCatapultPlacement>(
+export function territorySiegeNearestCatapult<
+  T extends TerritorySiegeCatapultPlacement,
+>(
   x: number,
   z: number,
   catapults: Iterable<T>,
@@ -309,11 +351,15 @@ export function territorySiegeCatapultTargetAllowed(
     Number.isFinite(z) &&
     Math.abs(x) <= TERRITORY_SIEGE_FIELD_HALF_X &&
     Math.abs(z) <= TERRITORY_SIEGE_FIELD_HALF_Z &&
-    (x - catapult.x) ** 2 + (z - catapult.z) ** 2 <= TERRITORY_SIEGE_CATAPULT_RANGE ** 2
+    (x - catapult.x) ** 2 + (z - catapult.z) ** 2 <=
+      TERRITORY_SIEGE_CATAPULT_RANGE ** 2
   );
 }
 
-export function territorySiegeRamDeploymentAreaContains(x: number, z: number): boolean {
+export function territorySiegeRamDeploymentAreaContains(
+  x: number,
+  z: number,
+): boolean {
   return (
     Number.isFinite(x) &&
     Number.isFinite(z) &&
@@ -326,7 +372,10 @@ export function territorySiegeRamDeploymentAreaContains(x: number, z: number): b
 export function territorySiegeRamDeployPlacement(
   deployedCount: number,
 ): Omit<TerritorySiegeRamPlacement, 'id'> | null {
-  return TERRITORY_SIEGE_RAM_FORMATION[Math.max(0, Math.floor(deployedCount))] ?? null;
+  return (
+    TERRITORY_SIEGE_RAM_FORMATION[Math.max(0, Math.floor(deployedCount))] ??
+    null
+  );
 }
 
 /** The cart must be wholly inside the gate apron and clear of every other cart. */
@@ -340,7 +389,8 @@ export function territorySiegeRamPlacementAllowed(
   }
   const minimumDistance = TERRITORY_SIEGE_RAM_COLLIDER_RADIUS * 2;
   for (const ram of existing) {
-    if ((x - ram.x) ** 2 + (z - ram.z) ** 2 < minimumDistance ** 2) return false;
+    if ((x - ram.x) ** 2 + (z - ram.z) ** 2 < minimumDistance ** 2)
+      return false;
   }
   return true;
 }
@@ -374,7 +424,70 @@ export interface TerritorySiegeWallPlacement {
 
 // hex_wall.glb is 0.8 units deep. Match the renderer's 2.25 depth scale.
 export const TERRITORY_SIEGE_WALL_SCALE_Z = 2.25;
-export const TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH = 0.4 * TERRITORY_SIEGE_WALL_SCALE_Z;
+export const TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH =
+  0.4 * TERRITORY_SIEGE_WALL_SCALE_Z;
+
+export function territorySiegeWallColliderHalfDepth(
+  castleLevel: number,
+  detailIndex = 0,
+): number {
+  if (castleLevel <= 1) return 0.37501 * 2.4;
+  if (castleLevel === 2) return 0.39995 * TERRITORY_SIEGE_WALL_SCALE_Z;
+  const sourceHalfDepth = detailIndex % 5 === 3 ? 0.75008 : 0.50008;
+  return sourceHalfDepth * (castleLevel >= 4 ? 2.05 : 1.8);
+}
+
+export function territorySiegeWallColliderHalfLength(
+  wall: Pick<TerritorySiegeWallPlacement, 'scaleX'>,
+  castleLevel: number,
+): number {
+  // Tier one uses a six-unit palisade wing scaled by 0.34 on local X. Every
+  // stone module resolves to the authored placement half-length exactly.
+  return wall.scaleX * (castleLevel <= 1 ? 3 * 0.34 : 1);
+}
+
+export function territorySiegeWoodTowerYaw(towerId: 'left' | 'right'): number {
+  const inwardDiagonal = Math.PI * 0.8;
+  return towerId === 'left' ? inwardDiagonal : -inwardDiagonal;
+}
+
+/** Exact OBB of the model displayed for this tower tier. */
+export function territorySiegeTowerCollider(
+  towerId: 'left' | 'right',
+  castleLevel: number,
+): Extract<Collider, { type: 'obb' }> {
+  const level = Math.max(1, Math.min(4, Math.floor(castleLevel)));
+  const family =
+    level === 1 ? 'watchtower' : level === 2 ? 'towerCannon' : 'castle';
+  const scale = level === 1 ? 5.4 : level === 2 ? 6 : level === 3 ? 4.15 : 4.75;
+  const rot =
+    level === 1
+      ? territorySiegeWoodTowerYaw(towerId)
+      : level >= 3
+        ? Math.PI
+        : 0;
+  const bounds = hexBuildingBounds(family, scale);
+  if (!bounds)
+    throw new Error(`missing measured siege tower footprint: ${family}`);
+  const cosine = Math.cos(rot);
+  const sine = Math.sin(rot);
+  const baseX =
+    towerId === 'left' ? -TERRITORY_SIEGE_TOWER_X : TERRITORY_SIEGE_TOWER_X;
+  return {
+    type: 'obb',
+    x: baseX + bounds.cx * cosine + bounds.cz * sine,
+    z: TERRITORY_SIEGE_TOWER_Z - bounds.cx * sine + bounds.cz * cosine,
+    hw: bounds.hw,
+    hd: bounds.hd,
+    rot,
+  };
+}
+
+/** Compatibility broad-phase radius; precise movement uses the OBB above. */
+export function territorySiegeTowerColliderRadius(castleLevel: number): number {
+  const collider = territorySiegeTowerCollider('right', castleLevel);
+  return Math.hypot(collider.hw, collider.hd);
+}
 
 function wallRunX(
   run: TerritorySiegeWallRun,
@@ -421,22 +534,28 @@ export function territorySiegeWallSegmentId(
 }
 
 /** Every visible model is a separately addressable breach, not a decorative collider. */
-export function territorySiegeWallSegmentPlacements(): Readonly<
-  Record<TerritorySiegeWallId, TerritorySiegeWallPlacement>
-> {
-  const entries = territorySiegeWallPlacements().map(
+export function territorySiegeWallSegmentPlacements(
+  castleLevel = 3,
+): Readonly<Record<TerritorySiegeWallId, TerritorySiegeWallPlacement>> {
+  const entries = territorySiegeWallPlacements(castleLevel).map(
     (wall) => [territorySiegeWallSegmentId(wall), wall] as const,
   );
-  return Object.fromEntries(entries) as Record<TerritorySiegeWallId, TerritorySiegeWallPlacement>;
+  return Object.fromEntries(entries) as Record<
+    TerritorySiegeWallId,
+    TerritorySiegeWallPlacement
+  >;
 }
 
 /**
  * Butt-jointed perimeter: transverse runs own the corners; side runs stop at
  * their inner faces. Extending BOTH runs through a corner creates crossed ends.
  */
-export function territorySiegeWallPlacements(): readonly TerritorySiegeWallPlacement[] {
-  const outside = TERRITORY_SIEGE_WALL_HALF_X + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
-  return [
+export function territorySiegeWallPlacements(
+  castleLevel = 3,
+): readonly TerritorySiegeWallPlacement[] {
+  const outside =
+    TERRITORY_SIEGE_WALL_HALF_X + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
+  const outer = [
     ...wallRunZ(
       'left',
       -TERRITORY_SIEGE_WALL_HALF_X,
@@ -453,7 +572,14 @@ export function territorySiegeWallPlacements(): readonly TerritorySiegeWallPlace
       8,
       Math.PI / 2,
     ),
-    ...wallRunX('back', TERRITORY_SIEGE_BACK_WALL_Z, -outside, outside, 8, Math.PI),
+    ...wallRunX(
+      'back',
+      TERRITORY_SIEGE_BACK_WALL_Z,
+      -outside,
+      outside,
+      8,
+      Math.PI,
+    ),
     ...wallRunX(
       'front_left',
       TERRITORY_SIEGE_GATE_Z,
@@ -468,6 +594,56 @@ export function territorySiegeWallPlacements(): readonly TerritorySiegeWallPlace
       TERRITORY_SIEGE_GATE_HALF_WIDTH,
       outside,
       3,
+      0,
+    ),
+  ];
+  if (castleLevel < 4) return outer;
+  const innerOutside =
+    TERRITORY_SIEGE_INNER_WALL_HALF_X + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
+  return [
+    ...outer,
+    ...wallRunZ(
+      'inner_left',
+      -TERRITORY_SIEGE_INNER_WALL_HALF_X,
+      TERRITORY_SIEGE_INNER_BACK_WALL_Z +
+        TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      TERRITORY_SIEGE_INNER_FRONT_WALL_Z -
+        TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      4,
+      -Math.PI / 2,
+    ),
+    ...wallRunZ(
+      'inner_right',
+      TERRITORY_SIEGE_INNER_WALL_HALF_X,
+      TERRITORY_SIEGE_INNER_BACK_WALL_Z +
+        TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      TERRITORY_SIEGE_INNER_FRONT_WALL_Z -
+        TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      4,
+      Math.PI / 2,
+    ),
+    ...wallRunX(
+      'inner_back',
+      TERRITORY_SIEGE_INNER_BACK_WALL_Z,
+      -innerOutside,
+      innerOutside,
+      5,
+      Math.PI,
+    ),
+    ...wallRunX(
+      'inner_front_left',
+      TERRITORY_SIEGE_INNER_FRONT_WALL_Z,
+      -innerOutside,
+      -TERRITORY_SIEGE_INNER_GATE_HALF_WIDTH,
+      2,
+      0,
+    ),
+    ...wallRunX(
+      'inner_front_right',
+      TERRITORY_SIEGE_INNER_FRONT_WALL_Z,
+      TERRITORY_SIEGE_INNER_GATE_HALF_WIDTH,
+      innerOutside,
+      2,
       0,
     ),
   ];
@@ -495,15 +671,41 @@ export function territorySiegeTowerPositions(
 ): readonly [{ x: number; z: number }, { x: number; z: number }] {
   const origin = territorySiegeOrigin(slot);
   return [
-    { x: origin.x - TERRITORY_SIEGE_TOWER_X, z: origin.z + TERRITORY_SIEGE_TOWER_Z },
-    { x: origin.x + TERRITORY_SIEGE_TOWER_X, z: origin.z + TERRITORY_SIEGE_TOWER_Z },
+    {
+      x: origin.x - TERRITORY_SIEGE_TOWER_X,
+      z: origin.z + TERRITORY_SIEGE_TOWER_Z,
+    },
+    {
+      x: origin.x + TERRITORY_SIEGE_TOWER_X,
+      z: origin.z + TERRITORY_SIEGE_TOWER_Z,
+    },
   ];
 }
 
-export function territorySiegeInTowerRange(slot: number, x: number, z: number): boolean {
-  return territorySiegeTowerPositions(slot).some(
-    (tower) => (x - tower.x) ** 2 + (z - tower.z) ** 2 <= TERRITORY_SIEGE_TOWER_RANGE ** 2,
+export function territorySiegeInTowerRange(
+  slot: number,
+  x: number,
+  z: number,
+): boolean {
+  return (['left', 'right'] as const).some((towerId) =>
+    territorySiegeInSpecificTowerRange(slot, towerId, x, z),
   );
+}
+
+/** Server-authoritative range check for the tower that will actually fire. */
+export function territorySiegeInSpecificTowerRange(
+  slot: number,
+  towerId: 'left' | 'right',
+  x: number,
+  z: number,
+  impactRadius = 0,
+): boolean {
+  const tower = territorySiegeTowerPositions(slot)[towerId === 'left' ? 0 : 1];
+  const effectiveRange = Math.max(
+    0,
+    TERRITORY_SIEGE_TOWER_RANGE - impactRadius,
+  );
+  return (x - tower.x) ** 2 + (z - tower.z) ** 2 <= effectiveRange ** 2;
 }
 
 export function territorySiegeActionPoint(
@@ -513,7 +715,11 @@ export function territorySiegeActionPoint(
   const origin = territorySiegeOrigin(slot);
   const local =
     action === 'start_core_channel'
-      ? { x: 0, z: TERRITORY_SIEGE_CORE_Z, radius: TERRITORY_SIEGE_CORE_ATTACK_RADIUS }
+      ? {
+          x: 0,
+          z: TERRITORY_SIEGE_CORE_Z,
+          radius: TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
+        }
       : action === 'stop_core_channel'
         ? { x: 0, z: TERRITORY_SIEGE_CORE_Z, radius: Number.POSITIVE_INFINITY }
         : action === 'deploy_ram'
@@ -609,7 +815,8 @@ export function clampTerritorySiegeMortars(
   bodyRadius: number,
 ): { x: number; z: number } {
   const origin = territorySiegeOrigin(slot);
-  const minimum = TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS + Math.max(0, bodyRadius);
+  const minimum =
+    TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS + Math.max(0, bodyRadius);
   let nextX = x;
   let nextZ = z;
   for (const mortar of mortars) {
@@ -639,7 +846,8 @@ export function clampTerritorySiegeCatapults(
   bodyRadius: number,
 ): { x: number; z: number } {
   const origin = territorySiegeOrigin(slot);
-  const minimum = TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS + Math.max(0, bodyRadius);
+  const minimum =
+    TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS + Math.max(0, bodyRadius);
   let nextX = x;
   let nextZ = z;
   for (const catapult of catapults) {
@@ -688,18 +896,146 @@ function clampOutsideObb(
   };
 }
 
+function clampOutsideCircle(
+  x: number,
+  z: number,
+  radius: number,
+  collider: Extract<Collider, { type: 'circle' }>,
+): { x: number; z: number } {
+  const minimum = collider.r + Math.max(0, radius);
+  const dx = x - collider.x;
+  const dz = z - collider.z;
+  const d2 = dx * dx + dz * dz;
+  if (d2 >= minimum * minimum) return { x, z };
+  if (d2 < 0.0001) return { x: collider.x, z: collider.z + minimum };
+  const scale = minimum / Math.sqrt(d2);
+  return { x: collider.x + dx * scale, z: collider.z + dz * scale };
+}
+
+function clampOutsideColliders(
+  x: number,
+  z: number,
+  radius: number,
+  colliders: readonly Collider[],
+): { x: number; z: number } {
+  let next = { x, z };
+  for (const collider of colliders) {
+    next =
+      collider.type === 'circle'
+        ? clampOutsideCircle(next.x, next.z, radius, collider)
+        : clampOutsideObb(next.x, next.z, radius, collider);
+  }
+  return next;
+}
+
+function resolveSweptClamp(
+  fromX: number,
+  fromZ: number,
+  toX: number,
+  toZ: number,
+  clamp: (x: number, z: number) => { x: number; z: number },
+): { x: number; z: number } {
+  let current = clamp(fromX, fromZ);
+  const dx = toX - fromX;
+  const dz = toZ - fromZ;
+  const distance = Math.hypot(dx, dz);
+  if (distance < 1e-6) return current;
+  const steps = Math.max(1, Math.ceil(distance / 0.15));
+  const stepX = dx / steps;
+  const stepZ = dz / steps;
+  let collided = Math.hypot(current.x - fromX, current.z - fromZ) > 1e-7;
+  for (let index = 0; index < steps; index += 1) {
+    // Apply each small intended displacement from the last valid position.
+    // The clamp removes only the component that enters a surface, preserving
+    // the tangential component so movement naturally slides along walls and
+    // buildings instead of freezing on first contact.
+    const intended = { x: current.x + stepX, z: current.z + stepZ };
+    const resolved = clamp(intended.x, intended.z);
+    if (Math.hypot(resolved.x - intended.x, resolved.z - intended.z) > 1e-7)
+      collided = true;
+    current = resolved;
+  }
+  return collided ? current : { x: toX, z: toZ };
+}
+
+function territorySiegeCourtyardColliders(
+  slot: number,
+  castleLevel: number,
+): Collider[] {
+  const origin = territorySiegeOrigin(slot);
+  return territorySiegeCourtyardFootprints(castleLevel).map(
+    (footprint): Collider =>
+      footprint.type === 'circle'
+        ? {
+            type: 'circle',
+            x: origin.x + footprint.x,
+            z: origin.z + footprint.z,
+            r: footprint.r,
+          }
+        : {
+            type: 'obb',
+            x: origin.x + footprint.x,
+            z: origin.z + footprint.z,
+            hw: footprint.hw,
+            hd: footprint.hd,
+            rot: footprint.yaw,
+          },
+  );
+}
+
+/** Swept movement against the visible courtyard buildings and substantial props. */
+export function resolveTerritorySiegeCourtyardStructures(
+  slot: number,
+  fromX: number,
+  fromZ: number,
+  toX: number,
+  toZ: number,
+  radius: number,
+  castleLevel = 3,
+): { x: number; z: number } {
+  const colliders = territorySiegeCourtyardColliders(slot, castleLevel);
+  return resolveSweptClamp(fromX, fromZ, toX, toZ, (x, z) =>
+    clampOutsideColliders(x, z, radius, colliders),
+  );
+}
+
+/** Shared world-space ledge protection for client prediction and the host. */
+export function resolveTerritorySiegeCitadelElevationTransition(
+  slot: number,
+  fromX: number,
+  fromZ: number,
+  toX: number,
+  toZ: number,
+  castleLevel: number,
+  fromFeetY?: number,
+): { x: number; z: number } {
+  if (castleLevel < 4) return { x: toX, z: toZ };
+  const origin = territorySiegeOrigin(slot);
+  const resolved = resolveTerritorySiegeCitadelElevationTransitionLocal(
+    fromX - origin.x,
+    fromZ - origin.z,
+    toX - origin.x,
+    toZ - origin.z,
+    castleLevel,
+    fromFeetY,
+  );
+  return { x: origin.x + resolved.x, z: origin.z + resolved.z };
+}
+
 /** Dynamic collision for every independently breachable wall segment and defense tower. */
 export function clampTerritorySiegeDestructibleStructures(
   slot: number,
-  wallAlive: Readonly<Partial<Record<TerritorySiegeWallId, boolean>>> | undefined,
+  wallAlive:
+    Readonly<Partial<Record<TerritorySiegeWallId, boolean>>> | undefined,
   towerAlive: Readonly<Partial<Record<'left' | 'right', boolean>>> | undefined,
   x: number,
   z: number,
   radius: number,
+  castleLevel = 3,
 ): { x: number; z: number } {
   const origin = territorySiegeOrigin(slot);
   let next = { x, z };
-  const placements = territorySiegeWallSegmentPlacements();
+  const placements = territorySiegeWallSegmentPlacements(castleLevel);
   for (const [id, wall] of Object.entries(placements) as [
     TerritorySiegeWallId,
     TerritorySiegeWallPlacement,
@@ -709,29 +1045,19 @@ export function clampTerritorySiegeDestructibleStructures(
       type: 'obb',
       x: origin.x + wall.x,
       z: origin.z + wall.z,
-      hw: wall.scaleX,
-      hd: TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      hw: territorySiegeWallColliderHalfLength(wall, castleLevel),
+      hd: territorySiegeWallColliderHalfDepth(castleLevel, wall.index),
       rot: wall.yaw,
     });
   }
-  const minimum = 4 + Math.max(0, radius);
-  for (const [id, localX] of [
-    ['left', -TERRITORY_SIEGE_TOWER_X],
-    ['right', TERRITORY_SIEGE_TOWER_X],
-  ] as const) {
+  for (const id of ['left', 'right'] as const) {
     if (towerAlive?.[id] !== true) continue;
-    const centerX = origin.x + localX;
-    const centerZ = origin.z + TERRITORY_SIEGE_TOWER_Z;
-    const dx = next.x - centerX;
-    const dz = next.z - centerZ;
-    const d2 = dx * dx + dz * dz;
-    if (d2 >= minimum * minimum) continue;
-    if (d2 < 0.0001) {
-      next = { x: centerX, z: centerZ + minimum };
-      continue;
-    }
-    const distance = Math.sqrt(d2);
-    next = { x: centerX + (dx / distance) * minimum, z: centerZ + (dz / distance) * minimum };
+    const tower = territorySiegeTowerCollider(id, castleLevel);
+    next = clampOutsideObb(next.x, next.z, radius, {
+      ...tower,
+      x: origin.x + tower.x,
+      z: origin.z + tower.z,
+    });
   }
   return next;
 }
@@ -743,54 +1069,27 @@ export function clampTerritorySiegeDestructibleStructures(
  */
 export function resolveTerritorySiegeDestructibleStructures(
   slot: number,
-  wallAlive: Readonly<Partial<Record<TerritorySiegeWallId, boolean>>> | undefined,
+  wallAlive:
+    Readonly<Partial<Record<TerritorySiegeWallId, boolean>>> | undefined,
   towerAlive: Readonly<Partial<Record<'left' | 'right', boolean>>> | undefined,
   fromX: number,
   fromZ: number,
   toX: number,
   toZ: number,
   radius: number,
+  castleLevel = 3,
 ): { x: number; z: number } {
-  const dx = toX - fromX;
-  const dz = toZ - fromZ;
-  const distance = Math.hypot(dx, dz);
-  if (distance < 1e-6) {
-    return clampTerritorySiegeDestructibleStructures(slot, wallAlive, towerAlive, toX, toZ, radius);
-  }
-
-  const steps = Math.max(1, Math.ceil(distance / 0.2));
-  let current = clampTerritorySiegeDestructibleStructures(
-    slot,
-    wallAlive,
-    towerAlive,
-    fromX,
-    fromZ,
-    radius,
-  );
-  for (let index = 1; index <= steps; index += 1) {
-    const progress = index / steps;
-    const nextX = fromX + dx * progress;
-    const nextZ = fromZ + dz * progress;
-    const resolved = clampTerritorySiegeDestructibleStructures(
+  return resolveSweptClamp(fromX, fromZ, toX, toZ, (x, z) =>
+    clampTerritorySiegeDestructibleStructures(
       slot,
       wallAlive,
       towerAlive,
-      nextX,
-      nextZ,
+      x,
+      z,
       radius,
-    );
-    const correctionX = resolved.x - nextX;
-    const correctionZ = resolved.z - nextZ;
-    const remainingX = toX - nextX;
-    const remainingZ = toZ - nextZ;
-
-    // A correction opposing the remaining movement means the player ran into
-    // the solid face. Keep the last valid point rather than allowing later
-    // samples on the far side to pull the body through the segment.
-    if (remainingX * correctionX + remainingZ * correctionZ < -1e-8) break;
-    current = resolved;
-  }
-  return current;
+      castleLevel,
+    ),
+  );
 }
 
 export function clampTerritorySiegeGate(
@@ -805,7 +1104,8 @@ export function clampTerritorySiegeGate(
   const origin = territorySiegeOrigin(slot);
   const localX = x - origin.x;
   const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
-  if (Math.abs(localX) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius) return { x, z };
+  if (Math.abs(localX) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius)
+    return { x, z };
   const front = gateZ + 1.4 + radius;
   const back = gateZ - 1.4 - radius;
   if (fromZ >= front && z < front) return { x, z: front };
@@ -885,39 +1185,85 @@ export function sealTerritorySiegeGateForSide(
   // walking through the gate itself; only the stale-position backstop relaxes.
   if (gateOpen || breachOpen) return { x, z };
   const origin = territorySiegeOrigin(slot);
-  if (Math.abs(x - origin.x) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius) return { x, z };
+  if (Math.abs(x - origin.x) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius)
+    return { x, z };
   const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
   const front = gateZ + 1.4 + radius;
-  const back = gateZ - 1.4 - radius;
   if (side === 'attacker' && z < front) return { x, z: front };
-  if (side === 'defender' && z > back) return { x, z: back };
+  // Defenders may legitimately be on either side after using the closed gate.
+  // Ordinary walking is still stopped by clampTerritorySiegeGate's swept leaf;
+  // omitting a defender backstop here prevents the next authoritative tick from
+  // undoing an intentional F-key transit.
   return { x, z };
+}
+
+/**
+ * The old arena perimeter was represented by four global static colliders, so
+ * defenders were rubber-banded back into the siege field after leaving the
+ * keep. Preserve that battlefield limit only for attackers and leave defenders
+ * completely unconstrained.
+ */
+export function clampTerritorySiegeFieldForSide(
+  slot: number,
+  side: TerritoryWarSide,
+  x: number,
+  z: number,
+  radius: number,
+): { x: number; z: number } {
+  if (side === 'defender') return { x, z };
+  const origin = territorySiegeOrigin(slot);
+  const halfX = Math.max(0, TERRITORY_SIEGE_FIELD_HALF_X - 25.5 - radius);
+  const halfZ = Math.max(0, TERRITORY_SIEGE_FIELD_HALF_Z - 25.5 - radius);
+  return {
+    x: origin.x + Math.max(-halfX, Math.min(halfX, x - origin.x)),
+    z: origin.z + Math.max(-halfZ, Math.min(halfZ, z - origin.z)),
+  };
 }
 
 /**
  * Static collision shared by sim and renderer. The gate leaf is dynamic and is
  * enforced by the authoritative movement clamp until gate HP reaches zero.
  */
-export function territorySiegeLocalColliders(): Collider[] {
+export function territorySiegeLocalColliders(
+  castleLevel = 3,
+  includeCourtyard = true,
+): Collider[] {
   const y = TERRITORY_SIEGE_FLOOR_Y;
   const scenery: Collider[] = [
-    ...TERRITORY_SIEGE_TREES.map(
-      (tree): Collider => ({ type: 'circle', x: tree.x, z: tree.z, r: 1.5 }),
-    ),
-    ...TERRITORY_SIEGE_ROCKS.map(
-      (rock): Collider => ({ type: 'circle', x: rock.x, z: rock.z, r: 1.3 }),
-    ),
-    ...TERRITORY_SIEGE_HOMES.map(
-      (home): Collider => ({
-        type: 'obb',
-        x: home.x,
-        z: home.z,
-        hw: 3.7,
-        hd: 3.7,
-        rot: home.yaw,
-        cameraTopY: y + 8,
-      }),
-    ),
+    ...TERRITORY_SIEGE_TREES.map((tree): Collider => ({
+      type: 'circle',
+      x: tree.x,
+      z: tree.z,
+      r: 1.5,
+    })),
+    ...TERRITORY_SIEGE_ROCKS.map((rock): Collider => ({
+      type: 'circle',
+      x: rock.x,
+      z: rock.z,
+      r: 1.3,
+    })),
+    ...(includeCourtyard
+      ? territorySiegeCourtyardFootprints(castleLevel).map(
+          (footprint): Collider =>
+            footprint.type === 'circle'
+              ? {
+                  type: 'circle',
+                  x: footprint.x,
+                  z: footprint.z,
+                  r: footprint.r,
+                  cameraTopY: y + footprint.height,
+                }
+              : {
+                  type: 'obb',
+                  x: footprint.x,
+                  z: footprint.z,
+                  hw: footprint.hw,
+                  hd: footprint.hd,
+                  rot: footprint.yaw,
+                  cameraTopY: y + footprint.height,
+                },
+        )
+      : []),
   ];
   return [
     {
@@ -927,53 +1273,23 @@ export function territorySiegeLocalColliders(): Collider[] {
       r: TERRITORY_SIEGE_CORE_COLLIDER_RADIUS,
       cameraTopY: y + 6.5,
     },
-    {
-      type: 'obb',
-      x: -(TERRITORY_SIEGE_FIELD_HALF_X - 24),
-      z: 0,
-      hw: 1.5,
-      hd: TERRITORY_SIEGE_FIELD_HALF_Z - 22,
-      rot: 0,
-      moveTopY: y + 30,
-    },
-    {
-      type: 'obb',
-      x: TERRITORY_SIEGE_FIELD_HALF_X - 24,
-      z: 0,
-      hw: 1.5,
-      hd: TERRITORY_SIEGE_FIELD_HALF_Z - 22,
-      rot: 0,
-      moveTopY: y + 30,
-    },
-    {
-      type: 'obb',
-      x: 0,
-      z: -(TERRITORY_SIEGE_FIELD_HALF_Z - 24),
-      hw: TERRITORY_SIEGE_FIELD_HALF_X - 22,
-      hd: 1.5,
-      rot: 0,
-      moveTopY: y + 30,
-    },
-    {
-      type: 'obb',
-      x: 0,
-      z: TERRITORY_SIEGE_FIELD_HALF_Z - 24,
-      hw: TERRITORY_SIEGE_FIELD_HALF_X - 22,
-      hd: 1.5,
-      rot: 0,
-      moveTopY: y + 30,
-    },
     ...scenery,
   ];
 }
 
 export function territorySiegeBandColliders(): Collider[] {
-  const local = territorySiegeLocalColliders();
+  // Castle-tier structures are resolved from live siege state so an upgrade
+  // never leaves behind invisible collision from the previous courtyard.
+  const local = territorySiegeLocalColliders(3, false);
   const out: Collider[] = [];
   for (let slot = 0; slot < 4; slot += 1) {
     const origin = territorySiegeOrigin(slot);
     for (const collider of local) {
-      out.push({ ...collider, x: collider.x + origin.x, z: collider.z + origin.z });
+      out.push({
+        ...collider,
+        x: collider.x + origin.x,
+        z: collider.z + origin.z,
+      });
     }
   }
   return out;

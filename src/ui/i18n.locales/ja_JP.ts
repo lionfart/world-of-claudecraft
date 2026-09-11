@@ -801,7 +801,7 @@ export const ja_JP: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.actionBar1': 'アクションバー',
   'hudChrome.interfaceUnlock.frameNames.actionBar2': 'アクションバー 2',
   'hudChrome.interfaceUnlock.frameNames.actionBar3': 'アクションバー 3',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'ウィッシュリストの通知',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': '寄付による支援',
   'hudChrome.interfaceUnlock.frameNames.minimap': 'ミニマップ',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'スタンスバー',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'プレイヤー',

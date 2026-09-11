@@ -13991,7 +13991,7 @@ export const id_ID: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.partyFrames': 'Party',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': 'Pemain',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': 'Bilah Kuda-kuda',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Pengingat Wishlist',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': 'Dukungan Donasi',
   'hudChrome.interfaceUnlock.frameNames.swingBar': 'Serangan Otomatis',
   'hudChrome.interfaceUnlock.frameNames.targetFrame': 'Target',
   'hudChrome.interfaceUnlock.frameNames.xpBar': 'Bilah XP',

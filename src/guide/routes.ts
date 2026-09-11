@@ -180,6 +180,13 @@ export const GUIDE_ROUTES: GuideRoute[] = [
     descKey: 'guide.arenaPage.intro',
   },
   {
+    id: 'territory-war',
+    sub: 'territory-war',
+    navKey: 'guide.nav.territoryWar',
+    group: 'compete',
+    descKey: 'guide.territoryWarPage.intro',
+  },
+  {
     id: 'thornhollow-fields',
     sub: 'thornhollow-fields',
     navKey: 'guide.nav.thornhollow',

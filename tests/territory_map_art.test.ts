@@ -10,6 +10,7 @@ import {
   TERRITORY_RESOURCE_ART_KEYS,
   territoryFeatureArtRect,
   territoryMapArtIsGround,
+  territoryMapGroundArtKeyForCell,
   territoryMapArtKeyForCell,
   territoryMapArtTransformForCell,
   territoryMapAuthoredTransitionForCell,
@@ -72,8 +73,8 @@ describe('territory map art bundle', () => {
     expect(rect.y + rect.height).toBeCloseTo(80 + radius, 8);
   });
 
-  it('fills the actual hex pixels, including the bottom tip, for every resource and keep tier', async () => {
-    for (const key of [...TERRITORY_RESOURCE_ART_KEYS, ...TERRITORY_KEEP_ART_KEYS]) {
+  it('fills the actual hex pixels, including the bottom tip, for every resource tier', async () => {
+    for (const key of TERRITORY_RESOURCE_ART_KEYS) {
       const source = TERRITORY_MAP_ART_SOURCES[key];
       const { data, info } = await sharp(join(repoRoot, 'public', source.slice(1)))
         .ensureAlpha()
@@ -95,6 +96,27 @@ describe('territory map art bundle', () => {
       }
       expect(sampled, key).toBeGreaterThan(48_000);
       expect(missing / sampled, `${key}: transparent pixels inside the hex`).toBeLessThan(0.001);
+    }
+  });
+
+  it('ships each castle level as a transparent architecture-only overlay', async () => {
+    for (const [index, key] of TERRITORY_KEEP_ART_KEYS.entries()) {
+      const tier = index + 1;
+      const source = TERRITORY_MAP_ART_SOURCES[key];
+      expect(source).toBe(`/territory_map/keep-overlay-${tier}.webp`);
+      const { data, info } = await sharp(join(repoRoot, 'public', source.slice(1)))
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      expect([info.width, info.height], key).toEqual([256, 384]);
+      let visible = 0;
+      let transparent = 0;
+      for (let offset = 3; offset < data.length; offset += 4) {
+        if (data[offset] > 16) visible += 1;
+        else transparent += 1;
+      }
+      expect(visible, key).toBeGreaterThan(8_000);
+      expect(transparent, key).toBeGreaterThan(40_000);
     }
   });
 
@@ -123,7 +145,7 @@ describe('territory map art bundle', () => {
       expect(territoryMapArt(ready)).toBe(art);
       expect(requested).toHaveLength(80);
       expect(new Set(requested.map((image) => image.src))).toEqual(
-        new Set(Object.values(TERRITORY_MAP_ART_SOURCES).map((src) => `${src}?v=hex-fit-2`)),
+        new Set(Object.values(TERRITORY_MAP_ART_SOURCES).map((src) => `${src}?v=castle-overlay-1`)),
       );
       for (const image of requested) image.onload();
       expect(ready).toHaveBeenCalledTimes(1);
@@ -140,6 +162,12 @@ describe('territory map art bundle', () => {
     expect(painterSource).toContain('territoryMapArtTransformForCell(cell, key)');
     expect(painterSource).toContain('ctx.rotate((transform.rotationSteps * Math.PI) / 3)');
     expect(painterSource).not.toContain('territoryTerrainArtSourceRect(');
+  });
+
+  it('layers city architecture over the owning biome instead of replacing its terrain', () => {
+    expect(painterSource).toContain('territoryMapGroundArtKeyForCell(cell)');
+    expect(painterSource).toMatch(/this\.drawArtTile\([\s\S]*?groundKey,[\s\S]*?groundImage/);
+    expect(painterSource).toMatch(/this\.drawArtTile\([\s\S]*?featureKey,[\s\S]*?featureImage/);
   });
 
   it('maps every resource and yield level to biome-specific authored tiles', () => {
@@ -198,8 +226,43 @@ describe('territory map art bundle', () => {
     expect(territoryMapArtKeyForCell({ ...base, structureLevel: 2 })).toBe('keepTier2');
     expect(territoryMapArtKeyForCell({ ...base, structureLevel: 99 })).toBe('keepTier3');
     for (const tier of [1, 2, 3] as const) {
-      expect(TERRITORY_MAP_ART_SOURCES[`keepTier${tier}`]).toBe(`/territory_map/keep-${tier}.webp`);
+      expect(TERRITORY_MAP_ART_SOURCES[`keepTier${tier}`]).toBe(
+        `/territory_map/keep-overlay-${tier}.webp`,
+      );
     }
+  });
+
+  it('selects the biome ground independently for layered cities in snow and desert', () => {
+    const base = {
+      q: 4,
+      r: 8,
+      keepRoot: true,
+      resource: null,
+      resourceYield: 0,
+    };
+    expect(
+      territoryMapGroundArtKeyForCell({
+        ...base,
+        biome: 'snowMountain',
+        structureLevel: 3,
+      }),
+    ).toMatch(/^snowfield(?:Alt)?$/);
+    expect(
+      territoryMapGroundArtKeyForCell({
+        ...base,
+        biome: 'desertMesa',
+        structureLevel: 1,
+      }),
+    ).toMatch(/^desert(?:Alt)?$/);
+  });
+
+  it('keeps landmark biome art on ordinary non-city cells', () => {
+    const base = { q: 4, r: 8, keepRoot: false, resource: null, resourceYield: 0 };
+    expect(territoryMapArtKeyForCell({ ...base, biome: 'forest' })).toBe('forest');
+    expect(territoryMapArtKeyForCell({ ...base, biome: 'snowMountain' })).toBe('snowMountain');
+    expect(territoryMapArtKeyForCell({ ...base, biome: 'desertMesa' })).toMatch(
+      /^desertMesa(?:Alt)?$/,
+    );
   });
 
   it('clamps out-of-range resource yields to the nearest authored tier', () => {

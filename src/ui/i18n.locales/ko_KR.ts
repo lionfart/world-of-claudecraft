@@ -802,7 +802,7 @@ export const ko_KR: Partial<Record<TranslationKey, string>> = {
   'hudChrome.interfaceUnlock.frameNames.actionBar1': '행동 단축바',
   'hudChrome.interfaceUnlock.frameNames.actionBar2': '행동 단축바 2',
   'hudChrome.interfaceUnlock.frameNames.actionBar3': '행동 단축바 3',
-  'hudChrome.interfaceUnlock.frameNames.steamWishlist': '찜 목록 알림',
+  'hudChrome.interfaceUnlock.frameNames.steamWishlist': '기부 후원',
   'hudChrome.interfaceUnlock.frameNames.minimap': '미니맵',
   'hudChrome.interfaceUnlock.frameNames.stanceBar': '태세 바',
   'hudChrome.interfaceUnlock.frameNames.playerFrame': '플레이어',

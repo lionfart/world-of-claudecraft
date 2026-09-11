@@ -76,11 +76,116 @@ function repositoryFake(snapshot: TerritoryMapState, dueSieges: unknown[] = []) 
     leaveWar: vi.fn(),
     declareWar: vi.fn(),
     cancelWar: vi.fn(),
+    build: vi.fn(),
+    upgrade: vi.fn(),
+    harvest: vi.fn(),
     loadGuildView: vi.fn().mockResolvedValue(null),
   };
 }
 
 describe('territory service hot paths', () => {
+  it('starts a guild without claimed cities at zero stockpile capacity and resources', async () => {
+    const repository = repositoryFake(mapState());
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 18,
+        guildId: 8,
+        guildName: 'Eight',
+        rank: 'leader',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+    );
+
+    const snapshot = await service.snapshotForCharacter(18);
+
+    expect(snapshot.guild).toMatchObject({
+      id: '8',
+      ownedCellCount: 0,
+      resourceCapacity: 0,
+      resources: { wood: 0, iron: 0, grain: 0, labor: 0 },
+    });
+  });
+
+  it('charges normal purse currency for a level-one territory building', async () => {
+    const snapshot = mapState();
+    snapshot.cells.push({
+      cellId: 1,
+      ownerGuildId: '7',
+      ownerGuildName: 'Seven',
+      ownerColor: '#3e78b2',
+      keepRoot: true,
+      terrain: 'grassland',
+      resource: null,
+    });
+    snapshot.structures.push({
+      cellId: 1,
+      slot: 'keep_core',
+      kind: 'keep',
+      level: 1,
+      state: 'active',
+      completesAt: null,
+    });
+    const repository = repositoryFake(snapshot);
+    repository.build.mockResolvedValue({
+      ok: true,
+      delta: null,
+      duplicate: false,
+      guildId: 7,
+    });
+    let purse = 499;
+    const spendCopper = vi.fn((_characterId: number, amount: number) => {
+      if (purse < amount) return false;
+      purse -= amount;
+      return true;
+    });
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 11,
+        guildId: 7,
+        guildName: 'Seven',
+        rank: 'leader',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+      {
+        count: () => 0,
+        consume: () => false,
+        copper: () => purse,
+        spendCopper,
+      },
+    );
+    await service.snapshotForCharacter(11);
+
+    await expect(
+      service.execute(11, '00000000-0000-4000-8000-000000000018', 1, {
+        kind: 'build',
+        cellId: 1,
+        slot: 'granary',
+        structureKind: 'granary',
+      }),
+    ).resolves.toEqual({ ok: false, error: 'insufficient_currency' });
+    expect(repository.build).not.toHaveBeenCalled();
+
+    purse = 500;
+    await expect(
+      service.execute(11, '00000000-0000-4000-8000-000000000019', 1, {
+        kind: 'build',
+        cellId: 1,
+        slot: 'granary',
+        structureKind: 'granary',
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(spendCopper).toHaveBeenCalledWith(11, 500);
+    expect(purse).toBe(0);
+  });
+
   it('rejects member war declarations and withdrawals before reaching persistence', async () => {
     const repository = repositoryFake(mapState());
     const service = new TerritoryService(
@@ -109,8 +214,57 @@ describe('territory service hot paths', () => {
         warId: '00000000-0000-4000-8000-000000000010',
       }),
     ).resolves.toEqual({ ok: false, error: 'forbidden' });
+    await expect(
+      service.execute(11, '00000000-0000-4000-8000-000000000023', 1, {
+        kind: 'harvest',
+        cellId: 4,
+        resource: 'wood',
+      }),
+    ).resolves.toEqual({ ok: false, error: 'forbidden' });
     expect(repository.declareWar).not.toHaveBeenCalled();
     expect(repository.cancelWar).not.toHaveBeenCalled();
+    expect(repository.harvest).not.toHaveBeenCalled();
+  });
+
+  it('withdraws the selected stockpile resource into an officer bag', async () => {
+    const repository = repositoryFake(mapState());
+    repository.harvest.mockResolvedValue({
+      ok: true,
+      delta: null,
+      duplicate: false,
+      guildId: 7,
+      harvest: { kind: 'iron', amount: 20 },
+    });
+    const grant = vi.fn();
+    const service = new TerritoryService(
+      repository as unknown as TerritoryRepository,
+      vi.fn().mockReturnValue({
+        characterId: 11,
+        guildId: 7,
+        guildName: 'Seven',
+        rank: 'officer',
+      }),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      config,
+      { count: () => 0, consume: () => false, canGrant: () => true, grant },
+    );
+    await service.snapshotForCharacter(11);
+
+    await expect(
+      service.execute(11, '00000000-0000-4000-8000-000000000024', 1, {
+        kind: 'harvest',
+        cellId: 9,
+        resource: 'iron',
+      }),
+    ).resolves.toMatchObject({ ok: true, harvest: { kind: 'iron', amount: 20 } });
+    expect(repository.harvest).toHaveBeenCalledWith(
+      expect.objectContaining({ characterId: 11, rank: 'officer' }),
+      9,
+      'iron',
+    );
+    expect(grant).toHaveBeenCalledWith(11, 'territory_iron', 20);
   });
 
   it('routes an officer withdrawal through the authoritative repository', async () => {

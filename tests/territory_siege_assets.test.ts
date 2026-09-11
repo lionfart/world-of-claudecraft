@@ -34,6 +34,23 @@ describe('territory siege asset kit', () => {
 
   it('builds the battlefield from optimized natural and settlement assets', () => {
     expect(TERRITORY_SIEGE_ASSET_URLS).toMatchObject({
+      palisadeWall: '/models/props/fenbridge_palisade_wing.glb',
+      towerWood: '/models/biome/hex_watchtower.glb',
+      towerStone: '/models/biome/hex_tower_cannon.glb',
+      drakelandsStairsWalled: '/models/biome/kcas_stairs_walled.glb',
+      drakelandsStairsWide: '/models/biome/kcas_stairs_wide.glb',
+      drakelandsWall: '/models/biome/kcas_wall.glb',
+      drakelandsWallWindow: '/models/biome/kcas_wall_window.glb',
+      drakelandsWallPillar: '/models/biome/kcas_wall_pillar.glb',
+      drakelandsBarrier: '/models/biome/kcas_barrier.glb',
+      drakelandsBanner: '/models/biome/kcas_banner_red_shield.glb',
+      drakelandsTorch: '/models/biome/kcas_torch_mounted.glb',
+      frontierTent: '/models/biome/hexr_tent.glb',
+      frontierWatchtower: '/models/biome/hexr_watchtower.glb',
+      drakelandsCastle: '/models/biome/hexr_castle.glb',
+      drakelandsTownhall: '/models/biome/hexr_townhall.glb',
+      drakelandsBarracks: '/models/biome/hexr_barracks.glb',
+      drakelandsBlacksmith: '/models/biome/hexr_blacksmith.glb',
       naturalPine: '/models/foliage/pine_2.glb',
       naturalOak: '/models/foliage/oak_3.glb',
       snowPineA: '/models/foliage/snow_pine_1.glb',
@@ -80,14 +97,17 @@ describe('territory siege asset kit', () => {
     }
   });
 
-  it('keeps only the ram apron at the gate and exposes terrain-following tower ranges', () => {
+  it('keeps tactical guides selection-bound and telegraphs tower impact areas', () => {
     const source = readFileSync(
       fileURLToPath(new URL('../src/render/territory_siege_prototype.ts', import.meta.url)),
       'utf8',
-    );
+    ).replaceAll('"', "'");
     expect(source).not.toContain('objectiveBeacon(0xd06035');
     expect(source).toContain("ring.name = 'territory-siege-tower-range'");
+    expect(source).toContain("impact.root.name = 'territory-siege-tower-impact-area'");
     expect(source).toContain('territorySiegeGroundLiftLocal(x, z)');
+    expect(source).toContain('territorySiegeGuideVisibility(');
+    expect(source).toContain('impact.root.scale.setScalar(zone.radius)');
     expect(source).toContain('fittedGate.root.userData.territorySiegeObjective = {');
     expect(source).toContain("kind: 'wall'");
     expect(source).toContain("kind: 'tower'");
@@ -108,6 +128,7 @@ describe('territory siege asset kit', () => {
     expect(source).toContain('Math.sin(progress * Math.PI) * 15');
     expect(source).toContain('shell.trail.quaternion.setFromUnitVectors');
     expect(source).toContain('const towerProjectiles = Array.from');
+    expect(source).toContain('const towerImpactAreas = Array.from');
     expect(source).not.toContain('const towerWarnings = Array.from');
     expect(source).not.toContain('const mortarWarnings = Array.from');
   });
@@ -141,7 +162,7 @@ describe('territory siege asset kit', () => {
     const source = readFileSync(
       fileURLToPath(new URL('../src/render/territory_siege_environment.ts', import.meta.url)),
       'utf8',
-    );
+    ).replaceAll('"', "'");
     expect(source).not.toContain('buildGrassCarpet');
     expect(source).not.toContain('territory-siege-grass:');
     expect(source).toContain('buildBillboardGrass');
@@ -149,9 +170,25 @@ describe('territory siege asset kit', () => {
     expect(source).toContain('new THREE.InstancedMesh');
     expect(source).toContain('buildGroundStoneScatter');
     expect(source).toContain('[4.2, 0.72, 4.2]');
+    expect(source).toContain("place(dirt, 'frontierWatchtower'");
+    expect(source).toContain("place(drakelands, 'drakelandsCastle'");
+    expect(source).toContain("place(drakelands, 'drakelandsBarracks'");
     expect(source).not.toContain('buildMountainBoundary');
     expect(TERRITORY_SIEGE_ASSET_URLS).not.toHaveProperty('boundaryRock');
     expect(TERRITORY_SIEGE_ASSET_URLS).not.toHaveProperty('boundaryCliff');
+  });
+
+  it('builds the level-three defense tower around the existing Drakelands castle silhouette', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('../src/render/territory_siege_prototype.ts', import.meta.url)),
+      'utf8',
+    );
+    const bastion = source.slice(
+      source.indexOf('function buildDrakelandsBastion('),
+      source.indexOf('interface ArtilleryModel'),
+    );
+    expect(bastion).toContain("'drakelandsCastle'");
+    expect(bastion).not.toContain('new THREE.BoxGeometry');
   });
 
   it('replicates every active core channel instead of rendering only the local beam', () => {

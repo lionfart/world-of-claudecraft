@@ -3,6 +3,7 @@ import {
   territoryCellPanelMode,
   territorySiegeMapLabelKey,
   territorySlotModels,
+  territoryStructureCountdown,
   territoryWarCountdown,
   territoryWarNoticeModel,
 } from '../src/ui/territory_map_panel_view';
@@ -43,9 +44,17 @@ function state(rank: 'member' | 'officer' | 'leader' = 'leader'): TerritoryMapSt
       },
       {
         cellId: 9,
-        slot: 'walls',
-        kind: 'walls',
-        level: 3,
+        slot: 'granary',
+        kind: 'granary',
+        level: 1,
+        state: 'active',
+        completesAt: null,
+      },
+      {
+        cellId: 9,
+        slot: 'stockpile',
+        kind: 'stockpile',
+        level: 1,
         state: 'active',
         completesAt: null,
       },
@@ -82,26 +91,74 @@ describe('territory structure slot cards', () => {
   });
 
   it('maps an empty clicked card to its exact build slot and kind', () => {
-    const granary = territorySlotModels(state(), 9).find((slot) => slot.slot === 'granary');
-    expect(granary).toMatchObject({
+    const forester = territorySlotModels(state(), 9).find((slot) => slot.slot === 'forester');
+    expect(forester).toMatchObject({
       state: 'empty',
-      action: { kind: 'build', cellId: 9, slot: 'granary', structureKind: 'granary' },
+      action: { kind: 'build', cellId: 9, slot: 'forester', structureKind: 'forester' },
     });
   });
 
-  it('maps a built card to an upgrade of that same slot', () => {
-    const walls = territorySlotModels(state(), 9).find((slot) => slot.slot === 'walls');
-    expect(walls).toMatchObject({
-      level: 3,
+  it('maps a built card to an upgrade of that same slot below the castle cap', () => {
+    const granary = territorySlotModels(state(), 9).find((slot) => slot.slot === 'granary');
+    expect(granary).toMatchObject({
+      level: 1,
       state: 'active',
-      action: { kind: 'upgrade', cellId: 9, slot: 'walls' },
+      action: { kind: 'upgrade', cellId: 9, slot: 'granary' },
     });
+  });
+
+  it('uses one castle card and locks dependent upgrades above the active castle level', () => {
+    const capped = state();
+    const castle = capped.structures.find((structure) => structure.slot === 'keep_core');
+    const granary = capped.structures.find((structure) => structure.slot === 'granary');
+    if (!castle || !granary) throw new Error('castle fixture incomplete');
+    castle.level = 2;
+    castle.state = 'building';
+    granary.level = 1;
+    const cards = territorySlotModels(capped, 9);
+    expect(cards.find((card) => card.slot === 'walls')).toBeUndefined();
+    expect(cards.find((card) => card.slot === 'keep_core')).toMatchObject({
+      state: 'building',
+      level: 2,
+      completesAt: null,
+    });
+    expect(cards.find((card) => card.slot === 'granary')).toMatchObject({
+      state: 'castle_locked',
+      requiredCastleLevel: 2,
+      action: null,
+    });
+  });
+
+  it('projects a live construction deadline for the same building button', () => {
+    const building = state();
+    const granary = building.structures.find((structure) => structure.slot === 'granary');
+    if (!granary) throw new Error('granary fixture incomplete');
+    granary.level = 2;
+    granary.state = 'building';
+    granary.completesAt = '2026-01-01T00:01:31.000Z';
+    expect(territorySlotModels(building, 9).find((card) => card.slot === 'granary')).toMatchObject({
+      state: 'building',
+      completesAt: granary.completesAt,
+    });
+    expect(
+      territoryStructureCountdown(granary.completesAt, Date.parse('2026-01-01T00:00:01.000Z')),
+    ).toBe('01:30');
   });
 
   it('keeps all cards visible but non-actionable for ordinary members', () => {
     const cards = territorySlotModels(state('member'), 9);
     expect(cards).toHaveLength(8);
     expect(cards.every((card) => card.action === null)).toBe(true);
+  });
+
+  it('shows the claimed city stockpile as an upgradeable castle-capped building', () => {
+    const stockpile = territorySlotModels(state(), 9).find((slot) => slot.slot === 'stockpile');
+    expect(stockpile).toMatchObject({
+      kind: 'stockpile',
+      level: 1,
+      state: 'active',
+      action: { kind: 'upgrade', cellId: 9, slot: 'stockpile' },
+    });
   });
 });
 
