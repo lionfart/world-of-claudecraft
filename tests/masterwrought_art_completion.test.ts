@@ -813,9 +813,10 @@ describe('Masterwrought art completion evidence', () => {
     // both later release-merge waves, already machine-checked and owner-review
     // pending per item_art_consistency.test.ts / item_icons.test.ts /
     // weapon_icons.test.ts, so their mapping owners are genuine, not fabricated.
-    // OSSBrain adds the Goblin Rocket Sled and Rallycart RXT reins owners;
-    // these do not alter the dated completion/approval universe below.
-    expect(currentOwnerIds).toHaveLength(1283);
+    // OSSBrain adds the Goblin Rocket Sled and Rallycart RXT reins owners, while
+    // our Territory War layer adds four resources plus three siege engines.
+    // These nine local owners do not alter the dated completion/approval universe.
+    expect(currentOwnerIds).toHaveLength(1290);
     for (const id of datedIds) {
       expect(currentOwnerIds.includes(id), `${id} still has a current mapping owner`).toBe(true);
     }
@@ -869,9 +870,21 @@ describe('Masterwrought art completion evidence', () => {
     expect(datedIds.filter((id) => ossBrainMountIds.has(id))).toEqual([]);
     expect(currentOwnerIds.filter((id) => ossBrainMountIds.has(id))).toHaveLength(2);
 
-    // Strip all five later additive waves (Crucible professions, the Field Kit, the
+    const territoryWarIds = new Set([
+      'territory_wood',
+      'territory_iron',
+      'territory_grain',
+      'territory_labor',
+      'territory_battering_ram',
+      'territory_catapult',
+      'territory_field_mortar',
+    ]);
+    expect(datedIds.filter((id) => territoryWarIds.has(id))).toEqual([]);
+    expect(currentOwnerIds.filter((id) => territoryWarIds.has(id))).toHaveLength(7);
+
+    // Strip all six later additive waves (Crucible professions, the Field Kit, the
     // Nythraxis gap-fill weapon renders, Roots' Bramblehide/gap-fill paintings,
-    // and the OSSBrain mount reins)
+    // the OSSBrain mount reins, and Territory War)
     // back out of the live mapping by their EXACT ids, so the underlying 1,209-item
     // completion union equation below stays isolated to exactly the same set as
     // completionDatedIds above. This filters by the exact ids of those additions only,
@@ -882,7 +895,8 @@ describe('Masterwrought art completion evidence', () => {
         !crucibleIds.has(id) &&
         id !== 'field_kit' &&
         !laterGapFillIds.has(id) &&
-        !ossBrainMountIds.has(id),
+        !ossBrainMountIds.has(id) &&
+        !territoryWarIds.has(id),
     );
     expect(completionOwnerIds).toHaveLength(1209);
     expect(sorted(completionOwnerIds)).toEqual(completionDatedIds);

@@ -31,6 +31,8 @@ export interface MaterialSourceTables {
   recipes: typeof ALL_RECIPES;
   enchants: typeof ENCHANTS;
   recipePendingMaterialItemIds: readonly string[];
+  /** Domain-owned, tradeable resource items that are not recipe reagents. */
+  explicitMaterialItemIds?: readonly string[];
   items: typeof ITEMS;
 }
 
@@ -107,5 +109,6 @@ export function deriveMaterialItemIds(tables: MaterialSourceTables): ReadonlySet
   // source is temporary by contract and disappears once reagent derivation
   // can classify each id.
   for (const id of tables.recipePendingMaterialItemIds) sources.add(id);
+  for (const id of tables.explicitMaterialItemIds ?? []) sources.add(id);
   return readonlySetView([...sources].filter((id) => tables.items[id]?.kind === 'junk'));
 }

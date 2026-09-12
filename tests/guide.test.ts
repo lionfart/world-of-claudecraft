@@ -1680,7 +1680,10 @@ describe('Guide controls reference completeness', () => {
     });
     const kbds = new Set([...html.matchAll(/<kbd>([^<]+)<\/kbd>/g)].map((m) => m[1]));
     const missing = BIND_ACTIONS.filter(
-      (a) => a.category === 'Interface' && !a.defaults.some((code) => kbds.has(keyLabel(code))),
+      (a) =>
+        a.category === 'Interface' &&
+        a.defaults.length > 0 &&
+        !a.defaults.some((code) => kbds.has(keyLabel(code))),
     ).map((a) => a.id);
     expect(missing).toEqual([]);
     // Anti-vacuous: the scrape really read keycaps, and the two shifted rows

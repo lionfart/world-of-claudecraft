@@ -345,7 +345,7 @@ describe('resolvePrewarmPolicy: unconstrained desktop', () => {
     // cast VFX has no stand-in, so its links are debt while its textures keep
     // the entry's cosmetic class.
     expect(prewarmResumeIsDebt('programs.vfx.ability-primitives')).toBe(true);
-    expect(prewarmResumeIsDebt('vfx.ability-primitives')).toBe(false);
+    expect(prewarmResumeIsDebt('vfx.ability-primitives')).toBe(true);
     expect(prewarmResumeIsDebt('textures.scene')).toBe(true);
     expect(prewarmResumeIsDebt('surface-detail.textures')).toBe(true);
     // The foliage species stream in with travel (ambient scene, not an
@@ -408,11 +408,12 @@ describe('resolvePrewarmPolicy: unconstrained desktop', () => {
     expect(ordered.map((entry) => entry.id)).toEqual([
       'programs.compile',
       'programs.compile-submit',
+      'programs.vfx.ability-primitives',
+      'programs.compile-post-paint',
       'vfx.ability-primitives',
       'textures.scene',
       'props.ghost-fade-variants',
       'vfx.weapon-skins',
-      'vfx.ability-primitives',
     ]);
     // All-cosmetic and all-debt lists come back untouched.
     expect(orderPrewarmResumeEntries([{ id: 'vfx.weapon-skins' }])).toEqual([

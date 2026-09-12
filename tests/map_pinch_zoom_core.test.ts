@@ -57,7 +57,7 @@ describe('map pinch zoom core', () => {
     expect(zoomOutExitsZoneLevel(Number.NaN, 0.9)).toBe(false);
   });
 
-  it('is wired into every world-map zoom-out path, and never runs on an instance plan', () => {
+  it('is wired into every world-map zoom-out path, routes territory zoom, and skips instance plans', () => {
     // The rule lives in Hud.zoomMap, which the minus button, the wheel and the
     // pinch gesture all funnel through, so all three inherit it from one place.
     // The guard is on the painted LEVEL, not the player's position: the zone map
@@ -67,7 +67,10 @@ describe('map pinch zoom core', () => {
     expect(hud).toContain("$('#map-zoom-out')?.addEventListener('click', () => this.zoomMap(");
     expect(hud).toContain('onZoom: (factor) => this.zoomMap(factor)');
     expect(hud).toMatch(
-      /private zoomMap\(factor: number\): void \{\s*if \(this\.mapLevel !== 'zone' && this\.mapLevel !== 'continent'\) return;/,
+      /private zoomMap\(factor: number\): void \{\s*if \(mapWindowMode\(this\.sim\) !== 'overworld'\) return;/,
+    );
+    expect(hud).toMatch(
+      /if \(this\.mapLevel === 'territory'\) \{\s*this\.territoryMap\.zoomBy\(factor\);\s*return;/,
     );
     expect(hud).toMatch(
       /zoomOutExitsZoneLevel\(this\.mapZoom, factor\)\s*\) \{\s*this\.setMapLevel\('continent'\);/,

@@ -154,6 +154,15 @@ const FRAME_EXEMPT: Record<string, string> = {
   'race-start-btn': 'event-scoped race control, hidden outside a race',
   'race-countdown': 'event-scoped race countdown, hidden outside a race',
   'arena-status': 'match-scoped arena status strip, pointer-inert',
+  'territory-siege-hud': 'match-scoped territory siege status, hidden outside a siege',
+  'territory-capture-hud': 'match-scoped territory capture status, hidden outside a capture',
+  'territory-siege-interact': 'transient nearby siege-interaction prompt',
+  'territory-siege-result': 'transient end-of-siege result veil',
+  'territory-ram-actionbar': 'operator-scoped siege vehicle controls, hidden outside ram control',
+  'territory-mortar-actionbar':
+    'operator-scoped siege vehicle controls, hidden outside mortar control',
+  'territory-catapult-actionbar':
+    'operator-scoped siege vehicle controls, hidden outside catapult control',
   'dfinder-proposal-popup': 'transient dungeon-finder proposal popup',
   'bg-proposal-popup': 'transient battleground proposal popup',
   'practice-tracker':

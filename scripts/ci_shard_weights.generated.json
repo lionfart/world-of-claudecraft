@@ -2,7 +2,7 @@
   "__provenance": {
     "run": "34168361798",
     "harvested": "2026-09-08",
-    "files": 3959,
+    "files": 3958,
     "harvestedFiles": 3948,
     "carried": {
       "tests/hub_dummy_drill.test.ts": {
@@ -3589,7 +3589,6 @@
   "tests/steam_achievement_map.test.ts": 8,
   "tests/steam_link.test.ts": 578,
   "tests/steam_link_markup.test.ts": 7,
-  "tests/steam_wishlist.test.ts": 37,
   "tests/steep_ground_freeze.test.ts": 2005,
   "tests/step_smooth_core.test.ts": 16,
   "tests/storage_charters.test.ts": 6236,

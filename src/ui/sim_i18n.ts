@@ -1000,6 +1000,7 @@ const baseEnTable = {
   'log.provingEnter': 'The ferry bell tolls, and the Proving Shore rises to meet you.',
   'log.provingLeave': 'The crossing takes hold, and Eastbrook Vale spreads out before you.',
   'error.tutorialFromHere': 'You cannot set sail from here.',
+  'error.tutorialComplete': 'The Proving Shore has nothing left to teach you.',
   'log.passingStoneKneel': 'You close your hand on the Passing Stone, and the shore lets you go.',
   'error.passingStoneCold': 'The stone is cold. Instructor Maren has not asked this of you.',
   'log.longWalkCorpse': 'You are whole again, and you found your own way back.',
@@ -1159,6 +1160,7 @@ const BASE_DICT: Record<SupportedLanguage, Partial<Record<BaseSimMessageKey, str
     'log.provingEnter': 'The ferry bell tolls, and the Proving Shore rises to meet you.',
     'log.provingLeave': 'The crossing takes hold, and Eastbrook Vale spreads out before you.',
     'error.tutorialFromHere': 'You cannot set sail from here.',
+    'error.tutorialComplete': 'The Proving Shore has nothing left to teach you.',
     'log.passingStoneKneel': 'You close your hand on the Passing Stone, and the shore lets you go.',
     'error.passingStoneCold': 'The stone is cold. Instructor Maren has not asked this of you.',
     'log.longWalkCorpse': 'You are whole again, and you found your own way back.',
@@ -12157,6 +12159,7 @@ const BASE_DICT: Record<SupportedLanguage, Partial<Record<BaseSimMessageKey, str
     'log.passingStoneKneel':
       "Elini Geçiş Taşı'nın üzerine kapatırsın, ve kıyı seni serbest bırakır.",
     'error.tutorialFromHere': 'Buradan yelken açamazsın.',
+    'error.tutorialComplete': 'Proving Shore artık sana öğretecek bir şey bulamıyor.',
     'error.passingStoneCold': 'Taş soğuk. Eğitmen Maren senden bunu istemedi.',
     'error.vendorQuestGated': 'O eşya henüz sana satılık değil.',
     'error.arenaMinLevel': 'Arena sırasına girmek için {level}. seviyeye ulaşmalısın.',

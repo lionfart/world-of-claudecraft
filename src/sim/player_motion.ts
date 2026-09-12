@@ -34,7 +34,13 @@ import {
   moveCharacter,
 } from './physics';
 import { PLATFORM_CARRY_CLEARANCE } from './physics/character';
-import { isSubmergedAt, rideSteepnessAt, shoreStepOut, stepWaterLevel } from './ride_height';
+import {
+  isSubmergedAt,
+  rideHeight,
+  rideSteepnessAt,
+  shoreStepOut,
+  stepWaterLevel,
+} from './ride_height';
 import { GHOST_RUN_MULT } from './spirit';
 import {
   DT,
@@ -373,8 +379,10 @@ export function stepPlayerMotion(deps: PlayerMotionDeps, p: Entity, inp: MoveInp
   const steepFlagged =
     p.onGround &&
     !swimming &&
-    p.pos.y <= swimGround + PLATFORM_CARRY_CLEARANCE &&
-    rideSteepnessAt(p.pos.x, p.pos.z, deps.seed) > MAX_CLIMB_SLOPE;
+    rideSteepnessAt(p.pos.x, p.pos.z, deps.seed) > MAX_CLIMB_SLOPE &&
+    p.pos.y <=
+      rideHeight(p.pos.x, p.pos.z, terrainHeight(p.pos.x, p.pos.z, deps.seed), deps.seed) +
+        PLATFORM_CARRY_CLEARANCE;
   const steepSlide = steepFlagged ? terrainDownhill(p.pos.x, p.pos.z, deps.seed) : null;
   const steepGround = steepSlide !== null;
   // Move-to-cancel: any movement input during a summon channel cancels the cast.

@@ -152,7 +152,7 @@ describe('market collect indicator markup parity', () => {
         'data-i18n-title="hudChrome.marketIndicator.tip"',
       );
       expect(html, `${entry} badge gained visible text that can disturb the minimap`).toMatch(
-        /<button id="market-indicator"[^>]*><\/button>/,
+        /<button\s+id="market-indicator"[^>]*>\s*<\/button>/,
       );
     }
   });

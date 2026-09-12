@@ -526,7 +526,7 @@ describe('bags_window: touch peek + bank-cluster close', () => {
     // to its staging call, so the two pins together prove reachability from
     // right-click without a live DOM harness.
     const start = painter.indexOf('private runBagAction(');
-    const body = painter.slice(start, painter.indexOf('\n  }\n', start));
+    const body = painter.slice(start, painter.indexOf('\n  private ', start + 1));
     expect(body).toMatch(/case 'trade':\s*this\.deps\.addItemToTrade\(s\.itemId\);/);
     expect(body).toMatch(
       /case 'mailAttach':\s*this\.deps\.stageMailParcel\(s\.itemId, s\.instance\);/,
@@ -539,7 +539,9 @@ describe('bags_window: touch peek + bank-cluster close', () => {
     // call no longer ends at `s.itemId`. These pins are about REACHABILITY from
     // the shared dispatch, so they match the call opening and leave the argument
     // list to tests/item_copy_addressing_guard.
-    expect(body).toMatch(/case 'petFeed':\s*this\.deps\.world\(\)\.feedPet\(s\.itemId/);
+    expect(body).toMatch(
+      /case 'petFeed': \{[\s\S]{0,140}?this\.deps\.world\(\)\.feedPet\(s\.itemId/,
+    );
     // The 'use' case gives territory siege equipment first refusal, then tries
     // the gathering-tool route, and only then falls back to plain useItem.
     expect(body).toMatch(

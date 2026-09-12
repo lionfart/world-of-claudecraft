@@ -10,7 +10,7 @@
 // stay unclassified, so a future junk item must be classified here explicitly
 // instead of drifting in or out silently.
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { CRUCIBLE_RECIPE_PENDING_MATERIAL_ITEM_IDS } from '../src/sim/content/crucible_professions';
@@ -37,6 +37,7 @@ import {
 import { NODE_MATERIAL_TABLE } from '../src/sim/professions/gathering';
 import { MATERIAL_GRADES } from '../src/sim/professions/material_grades';
 import { SALVAGE_MATERIAL_BY_QUALITY } from '../src/sim/professions/salvage';
+import { TERRITORY_RESOURCE_ITEM_IDS } from '../src/sim/territory_resources';
 
 // The ruled material set, exactly (staples in; grey trash and the allowlisted
 // oddments out; raw fishing catches IN as junk cooking reagents). A diff here is a
@@ -186,6 +187,10 @@ const HONEST_MATERIALS = [
   'sunspun_bolt',
   'tallow_candle',
   'tanning_agent',
+  'territory_grain',
+  'territory_iron',
+  'territory_labor',
+  'territory_wood',
   'thorium_ore',
   'thornpeak_cabbage',
   'thornpeak_cabbage_seed',
@@ -563,6 +568,7 @@ describe('deriveMaterialItemIds: every source table is actually consulted (injec
     recipes: ALL_RECIPES,
     enchants: ENCHANTS,
     recipePendingMaterialItemIds: CRUCIBLE_RECIPE_PENDING_MATERIAL_ITEM_IDS,
+    explicitMaterialItemIds: Object.values(TERRITORY_RESOURCE_ITEM_IDS),
     items: ITEMS,
   };
   // The probe def rides the real catalog so the junk-kind filter sees it.
@@ -622,6 +628,12 @@ describe('deriveMaterialItemIds: every source table is actually consulted (injec
       'recipe-pending material',
       {
         recipePendingMaterialItemIds: [...CRUCIBLE_RECIPE_PENDING_MATERIAL_ITEM_IDS, PROBE],
+      },
+    ],
+    [
+      'explicit domain material',
+      {
+        explicitMaterialItemIds: [...Object.values(TERRITORY_RESOURCE_ITEM_IDS), PROBE],
       },
     ],
   ];
@@ -917,8 +929,8 @@ describe('no src/sim importer (presentation-only taxonomy scope)', () => {
     // that lost recursion cannot clear 300), AND the sweep must have reached
     // the two biggest nested directories by name.
     expect(scanned.length).toBeGreaterThan(300);
-    expect(scanned.some((f) => f.includes(`${join(simRoot, 'professions')}/`))).toBe(true);
-    expect(scanned.some((f) => f.includes(`${join(simRoot, 'content')}/`))).toBe(true);
+    expect(scanned.some((f) => f.includes(`${join(simRoot, 'professions')}${sep}`))).toBe(true);
+    expect(scanned.some((f) => f.includes(`${join(simRoot, 'content')}${sep}`))).toBe(true);
     expect(symlinked).toEqual([]);
     for (const guard of guards) {
       expect(scanned, guard.moduleSelf).toContain(guard.moduleSelf);

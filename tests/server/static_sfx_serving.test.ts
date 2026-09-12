@@ -19,7 +19,7 @@ let routeHttpRequest: typeof import('../../server/main').routeHttpRequest;
 
 beforeAll(async () => {
   ({ routeHttpRequest } = await import('../../server/main'));
-});
+}, 30_000);
 
 afterAll(() => {
   rmSync(packRoot, { recursive: true, force: true });
@@ -43,6 +43,14 @@ async function close(server: http.Server): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
+}
+
+function replacePath(source: string, target: string): void {
+  // POSIX rename replaces the destination atomically. Windows refuses that
+  // form even after the verified snapshot handle has closed, so remove the
+  // old pathname first; the response still has to serve its buffered bytes.
+  if (process.platform === 'win32') rmSync(target);
+  renameSync(source, target);
 }
 
 async function requestStatic(
@@ -92,12 +100,12 @@ describe('versioned static SFX serving', () => {
       onWriteHead(statusCode) {
         if (statusCode === 200 && !swapped) {
           swapped = true;
-          renameSync(pendingReplacement, asset);
+          replacePath(pendingReplacement, asset);
         }
       },
     });
 
-    expect(response.status).toBe(200);
+    expect(response.status, response.body.toString('utf8')).toBe(200);
     expect(response.headers.get('content-length')).toBe(String(original.length));
     expect(response.body).toEqual(original);
     expect(swapped).toBe(true);
@@ -115,11 +123,11 @@ describe('versioned static SFX serving', () => {
     const response = await requestStatic(`/audio/sfx/blobs/${hash}.mp3`, {
       method: 'HEAD',
       onWriteHead(statusCode) {
-        if (statusCode === 200) renameSync(pendingReplacement, asset);
+        if (statusCode === 200) replacePath(pendingReplacement, asset);
       },
     });
 
-    expect(response.status).toBe(200);
+    expect(response.status, response.body.toString('utf8')).toBe(200);
     expect(response.headers.get('content-length')).toBe(String(original.length));
     expect(response.body).toHaveLength(0);
   });
@@ -145,15 +153,20 @@ describe('versioned static SFX serving', () => {
     writeFileSync(pendingReplacement, 'replacement bytes');
 
     const readSync = fs.readSync;
+    const statSync = fs.statSync;
+    const replacementStats = statSync(pendingReplacement);
     let replaced = false;
     const spy = vi.spyOn(fs, 'readSync').mockImplementation(((...args) => {
       const count = Reflect.apply(readSync, fs, args) as number;
       if (count > 0 && !replaced) {
         replaced = true;
-        renameSync(pendingReplacement, asset);
       }
       return count;
     }) as typeof fs.readSync);
+    const statSpy = vi.spyOn(fs, 'statSync').mockImplementation(((...args) => {
+      if (args[0] === asset && replaced) return replacementStats;
+      return Reflect.apply(statSync, fs, args);
+    }) as typeof fs.statSync);
 
     try {
       expect(() => readStaticSfxSnapshot(asset)).toThrow(
@@ -161,6 +174,7 @@ describe('versioned static SFX serving', () => {
       );
       expect(replaced).toBe(true);
     } finally {
+      statSpy.mockRestore();
       spy.mockRestore();
     }
   });

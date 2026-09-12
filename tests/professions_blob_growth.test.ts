@@ -2203,6 +2203,39 @@ describe('the whole-character gear-heavy maximal blob (Phase 18 U-MEASURE)', () 
     const counterfactualBytes = Buffer.byteLength(JSON.stringify(withoutFieldKit), 'utf8');
     expect(bytes - counterfactualBytes, 'field_kit contributes exactly one array entry').toBe(12);
 
+    // Territory War adds four resource items and three deployable siege engines.
+    // They are ordinary discoverable catalog owners, so this maximal fixture
+    // records their exact seven ids in deedStats.itemsDiscovered. The four
+    // resources are also honest materials, therefore the maximal vault stock
+    // carries those four keys. Keep both local additive terms measured
+    // separately from the dated upstream content ledger below.
+    const TERRITORY_WAR_ITEM_IDS = [
+      'territory_wood',
+      'territory_iron',
+      'territory_grain',
+      'territory_labor',
+      'territory_battering_ram',
+      'territory_catapult',
+      'territory_field_mortar',
+    ] as const;
+    const territoryWarItemIds = new Set<string>(TERRITORY_WAR_ITEM_IDS);
+    const withoutTerritoryWar = JSON.parse(JSON.stringify(withoutFieldKit)) as CharacterState;
+    if (withoutTerritoryWar.deedStats?.itemsDiscovered)
+      withoutTerritoryWar.deedStats.itemsDiscovered =
+        withoutTerritoryWar.deedStats.itemsDiscovered.filter((id) => !territoryWarItemIds.has(id));
+    for (const id of ['territory_wood', 'territory_iron', 'territory_grain', 'territory_labor'])
+      delete withoutTerritoryWar.vault?.stock?.[id];
+    const territoryWarDeltaByField = {
+      deedStats:
+        fieldBytes(withoutFieldKit, 'deedStats') - fieldBytes(withoutTerritoryWar, 'deedStats'),
+      vault: fieldBytes(withoutFieldKit, 'vault') - fieldBytes(withoutTerritoryWar, 'vault'),
+    };
+    expect(territoryWarDeltaByField).toEqual({ deedStats: 142, vault: 86 });
+    const territoryWarDelta = Object.values(territoryWarDeltaByField).reduce(
+      (sum, value) => sum + value,
+      0,
+    );
+
     // The one-time hammer recipe/proof content adds against the pre-hammer,
     // field-kit-excluded fixture (156144): the Crucible fixture-repair deltas
     // above, plus 183 bytes of existing quest/deed/Reliquary catalog entries
@@ -2314,7 +2347,12 @@ describe('the whole-character gear-heavy maximal blob (Phase 18 U-MEASURE)', () 
     // 21 characters as `"<id>",` in the sorted array (26 + 24 bytes). MEASURED,
     // not inferred, same as every other row this equation names.
     expect(counterfactualBytes - 156144).toBe(
-      Object.values(fixtureDelta).reduce((sum, value) => sum + value, 0) + 183 + 1548 + 50 + 49,
+      Object.values(fixtureDelta).reduce((sum, value) => sum + value, 0) +
+        183 +
+        1548 +
+        50 +
+        49 +
+        territoryWarDelta,
     );
     const forgeBaseline = {
       questsDone: 4606,
@@ -2336,7 +2374,7 @@ describe('the whole-character gear-heavy maximal blob (Phase 18 U-MEASURE)', () 
       // questsDone moved from 50 to 100 against the SAME forgeBaseline reference
       // point: the +50 hub practice quest delta above, on top of the prior +50
       // this row already carried.
-    ).toEqual({ questsDone: 100, knownRecipes: 30, deeds: 32, deedStats: 21, reliquary: 80 });
+    ).toEqual({ questsDone: 100, knownRecipes: 30, deeds: 32, deedStats: 163, reliquary: 80 });
     // Removing field_kit AND the Bramblehide release content reproduces the
     // pre-field-kit, pre-Bramblehide baseline WITH the hammer content still
     // applied: 3884 alone measured 209,261 here (hammer content absent); the
@@ -2349,7 +2387,7 @@ describe('the whole-character gear-heavy maximal blob (Phase 18 U-MEASURE)', () 
     expect(
       Buffer.byteLength(JSON.stringify(preReleaseCounterfactual), 'utf8'),
       'field_kit and the Bramblehide release content removed, must reproduce the recorded pre-field-kit Crucible+hammer baseline',
-    ).toBe(209524);
+    ).toBe(209752);
     // Removing ONLY field_kit (the Bramblehide release content and the two
     // dev-mount reins items still present, current staged tree) reproduces
     // 209,524 plus the 1,548-byte Bramblehide delta plus the 49-byte
@@ -2360,7 +2398,7 @@ describe('the whole-character gear-heavy maximal blob (Phase 18 U-MEASURE)', () 
     expect(
       counterfactualBytes,
       'field_kit removed, must reproduce the current staged Crucible+hammer+Bramblehide+dev-mount baseline',
-    ).toBe(211121);
+    ).toBe(211349);
     const priorContent = withoutCrucibleContent(s2);
     const contentDelta = Object.fromEntries(
       (['knownRecipes', 'deedStats', 'reliquary'] as const).map((key) => [
@@ -2398,9 +2436,10 @@ describe('the whole-character gear-heavy maximal blob (Phase 18 U-MEASURE)', () 
     // measured alone on its own parent (211,084 and 211,083 against the
     // shared 211,034). Re-based per the standing rule (floor measurement
     // minus 380, edge measurement plus one, band width unchanged at 381):
-    // 210,753..211,134.
-    expect(bytes, reMint).toBeGreaterThan(210753);
-    expect(bytes, reMint).toBeLessThan(211134);
+    // 210,981..211,362 after the seven Territory War discovery ids add their
+    // separately measured 228 bytes; the band remains 381 bytes wide.
+    expect(bytes, reMint).toBeGreaterThan(210981);
+    expect(bytes, reMint).toBeLessThan(211362);
 
     // The Crucible database review approved 229,376 bytes (224 KiB), the first
     // 32-KiB step above the corrected 209,261-byte pre-field-kit fixture it was

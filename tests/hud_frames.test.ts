@@ -164,11 +164,11 @@ describe('hud.ts unit-frame text sites route through unitFrameCurrentMaxText', (
     );
   });
 
-  // Player hp/resource, target hp/resource, target-of-target hp, and the shared target frame: six
-  // "current / max" sites the player/target/target-of-target unit frames paint.
-  it('calls unitFrameCurrentMaxText at all six unit-frame sites', () => {
+  // Player and target resource text plus the shared target-detail frame are
+  // the remaining direct current/max sites; health routes through the mode-aware formatter.
+  it('calls unitFrameCurrentMaxText at all three direct current/max sites', () => {
     const calls = src.match(/unitFrameCurrentMaxText\(/g) ?? [];
-    expect(calls.length).toBe(6);
+    expect(calls.length).toBe(3);
   });
 
   it('never rebuilds a unit-frame "current / max" string via raw template interpolation', () => {

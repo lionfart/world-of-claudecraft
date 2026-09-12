@@ -985,7 +985,7 @@ export class TerritoryMapController {
     this.writers.toggleClass(root, 'is-empty', empty);
     this.writers.toggleClass(root, 'is-collapsed', !empty && !this.warNoticeExpanded);
     const toggle = element<HTMLButtonElement>('#territory-war-notice-toggle');
-    this.writers.setDisplay(toggle, empty ? 'none' : 'inline-flex');
+    this.writers.setStyleProp(toggle, 'display', empty ? 'none' : 'inline-flex');
     this.writers.setAttr(toggle, 'aria-expanded', String(this.warNoticeExpanded));
     this.writers.setText(
       toggle,
@@ -1369,7 +1369,7 @@ export class TerritoryMapController {
       this.writers.setText(title, t('hudChrome.territoryMap.loading'));
       this.writers.setText(detail, '');
       this.writers.setText(battlefield, '');
-      this.writers.setDisplay(battlefield, 'none');
+      this.writers.setStyleProp(battlefield, 'display', 'none');
       this.writers.setDisplay(economy, 'none');
       this.writers.setDisplay(actions, 'none');
       this.writers.setDisplay(structures, 'none');
@@ -1392,7 +1392,7 @@ export class TerritoryMapController {
       this.writers.setText(title, t('hudChrome.territoryMap.impassableMountain'));
       this.writers.setText(detail, t('hudChrome.territoryMap.mountainNotice'));
       this.writers.setText(battlefield, '');
-      this.writers.setDisplay(battlefield, 'none');
+      this.writers.setStyleProp(battlefield, 'display', 'none');
       this.writers.setDisplay(economy, 'none');
       this.writers.setDisplay(actions, 'none');
       this.writers.setDisplay(structures, 'none');
@@ -1427,7 +1427,7 @@ export class TerritoryMapController {
         biome: t(`hudChrome.territoryMap.${territorySiegeMapLabelKey(siegeBiome)}`),
       }),
     );
-    this.writers.setDisplay(battlefield, 'block');
+    this.writers.setStyleProp(battlefield, 'display', 'block');
     this.writers.setDisplay(economy, state.guild ? 'none' : 'block');
     this.writers.setDisplay(element('#territory-economy-empty'), state.guild ? 'none' : 'block');
     const action = this.primaryAction();
@@ -1586,8 +1586,9 @@ export class TerritoryMapController {
       element('#territory-structure-detail-status'),
       `${status}${countdown ? ` · ${countdown}` : ''}`,
     );
-    this.writers.setText(element('#territory-structure-detail-cost'), cost);
-    this.writers.setDisplay(element('#territory-structure-detail-cost'), cost ? 'block' : 'none');
+    const costEl = element('#territory-structure-detail-cost');
+    this.writers.setText(costEl, cost);
+    this.writers.setStyleProp(costEl, 'display', cost ? 'block' : 'none');
     this.writers.setText(
       action,
       model.action?.kind === 'build'

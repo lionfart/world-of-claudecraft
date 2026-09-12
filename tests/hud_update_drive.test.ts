@@ -1804,7 +1804,7 @@ describe('Hud.update() drives exactly the registered set, on the registered band
       // #vendor-window tenant, on the heroic vendor's exact row shape).
       // Territory is updated through its existing chrome row, so the merged
       // split combines both upstream window rows with the dodge meter.
-    ).toEqual({ window: 46, chrome: 88, none: 18 });
+    ).toEqual({ window: 49, chrome: 93, none: 18 });
     const windows = HUD_UPDATE_DRIVES.filter((r) => r.surface === 'window');
     expect(windows.map((r) => r.call)).toContain('this.spellbookWindow.tickOpen');
     expect(windows.map((r) => r.call)).toContain('this.refreshOpenTownFocusIfChanged');

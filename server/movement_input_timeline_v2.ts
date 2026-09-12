@@ -87,13 +87,23 @@ export function applyMovementInputFrame(
   if (session.movementWireVersion === 2) {
     let accepted = false;
     if (frame.ct !== null) {
-      session.movementTimeline?.enqueue({
-        ct: frame.ct,
-        mi: frame.moveInput,
-        facing: frame.facing,
-        combatAimAngle: frame.combatAimAngle ?? null,
-        combatAimPitch: frame.combatAimPitch ?? null,
-      });
+      accepted =
+        session.movementTimeline?.enqueue({
+          ct: frame.ct,
+          mi: frame.moveInput,
+          facing: frame.facing,
+          combatAimAngle: frame.combatAimAngle ?? null,
+          combatAimPitch: frame.combatAimPitch ?? null,
+        }) === true;
+    }
+    if (accepted && ctx) {
+      noteBattlegroundWallPressure(
+        ctx,
+        meta,
+        entity,
+        frame.moveInput,
+        frame.facing ?? entity.facing,
+      );
     }
     return frame;
   }
@@ -128,7 +138,7 @@ export function consumeMovementFramesV2(
     Object.assign(meta.moveInput, frame.mi);
     meta.combatAimAngle = frame.combatAimAngle ?? frame.facing ?? entity.facing;
     meta.combatAimPitch = frame.combatAimPitch ?? 0;
-    noteBattlegroundWallPressure(sim.ctx, meta, entity);
+    noteBattlegroundWallPressure(sim.ctx, meta, entity, frame.mi, frame.facing ?? entity.facing);
     if (frame.facing !== null && (!entity.dead || entity.ghost) && !isStunned(entity)) {
       entity.facing = frame.facing;
     }

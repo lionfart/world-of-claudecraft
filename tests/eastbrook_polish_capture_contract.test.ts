@@ -669,7 +669,7 @@ interface AttributionTargetFixture {
 // fingerprint input, so every shipping GLB was size-preserving re-minted and this
 // seal follows the swept evidence. No capture was retaken.
 const PINNED_POLISH_COMPOSITE_FINGERPRINT =
-  '5ae21044dd1b636f9c293ec628a7d316f740bb92a5962f848c6e58c80218ebbc';
+  '80fe215bc05b78a9abee0ed5148d9b87e29b4bef87a6cb62c65ccc1bbe2fdb89';
 
 function validPolishAttributionTargets(): AttributionTargetFixture[] {
   return [

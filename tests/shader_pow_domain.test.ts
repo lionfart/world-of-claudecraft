@@ -138,7 +138,6 @@ const POW_SITES_PER_FILE: Record<string, number> = {
   // (bases clamped with clamp(x, 0, 1) or max(x, 0))
   'src/render/realm_builder_monument_fx.ts': 5,
   'src/render/sky.ts': 1,
-  'src/render/territory_siege_prototype.ts': 1,
   'src/render/water.ts': 1,
   'src/render/weapon_vfx.ts': 4,
   'src/render/worn_stone.ts': 1,

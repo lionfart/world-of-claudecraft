@@ -1335,7 +1335,7 @@ const MONOLITHS: MonolithRow[] = [
     // hardening added the per-guild holder index hooks (touch, resync,
     // dropGuild, dropSession) and the coalesced flush fields. Zero margin.
     // Re-pinned to the measured v0.41.3 plus Territory runtime merge.
-    ceiling: 10608,
+    ceiling: 10134,
     seam: 'a sibling server module; see the hot-path seams in server/CLAUDE.md',
   },
   {
@@ -1575,7 +1575,7 @@ const MONOLITHS: MonolithRow[] = [
     // merge: both parents had already ratcheted for their own work, so
     // the composite is the honest size. Exact count, zero slack.
     // Re-pinned to the measured v0.41.3 plus Territory persistence integration.
-    ceiling: 5149,
+    ceiling: 4748,
     seam: 'a domain <domain>_db.ts module with its own *_SCHEMA (server/CLAUDE.md)',
   },
   {

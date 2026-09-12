@@ -19,6 +19,7 @@ import type {
   MapStationMarker,
   MapViewRect,
 } from '../src/ui/map_window_view';
+import { mapWindowMode } from '../src/ui/map_window_view';
 import type { WindowDragDeps } from '../src/ui/window_drag';
 import type { IWorld, RiftFloorView } from '../src/world_api';
 
@@ -924,11 +925,12 @@ describe('Hud zone-map marker lifecycle', () => {
     hud.mapPing = { x: 3, z: 4 };
     hud.mapZoneOverride = zone.id;
     hud.mapDrag = {};
+    expect(mapWindowMode(hud.sim)).toBe('rift');
     hud.updateMapWindow();
+    expect(hud.mapLevel).toBe('instance');
     assertNoZoneHits();
     // A mode transition opens the new band on ITS default level: the rift plan
     // here (map_surface_core.ts defaultMapLevel); the toggle can still leave it.
-    expect(hud.mapLevel).toBe('instance');
     expect(hud.mapCenter).toBeNull();
     expect(hud.mapPing).toBeNull();
     expect(hud.mapZoneOverride).toBeNull();

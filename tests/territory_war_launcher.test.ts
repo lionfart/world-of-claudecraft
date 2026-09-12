@@ -176,9 +176,9 @@ describe.each(['index.html', 'play.html'])('%s territory war launcher', (file) =
     expect(get('map-window').contains(get('territory-siege-result'))).toBe(false);
     expect(get('mm-territory').dataset.icon).toBe('territory');
     expect(get('mm-territory').nextElementSibling?.id).toBe('mm-social');
-    expect(document.getElementById('mm-music')).toBeNull();
+    expect(get('mm-territory').previousElementSibling?.id).toBe('mm-music');
     expect(get('mobile-territory').nextElementSibling?.id).toBe('mobile-haptics');
-    expect(document.getElementById('mobile-music')).toBeNull();
+    expect(get('mobile-territory').previousElementSibling?.id).toBe('mobile-music');
     controller.updateSiegeHud();
     expect(controller.isOpen).toBe(false);
     expect(get('territory-war-dock').style.display).toBe('none');

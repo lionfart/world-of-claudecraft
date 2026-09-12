@@ -10,8 +10,14 @@ export interface StaticSfxSnapshot {
 }
 
 function sameFile(left: Stats, right: Stats): boolean {
+  // Node reports the volume id through fstat on Windows, but path-based stat
+  // currently reports dev=0 for the same NTFS file. The stable file id (ino)
+  // still distinguishes a pathname replacement, so accept that documented
+  // sentinel only on win32 and keep the full device check everywhere else.
+  const sameDevice =
+    left.dev === right.dev || (process.platform === 'win32' && (left.dev === 0 || right.dev === 0));
   return (
-    left.dev === right.dev &&
+    sameDevice &&
     left.ino === right.ino &&
     left.size === right.size &&
     left.mtimeMs === right.mtimeMs &&

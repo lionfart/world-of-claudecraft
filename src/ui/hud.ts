@@ -11401,6 +11401,13 @@ export class Hud {
     const prior = this.lastMapWindowMode;
     this.lastMapWindowMode = mode;
     if (prior === mode) return;
+    // A mode change invalidates every hit target from the previously painted
+    // surface immediately. The selected level is normalized below, but stale
+    // zone markers must not survive even for the first frame of a rift,
+    // battleground, delve, or Territory War transition.
+    this.mapMarkerInteraction.clear();
+    this.mapView = null;
+    this.continentRegions.length = 0;
     if (!prior) {
       this.mapLevel = defaultMapLevel(mode); // first paint: the band's own level
       return;
@@ -11411,7 +11418,7 @@ export class Hud {
     this.mapZoneOverride = null;
     this.mapHoverZone = null;
     this.mapZoom = MAP_OPEN_ZOOM;
-    this.mapLevel = 'zone';
+    this.mapLevel = defaultMapLevel(mode);
     this.territoryMap.close();
     this.hideTooltip();
   }

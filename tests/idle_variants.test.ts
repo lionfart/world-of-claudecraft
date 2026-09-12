@@ -125,9 +125,9 @@ describe('idle-breaker clips', () => {
     expect(end).toBeGreaterThan(start);
     const actionMap = characterVisualSource.slice(start, end);
 
-    expect(characterVisualSource).toContain(
-      'for (const name of [...clipNamesOf(prep.def), ...SKIN_ATTACK_CLIP_NAMES]) {',
-    );
+    expect(characterVisualSource).toContain('...clipNamesOf(prep.def),');
+    expect(characterVisualSource).toContain('...Object.values(PLAYER_DODGE_ROLL_CLIPS),');
+    expect(characterVisualSource).toContain('...SKIN_ATTACK_CLIP_NAMES,');
     expect(actionMap).toContain('...(c.idleVariants ?? []),');
     expect(actionMap).toContain('c.idleBeat?.clip,');
   });
@@ -158,14 +158,14 @@ describe('idle-breaker clips', () => {
     expect(gaitAt).toBeGreaterThan(variantAt);
   });
 
-  it('fires a fidget on the authored 5-second beat, clear of the previous one', () => {
+  it('fires a fidget on the authored 18-34-second cadence, clear of the previous one', () => {
     // The fidgets are this rig's character, so the cadence is deliberately
-    // tight: a fidget falls due every 5 seconds. The only hard requirement left
+    // relaxed: a fidget falls due every 18-34 seconds. The hard requirement
     // is that a variant has ENDED before the next one is due, since a fidget is
     // a one-shot and re-firing over a live one would cut it short.
     const { min, jitter } = idleVariantCadenceForTest;
-    expect(jitter).toBe(0);
-    expect(min).toBe(5);
+    expect(jitter).toBe(16);
+    expect(min).toBe(18);
     for (const [key, def] of rigsWithVariants) {
       const durations = clipDurations(def.url.replace(/^\//, ''));
       const longest = Math.max(
@@ -178,13 +178,13 @@ describe('idle-breaker clips', () => {
     }
   });
 
-  it('runs the CharacterVisual scheduler on the shipped five-second beat', () => {
+  it('runs the CharacterVisual scheduler on the shipped minimum cadence', () => {
     const random = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
       const { visual, playOneShot } = idleVariantHarness();
       visual.tickIdleVariant(0, 'idle');
-      expect(visual.idleVariantIn).toBe(5);
-      visual.tickIdleVariant(4.99, 'idle');
+      expect(visual.idleVariantIn).toBe(18);
+      visual.tickIdleVariant(17.99, 'idle');
       expect(playOneShot).not.toHaveBeenCalled();
       visual.tickIdleVariant(0.02, 'idle');
       expect(playOneShot).toHaveBeenCalledOnce();

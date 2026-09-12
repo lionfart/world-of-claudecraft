@@ -35,6 +35,7 @@ const tracker = read('../src/ui/deed_tracker_painter.ts');
 const hud = read('../src/ui/hud.ts');
 const sideButtons = read('../src/ui/hud/menu/side_buttons.ts');
 const mainSrc = read('../src/main.ts');
+const collectionActionsSrc = read('../src/ui/collection_actions_core.ts');
 const gamepadDispatchSrc = read('../src/game/gamepad_action_dispatch.ts');
 const inputSrc = read('../src/game/input.ts');
 const settingsSrc = read('../src/game/settings.ts');
@@ -799,7 +800,8 @@ describe('mobile layout (hud.mobile.css)', () => {
 describe('keybind dispatch chain', () => {
   it('dispatches the deeds edge action end to end (keyboard and gamepad)', () => {
     expect(inputSrc).toMatch(/case 'deeds':\s*this\.cb\.onUiKey\('deeds'\);/);
-    expect(mainSrc).toMatch(/case 'deeds':\s*hud\.toggleDeeds\(\);/);
+    expect(mainSrc).toContain('if (dispatchCollectionAction(key, hud)) return;');
+    expect(collectionActionsSrc).toContain("deeds: 'toggleDeeds'");
     expect(gamepadDispatchSrc).toMatch(/case 'deeds':\s*hud\.toggleDeeds\(\);/);
   });
 });

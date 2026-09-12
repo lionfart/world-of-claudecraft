@@ -1,4 +1,5 @@
-import { execFileSync } from 'node:child_process';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { isDispellableAura } from '../src/sim/aura_classify';
@@ -3798,14 +3799,18 @@ describe('the outcome log stays observability-only', () => {
     // at all, so its CONTENTS legitimately differ across the three hosts. That
     // is only safe while nothing gameplay-facing reads it, which no type can
     // express, so the reference set is pinned here.
-    const root = new URL('..', import.meta.url);
-    const hits = execFileSync('grep', ['-rl', 'bgOutcomes', 'src', 'server', 'headless'], {
-      cwd: fileURLToPath(root),
-      encoding: 'utf8',
-    })
-      .split('\n')
-      .filter(Boolean)
-      .sort();
+    const root = fileURLToPath(new URL('..', import.meta.url));
+    const hits: string[] = [];
+    const scan = (directory: string): void => {
+      for (const name of readdirSync(directory)) {
+        const absolute = join(directory, name);
+        if (statSync(absolute).isDirectory()) scan(absolute);
+        else if (readFileSync(absolute, 'utf8').includes('bgOutcomes'))
+          hits.push(relative(root, absolute).replaceAll('\\', '/'));
+      }
+    };
+    for (const directory of ['src', 'server', 'headless']) scan(join(root, directory));
+    hits.sort();
     expect(hits).toEqual([
       'server/game.ts', // the one host that drains
       'src/sim/sim.ts', // the backing array + its ctx binding
