@@ -2854,16 +2854,24 @@ export class Vfx {
       // Bundled volleys share gameplay collision, but fan into distinct visual
       // lanes after release so Winterlash still reads as three ice darts. The
       // lanes stay close to the server path and disappear together on impact.
-      const fan = Math.min(1, projectile.travelled / Math.max(0.6, projectile.scale * 1.4));
       for (let visual = 0; visual < projectile.visualCount; visual++) {
-        const lane = visual - (projectile.visualCount - 1) * 0.5;
+        // Lead from the centre, then alternate left/right followers. The
+        // distance delay is the frame-rate-independent equivalent of the old
+        // 0.12s gallery stagger, shortened slightly so close hits still show
+        // all three Winterlash darts before authoritative impact removes them.
+        const lane = visual === 0 ? 0 : visual % 2 === 1 ? -Math.ceil(visual / 2) : visual / 2;
+        const launchDelayDistance = visual * 2.2 * projectile.scale;
+        if (projectile.travelled + 1e-6 < launchDelayDistance) continue;
+        const visualTravelled = projectile.travelled - launchDelayDistance;
+        const fan = Math.min(1, visualTravelled / Math.max(0.45, projectile.scale * 0.9));
         const laneMagnitude = Math.abs(lane);
-        const lateralOffset = lane * 0.42 * projectile.scale * fan;
-        const verticalOffset = laneMagnitude * 0.1 * projectile.scale * fan;
-        const trailLag = laneMagnitude * 0.2 * projectile.scale * fan;
-        const visualX = projectile.pos.x - projectile.dirX * trailLag + sideX * lateralOffset;
-        const visualY = projectile.pos.y - projectile.dirY * trailLag + verticalOffset;
-        const visualZ = projectile.pos.z - projectile.dirZ * trailLag + sideZ * lateralOffset;
+        const lateralOffset = lane * 0.9 * projectile.scale * fan;
+        const verticalOffset = laneMagnitude * 0.16 * projectile.scale * fan;
+        const visualX =
+          projectile.pos.x - projectile.dirX * launchDelayDistance + sideX * lateralOffset;
+        const visualY = projectile.pos.y - projectile.dirY * launchDelayDistance + verticalOffset;
+        const visualZ =
+          projectile.pos.z - projectile.dirZ * launchDelayDistance + sideZ * lateralOffset;
         if (projectile.jagged) {
           let lateral = 0;
           let vertical = 0;
