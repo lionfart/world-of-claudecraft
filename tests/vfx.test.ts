@@ -99,18 +99,30 @@ describe('pooled VFX cloud', () => {
     expect(probe.ballisticProjectiles).toHaveLength(1);
     expect(probe.ballisticProjectiles[0]?.visualCount).toBe(3);
     vfx.update(0);
-    // The centre leader launches first with its crystal glint + frost halo.
-    expect(probe.activeCount).toBe(2);
-
-    vfx.clear();
-    vfx.ballisticProjectile('winterlash:2', 0, 1, 0, 0, 0, 1, 26, 30, 'frost', {
-      style: 'shard',
-      volley: 3,
-    });
-    vfx.update(0.17);
-    // By 4.42 yd of travel both staggered followers have launched; the three
-    // layered heads and their bounded trails are visibly more than the leader.
-    expect(probe.activeCount).toBeGreaterThanOrEqual(14);
+    // Every dart launches in the first frame. Each has a crystal glint and a
+    // frost halo, and their centres form an upright triangle around the one
+    // authoritative path (forward is +Z in this fixture).
+    expect(probe.activeCount).toBe(6);
+    expect([...probe.pos.subarray(0, 18)]).toEqual([
+      0,
+      expect.closeTo(1.54, 5),
+      0,
+      0,
+      expect.closeTo(1.54, 5),
+      0,
+      expect.closeTo(0.62, 5),
+      expect.closeTo(0.69, 5),
+      0,
+      expect.closeTo(0.62, 5),
+      expect.closeTo(0.69, 5),
+      0,
+      expect.closeTo(-0.62, 5),
+      expect.closeTo(0.69, 5),
+      0,
+      expect.closeTo(-0.62, 5),
+      expect.closeTo(0.69, 5),
+      0,
+    ]);
   });
 
   it('emits bounded twin-nozzle rocket particles and resets its nozzle alternation', () => {

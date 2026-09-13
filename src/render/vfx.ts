@@ -2851,27 +2851,27 @@ export class Vfx {
       const horizontalLength = Math.hypot(projectile.dirX, projectile.dirZ);
       const sideX = horizontalLength > 1e-6 ? -projectile.dirZ / horizontalLength : 1;
       const sideZ = horizontalLength > 1e-6 ? projectile.dirX / horizontalLength : 0;
-      // Bundled volleys share gameplay collision, but fan into distinct visual
-      // lanes after release so Winterlash still reads as three ice darts. The
-      // lanes stay close to the server path and disappear together on impact.
+      // Complete the local frame with an axis that stays perpendicular to the
+      // full 3D flight direction. Unlike world-Y offsets, this keeps the volley
+      // readable when the player aims steeply above or below the caster.
+      const formationUpX = -sideZ * projectile.dirY;
+      const formationUpY = sideZ * projectile.dirX - sideX * projectile.dirZ;
+      const formationUpZ = sideX * projectile.dirY;
+      // Bundled volleys share gameplay collision, but fly as a compact visual
+      // formation around that path and disappear together on impact.
       for (let visual = 0; visual < projectile.visualCount; visual++) {
-        // Lead from the centre, then alternate left/right followers. The
-        // distance delay is the frame-rate-independent equivalent of the old
-        // 0.12s gallery stagger, shortened slightly so close hits still show
-        // all three Winterlash darts before authoritative impact removes them.
-        const lane = visual === 0 ? 0 : visual % 2 === 1 ? -Math.ceil(visual / 2) : visual / 2;
-        const launchDelayDistance = visual * 2.2 * projectile.scale;
-        if (projectile.travelled + 1e-6 < launchDelayDistance) continue;
-        const visualTravelled = projectile.travelled - launchDelayDistance;
-        const fan = Math.min(1, visualTravelled / Math.max(0.45, projectile.scale * 0.9));
-        const laneMagnitude = Math.abs(lane);
-        const lateralOffset = lane * 0.9 * projectile.scale * fan;
-        const verticalOffset = laneMagnitude * 0.16 * projectile.scale * fan;
-        const visualX =
-          projectile.pos.x - projectile.dirX * launchDelayDistance + sideX * lateralOffset;
-        const visualY = projectile.pos.y - projectile.dirY * launchDelayDistance + verticalOffset;
-        const visualZ =
-          projectile.pos.z - projectile.dirZ * launchDelayDistance + sideZ * lateralOffset;
+        // A three-shot authored volley (Winterlash) is an upright triangle:
+        // one dart above the authority line and two close darts below it. All
+        // three launch simultaneously, so even a point-blank hit reads as a
+        // volley instead of briefly showing only its centre leader.
+        const triangle = projectile.visualCount === 3;
+        const lateralOffset = triangle
+          ? (visual === 0 ? 0 : visual === 1 ? -0.62 : 0.62) * projectile.scale
+          : (visual - (projectile.visualCount - 1) * 0.5) * 0.72 * projectile.scale;
+        const verticalOffset = triangle ? (visual === 0 ? 0.54 : -0.31) * projectile.scale : 0;
+        const visualX = projectile.pos.x + sideX * lateralOffset + formationUpX * verticalOffset;
+        const visualY = projectile.pos.y + formationUpY * verticalOffset;
+        const visualZ = projectile.pos.z + sideZ * lateralOffset + formationUpZ * verticalOffset;
         if (projectile.jagged) {
           let lateral = 0;
           let vertical = 0;
