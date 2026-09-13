@@ -124,6 +124,22 @@ describe('player gesture release on cast fx (review #2961)', () => {
     );
   });
 
+  it.each([
+    ['fireball', 'rock'],
+    ['frostbolt', 'shard'],
+    ['shadow_bolt', 'shadowFang'],
+    ['arcane_shot', 'comet'],
+  ] as const)('keeps the authored %s palette silhouette as %s', (ability, style) => {
+    const { painter } = makePainter(() => false);
+    const appearance = painter.handleBallisticLaunch({
+      trajectoryId: `3:palette:${ability}`,
+      sourceId: SOURCE_ID,
+      ability,
+    });
+
+    expect(appearance?.style).toBe(style);
+  });
+
   it.each(['arcane_missiles', 'rapid_fire'])(
     'keeps each %s channel tick as one visual projectile',
     (ability) => {

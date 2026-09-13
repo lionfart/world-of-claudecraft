@@ -317,6 +317,11 @@ const PROJ_STYLE_BY_PALETTE: Record<string, BoltTrailStyle> = {
   venom: 'wisp',
 };
 
+/** Resolve the same authored projectile silhouette for every travel renderer. */
+export function abilityBoltTrailStyle(spec: AbilityVfxFullSpec): BoltTrailStyle {
+  return spec.bolt?.style ?? PROJ_STYLE_BY_PALETTE[spec.palette] ?? 'comet';
+}
+
 export class AbilityVfxFx implements SequencerHost {
   private ribbons: AbilityVfxRibbons;
   private rings: ShockRings;
@@ -749,7 +754,7 @@ export class AbilityVfxFx implements SequencerHost {
       );
       return;
     }
-    const style: BoltTrailStyle = b.style ?? PROJ_STYLE_BY_PALETTE[spec.palette] ?? 'comet';
+    const style = abilityBoltTrailStyle(spec);
     const speed = b.speed ?? 26;
     const fullTier = tier === 0;
     // gallery head factors: arrows nearly vanish, shaped heads run leaner
@@ -873,7 +878,7 @@ export class AbilityVfxFx implements SequencerHost {
         }
       : null;
     const b = spec.bolt;
-    const style: BoltTrailStyle = b?.style ?? PROJ_STYLE_BY_PALETTE[spec.palette] ?? 'comet';
+    const style = abilityBoltTrailStyle(spec);
     const speed = b?.speed ?? 26;
     const fullTier = tier === 0;
     const hs = headScale * (style === 'arrow' ? 0.35 : style !== 'comet' ? 0.7 : 1);

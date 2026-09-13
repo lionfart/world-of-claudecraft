@@ -27,7 +27,12 @@ import { attackAbilityId } from '../characters/weapon_attack_style_core';
 import { ignivarAllowsBodyGlow } from '../ignivar_encounter_core';
 import type { BallisticProjectileAppearance } from '../vfx';
 import { abilityVfxFullSpecFor, abilityVfxSpecFor } from './encounter_specs';
-import { type AbilityVfxFx, asOrbitStyle, type ParticleBurstKind } from './fx';
+import {
+  type AbilityVfxFx,
+  abilityBoltTrailStyle,
+  asOrbitStyle,
+  type ParticleBurstKind,
+} from './fx';
 
 interface VfxPoint {
   x: number;
@@ -512,7 +517,7 @@ export class AbilityVfx {
     return {
       color: plan.color,
       scale: plan.projScale,
-      style: full?.bolt?.style,
+      style: full ? abilityBoltTrailStyle(full) : undefined,
       volley: authoredBallisticVisualCount(ev.ability, full),
       jagged: plan.jagged || full?.bolt?.jagged === true,
       coils: full?.bolt?.coils === true,
