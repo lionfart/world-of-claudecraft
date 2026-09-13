@@ -108,6 +108,36 @@ describe('player gesture release on cast fx (review #2961)', () => {
     );
   });
 
+  it('restores Winterlash as three authored ice shards on one ballistic arrival', () => {
+    const { painter } = makePainter(() => false);
+    const appearance = painter.handleBallisticLaunch({
+      trajectoryId: '3:4:1',
+      sourceId: SOURCE_ID,
+      ability: 'flurry',
+    });
+
+    expect(appearance).toEqual(
+      expect.objectContaining({
+        style: 'shard',
+        volley: 3,
+      }),
+    );
+  });
+
+  it.each(['arcane_missiles', 'rapid_fire'])(
+    'keeps each %s channel tick as one visual projectile',
+    (ability) => {
+      const { painter } = makePainter(() => false);
+      const appearance = painter.handleBallisticLaunch({
+        trajectoryId: `3:channel:${ability}`,
+        sourceId: SOURCE_ID,
+        ability,
+      });
+
+      expect(appearance?.volley).toBe(1);
+    },
+  );
+
   it('ends Fireball authored impact anatomy at the server contact event', () => {
     const { painter, fx } = makePainter(() => false);
     painter.handleBallisticLaunch({

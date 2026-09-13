@@ -35,6 +35,24 @@ interface VfxPoint {
   z: number;
 }
 
+/**
+ * A ballistic event is one authoritative collision, but a few authored spells
+ * intentionally bundle several same-target damage packets into that arrival.
+ * Preserve their gallery volley without multiplying channel ticks (Aether
+ * Darts/Fevered Draw) or turning an area preview (Splitshot) into extra shots.
+ */
+function authoredBallisticVisualCount(abilityId: string, full?: AbilityVfxFullSpec): number {
+  const authoredVolley = Math.max(1, Math.floor(full?.bolt?.volley ?? 1));
+  if (authoredVolley <= 1) return 1;
+  const def = ABILITIES[abilityId];
+  if (def?.projectile !== true || def.channel) return 1;
+  let bundledDamagePackets = 0;
+  for (const effect of def.effects) {
+    if (effect.type === 'directDamage') bundledDamagePackets++;
+  }
+  return Math.max(1, Math.min(authoredVolley, bundledDamagePackets));
+}
+
 // The few Vfx methods this painter drives (structurally satisfied by Vfx).
 export interface AbilityVfxPrimitives {
   projectile(
@@ -495,6 +513,7 @@ export class AbilityVfx {
       color: plan.color,
       scale: plan.projScale,
       style: full?.bolt?.style,
+      volley: authoredBallisticVisualCount(ev.ability, full),
       jagged: plan.jagged || full?.bolt?.jagged === true,
       coils: full?.bolt?.coils === true,
       tracer: full?.bolt?.tracer === true,

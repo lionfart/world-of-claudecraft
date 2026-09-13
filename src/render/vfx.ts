@@ -329,12 +329,15 @@ interface BallisticProjectileVisual {
   dirZ: number;
   speed: number;
   remaining: number;
+  travelled: number;
   color: THREE.Color;
   coreColor: THREE.Color;
   trailColor: THREE.Color;
   coreSprite: number;
   trailSprite: number;
+  style?: BallisticProjectileStyle;
   scale: number;
+  visualCount: number;
   jagged: boolean;
   coils: boolean;
   tracer: boolean;
@@ -355,6 +358,8 @@ export interface BallisticProjectileAppearance {
   color?: number;
   scale?: number;
   style?: BallisticProjectileStyle;
+  /** Cosmetic missiles sharing this one authoritative collision trajectory. */
+  volley?: number;
   jagged?: boolean;
   coils?: boolean;
   tracer?: boolean;
@@ -384,7 +389,7 @@ function ballisticProjectileSprites(
     case 'arrow':
       return { core: SPR.trace, trail: SPR.trace };
     case 'shard':
-      return { core: SPR.star, trail: SPR.sparkle };
+      return { core: SPR.trace, trail: SPR.sparkle };
     case 'wisp':
     case 'felLance':
     case 'shadowFang':
@@ -1004,12 +1009,15 @@ export class Vfx {
       dirZ: dirZ / length,
       speed,
       remaining: Math.max(0, maxDistance),
+      travelled: 0,
       color: colors.base,
       coreColor: colors.core,
       trailColor: colors.trail,
       coreSprite: sprites.core,
       trailSprite: sprites.trail,
+      style: appearance?.style,
       scale: Math.max(0.5, Math.min(2.5, appearance?.scale ?? 1)),
+      visualCount: Math.max(1, Math.min(4, Math.floor(appearance?.volley ?? 1))),
       jagged: appearance?.jagged === true,
       coils: appearance?.coils === true,
       tracer: appearance?.tracer === true,
@@ -2839,98 +2847,127 @@ export class Vfx {
       projectile.pos.y += projectile.dirY * step;
       projectile.pos.z += projectile.dirZ * step;
       projectile.remaining -= step;
-      if (projectile.jagged) {
-        const perpX = -projectile.dirZ;
-        const perpZ = projectile.dirX;
-        let lateral = 0;
-        let vertical = 0;
-        for (let segment = 0; segment < 5; segment++) {
-          lateral = lateral * 0.45 + (Math.random() - 0.5) * 0.75;
-          vertical = vertical * 0.45 + (Math.random() - 0.5) * 0.55;
-          const back = segment * 0.55 * projectile.scale;
-          const x = projectile.pos.x - projectile.dirX * back + perpX * lateral * projectile.scale;
-          const y = projectile.pos.y - projectile.dirY * back + vertical * projectile.scale;
-          const z = projectile.pos.z - projectile.dirZ * back + perpZ * lateral * projectile.scale;
-          const head = segment === 0;
+      projectile.travelled += step;
+      const horizontalLength = Math.hypot(projectile.dirX, projectile.dirZ);
+      const sideX = horizontalLength > 1e-6 ? -projectile.dirZ / horizontalLength : 1;
+      const sideZ = horizontalLength > 1e-6 ? projectile.dirX / horizontalLength : 0;
+      // Bundled volleys share gameplay collision, but fan into distinct visual
+      // lanes after release so Winterlash still reads as three ice darts. The
+      // lanes stay close to the server path and disappear together on impact.
+      const fan = Math.min(1, projectile.travelled / Math.max(0.6, projectile.scale * 1.4));
+      for (let visual = 0; visual < projectile.visualCount; visual++) {
+        const lane = visual - (projectile.visualCount - 1) * 0.5;
+        const laneMagnitude = Math.abs(lane);
+        const lateralOffset = lane * 0.42 * projectile.scale * fan;
+        const verticalOffset = laneMagnitude * 0.1 * projectile.scale * fan;
+        const trailLag = laneMagnitude * 0.2 * projectile.scale * fan;
+        const visualX = projectile.pos.x - projectile.dirX * trailLag + sideX * lateralOffset;
+        const visualY = projectile.pos.y - projectile.dirY * trailLag + verticalOffset;
+        const visualZ = projectile.pos.z - projectile.dirZ * trailLag + sideZ * lateralOffset;
+        if (projectile.jagged) {
+          let lateral = 0;
+          let vertical = 0;
+          for (let segment = 0; segment < 5; segment++) {
+            lateral = lateral * 0.45 + (Math.random() - 0.5) * 0.75;
+            vertical = vertical * 0.45 + (Math.random() - 0.5) * 0.55;
+            const back = segment * 0.55 * projectile.scale;
+            const x = visualX - projectile.dirX * back + sideX * lateral * projectile.scale;
+            const y = visualY - projectile.dirY * back + vertical * projectile.scale;
+            const z = visualZ - projectile.dirZ * back + sideZ * lateral * projectile.scale;
+            const head = segment === 0;
+            this.spawn(
+              x,
+              y,
+              z,
+              0,
+              0,
+              0,
+              head ? projectile.coreColor : projectile.color,
+              (head ? 0.5 : 0.36) * projectile.scale,
+              0.13,
+              0,
+              SPR.glowCore,
+            );
+            this.spawn(
+              x,
+              y,
+              z,
+              0,
+              0,
+              0,
+              projectile.trailColor,
+              (head ? 0.7 : 0.5) * projectile.scale,
+              0.15,
+              0,
+              SPR.glowSoft,
+            );
+          }
+        } else {
           this.spawn(
-            x,
-            y,
-            z,
+            visualX,
+            visualY,
+            visualZ,
             0,
             0,
             0,
-            head ? projectile.coreColor : projectile.color,
-            (head ? 0.5 : 0.36) * projectile.scale,
-            0.13,
+            projectile.coreColor,
+            0.46 * projectile.scale,
+            0.1,
             0,
-            SPR.glowCore,
+            projectile.coreSprite,
           );
+          if (projectile.style === 'shard') {
+            // Match the authored ribbon renderer's crystal anatomy: a thin,
+            // elongated glint over a softer frost halo, not a generic orb.
+            this.spawn(
+              visualX,
+              visualY,
+              visualZ,
+              0,
+              0,
+              0,
+              projectile.color,
+              0.32 * projectile.scale,
+              0.11,
+              0,
+              SPR.glowSoft,
+            );
+          }
+        }
+        for (let n = 0; n < this.emitCount(34, dt); n++) {
+          const coil = projectile.coils
+            ? Math.sin(projectile.remaining * 9 + n * Math.PI) * 0.34 * projectile.scale
+            : 0;
           this.spawn(
-            x,
-            y,
-            z,
-            0,
-            0,
-            0,
+            visualX - projectile.dirX * (0.15 + Math.random() * 0.65) - projectile.dirZ * coil,
+            visualY + (Math.random() - 0.5) * 0.16,
+            visualZ - projectile.dirZ * (0.15 + Math.random() * 0.65) + projectile.dirX * coil,
+            -projectile.dirX * (0.8 + Math.random()),
+            -projectile.dirY * (0.8 + Math.random()) + (Math.random() - 0.35) * 0.6,
+            -projectile.dirZ * (0.8 + Math.random()),
             projectile.trailColor,
-            (head ? 0.7 : 0.5) * projectile.scale,
-            0.15,
+            0.24 * projectile.scale,
+            0.28,
             0,
-            SPR.glowSoft,
+            projectile.trailSprite,
           );
         }
-      } else {
-        this.spawn(
-          projectile.pos.x,
-          projectile.pos.y,
-          projectile.pos.z,
-          0,
-          0,
-          0,
-          projectile.coreColor,
-          0.46 * projectile.scale,
-          0.1,
-          0,
-          projectile.coreSprite,
-        );
-      }
-      for (let n = 0; n < this.emitCount(34, dt); n++) {
-        const coil = projectile.coils
-          ? Math.sin(projectile.remaining * 9 + n * Math.PI) * 0.34 * projectile.scale
-          : 0;
-        this.spawn(
-          projectile.pos.x -
-            projectile.dirX * (0.15 + Math.random() * 0.65) -
-            projectile.dirZ * coil,
-          projectile.pos.y + (Math.random() - 0.5) * 0.16,
-          projectile.pos.z -
-            projectile.dirZ * (0.15 + Math.random() * 0.65) +
-            projectile.dirX * coil,
-          -projectile.dirX * (0.8 + Math.random()),
-          -projectile.dirY * (0.8 + Math.random()) + (Math.random() - 0.35) * 0.6,
-          -projectile.dirZ * (0.8 + Math.random()),
-          projectile.trailColor,
-          0.24 * projectile.scale,
-          0.28,
-          0,
-          projectile.trailSprite,
-        );
-      }
-      if (projectile.tracer && this.emitChance(18, dt)) {
-        this.spawn(
-          projectile.pos.x - projectile.dirX * 0.45,
-          projectile.pos.y,
-          projectile.pos.z - projectile.dirZ * 0.45,
-          -projectile.dirX * 1.4,
-          -projectile.dirY * 1.4,
-          -projectile.dirZ * 1.4,
-          projectile.trailColor,
-          0.35 * projectile.scale,
-          0.2,
-          0,
-          SPR.trace,
-          0,
-        );
+        if (projectile.tracer && this.emitChance(18, dt)) {
+          this.spawn(
+            visualX - projectile.dirX * 0.45,
+            visualY,
+            visualZ - projectile.dirZ * 0.45,
+            -projectile.dirX * 1.4,
+            -projectile.dirY * 1.4,
+            -projectile.dirZ * 1.4,
+            projectile.trailColor,
+            0.35 * projectile.scale,
+            0.2,
+            0,
+            SPR.trace,
+            0,
+          );
+        }
       }
       // Impact normally arrives in the same or next render frame. Keep an
       // inert short grace window for network ordering, then discard silently.

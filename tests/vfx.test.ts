@@ -27,6 +27,7 @@ interface VfxProbe {
   rotAttr: Float32Array;
   activeSlots: Int32Array;
   activeCount: number;
+  ballisticProjectiles: Array<{ visualCount: number }>;
   ignivarJudgmentFireAccumulator: number;
   ignivarJudgmentFireSerial: number;
   head: number;
@@ -84,6 +85,24 @@ afterEach(() => {
 });
 
 describe('pooled VFX cloud', () => {
+  it('renders an authored cosmetic volley without duplicating its authoritative trajectory', () => {
+    installCanvasStub();
+    vi.spyOn(Math, 'random').mockReturnValue(1);
+    const vfx = new Vfx(new THREE.Scene(), () => null);
+    const probe = vfx as unknown as VfxProbe;
+
+    vfx.ballisticProjectile('winterlash:1', 0, 1, 0, 0, 0, 1, 26, 30, 'frost', {
+      style: 'shard',
+      volley: 3,
+    });
+
+    expect(probe.ballisticProjectiles).toHaveLength(1);
+    expect(probe.ballisticProjectiles[0]?.visualCount).toBe(3);
+    vfx.update(0);
+    // Each dart keeps the authored thin crystal glint + frost-halo anatomy.
+    expect(probe.activeCount).toBe(6);
+  });
+
   it('emits bounded twin-nozzle rocket particles and resets its nozzle alternation', () => {
     installCanvasStub();
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
