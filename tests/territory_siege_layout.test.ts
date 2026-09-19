@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { territorySiegeOrigin } from '../src/sim/data';
 import { hexBuildingBounds } from '../src/sim/hex_building_dims';
 import {
+  TERRITORY_SIEGE_CITADEL_OUTER_HOMES,
   TERRITORY_SIEGE_COURTYARD_FOOTPRINTS,
   territorySiegeCourtyardFootprints,
 } from '../src/sim/territory_siege_environment';
@@ -13,9 +14,13 @@ import {
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_CLEAR_HALF_WIDTH,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z,
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH,
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_X,
+  TERRITORY_SIEGE_CITADEL_WALL_WALKS,
 } from '../src/sim/territory_siege_ground';
 import {
   clampTerritorySiegeDestructibleStructures,
@@ -37,6 +42,7 @@ import {
   TERRITORY_SIEGE_TOWER_X,
   territorySiegeActionPoint,
   territorySiegeBandColliders,
+  territorySiegeCastleBounds,
   territorySiegeCatapultDeployPlacement,
   territorySiegeCatapultPlacementAllowed,
   territorySiegeDefenderGateDestination,
@@ -46,6 +52,7 @@ import {
   territorySiegeMortarDeployPlacement,
   territorySiegeMortarPlacementAllowed,
   territorySiegeProjectilePathClear,
+  territorySiegeSceneryIntersectsCastle,
   territorySiegeSpawn,
   territorySiegeTowerPositions,
   territorySiegeWallColliderHalfDepth,
@@ -127,6 +134,69 @@ describe('territory siege instance layout', () => {
     expect(new Set(tierIds.map((ids) => ids.join('|'))).size).toBe(4);
   });
 
+  it('uses live resource-building levels for movement collision without invisible proxies', () => {
+    const empty = territorySiegeCourtyardFootprints(2, []);
+    expect(empty.some((footprint) => footprint.id.startsWith('home:'))).toBe(false);
+
+    const live = territorySiegeCourtyardFootprints(2, [
+      {
+        cellId: 9,
+        slot: 'mine',
+        kind: 'mine',
+        level: 2,
+        state: 'active',
+        completesAt: null,
+      },
+    ]);
+    const mine = live.find((footprint) => footprint.id === 'resource:mine:level:2');
+    const measuredMine = hexBuildingBounds('blacksmith', 4.4);
+    expect(mine).toMatchObject({
+      type: 'obb',
+      hw: measuredMine?.hw,
+      hd: measuredMine?.hd,
+    });
+  });
+
+  it('scatters a restrained house cluster through the level-four outer bailey', () => {
+    expect(TERRITORY_SIEGE_CITADEL_OUTER_HOMES).toHaveLength(4);
+    const footprints = territorySiegeCourtyardFootprints(4);
+    const citadelBounds = territorySiegeCastleBounds(4);
+    for (let index = 0; index < TERRITORY_SIEGE_CITADEL_OUTER_HOMES.length; index += 1) {
+      const home = TERRITORY_SIEGE_CITADEL_OUTER_HOMES[index];
+      const footprint = footprints.find(
+        (candidate) => candidate.id === `citadel-outer-home:${index}`,
+      );
+      expect(footprint).toMatchObject({ type: 'obb' });
+      expect(Math.abs(home.x)).toBeGreaterThan(42);
+      expect(home.z).toBeGreaterThan(citadelBounds.backWallZ + 12);
+      expect(home.z).toBeLessThan(citadelBounds.gateZ - 12);
+    }
+  });
+
+  it('keeps levels one through three compact and expands only the level-four citadel', () => {
+    const standard = territorySiegeCastleBounds(3);
+    expect(territorySiegeCastleBounds(1)).toEqual(standard);
+    expect(territorySiegeCastleBounds(2)).toEqual(standard);
+    expect(standard).toMatchObject({ wallHalfX: 44, backWallZ: -72, gateZ: 18 });
+    expect(territorySiegeCastleBounds(4)).toMatchObject({
+      wallHalfX: 70,
+      backWallZ: -132,
+      gateZ: 24,
+    });
+    expect(territorySiegeWallPlacements(3)).toHaveLength(30);
+    expect(territorySiegeWallPlacements(4).length).toBeGreaterThan(30);
+  });
+
+  it('clears full scenery extents away from the castle and its walls', () => {
+    expect(territorySiegeSceneryIntersectsCastle(0, -50)).toBe(true);
+    expect(territorySiegeSceneryIntersectsCastle(72, -4, 6.7)).toBe(true);
+    expect(territorySiegeSceneryIntersectsCastle(-112, -151, 8.1)).toBe(false);
+
+    const colliders = territorySiegeLocalColliders(4);
+    expect(colliders.some((collider) => collider.x === 72 && collider.z === -4)).toBe(false);
+    expect(colliders.some((collider) => collider.x === -112 && collider.z === -151)).toBe(true);
+  });
+
   it('matches building and wall collision to the measured model footprint', () => {
     for (const level of [1, 2, 3, 4]) {
       const buildings = territorySiegeCourtyardFootprints(level).filter(
@@ -176,19 +246,24 @@ describe('territory siege instance layout', () => {
 
   it('blocks entering level-four staircases from either side', () => {
     const origin = territorySiegeOrigin(0);
-    const sideStairZ = -9.8;
-    const sideStairX = TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X;
+    const sideStairX =
+      (TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X + TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X) / 2;
     const blockedSide = resolveTerritorySiegeCourtyardStructures(
       0,
-      origin.x + sideStairX - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH - 2,
-      origin.z + sideStairZ,
       origin.x + sideStairX,
-      origin.z + sideStairZ,
+      origin.z +
+        TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z +
+        TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH +
+        2,
+      origin.x + sideStairX,
+      origin.z + TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z,
       0.6,
       4,
     );
-    expect(blockedSide.x).toBeLessThan(
-      origin.x + sideStairX - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
+    expect(blockedSide.z).toBeGreaterThan(
+      origin.z +
+        TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z +
+        TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH,
     );
 
     const innerStairZ =
@@ -257,12 +332,20 @@ describe('territory siege instance layout', () => {
     expect(wardSide.x).toBeGreaterThan(origin.x + TERRITORY_SIEGE_CITADEL_INNER_HALF_X);
 
     const wardBack = resolve(
-      0,
+      10,
       TERRITORY_SIEGE_CITADEL_INNER_BACK_Z - 3,
-      0,
+      10,
       TERRITORY_SIEGE_CITADEL_INNER_BACK_Z + 3,
     );
     expect(wardBack.z).toBeLessThan(origin.z + TERRITORY_SIEGE_CITADEL_INNER_BACK_Z);
+
+    const rearEntrance = resolve(
+      0,
+      TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z,
+      0,
+      TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
+    );
+    expect(rearEntrance.z).toBeCloseTo(origin.z + TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z);
 
     const wardFront = resolve(
       18,
@@ -274,15 +357,15 @@ describe('territory siege instance layout', () => {
 
     const walkMidZ = -30;
     for (const side of [-1, 1]) {
-      const walkX = side * TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X;
+      const walkX = side * TERRITORY_SIEGE_CITADEL_WALL_WALK_X;
       const belowWalk = resolve(
-        walkX - side * (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH + 3),
+        walkX - side * (TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH + 3),
         walkMidZ,
-        walkX + side * (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH + 3),
+        walkX + side * (TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH + 3),
         walkMidZ,
       );
       expect(belowWalk.x).toBeCloseTo(
-        origin.x + walkX + side * (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH + 3),
+        origin.x + walkX + side * (TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH + 3),
       );
     }
 
@@ -298,16 +381,15 @@ describe('territory siege instance layout', () => {
     });
 
     for (const side of [-1, 1]) {
-      const stairX = side * TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X;
       const wallStair = resolve(
-        stairX,
-        TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z + 16,
-        stairX,
-        TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
+        side * TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X,
+        TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z,
+        side * TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X,
+        TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z,
       );
       expect(wallStair).toEqual({
-        x: origin.x + stairX,
-        z: origin.z + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
+        x: origin.x + side * TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X,
+        z: origin.z + TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z,
       });
     }
   });
@@ -359,7 +441,9 @@ describe('territory siege instance layout', () => {
     expect(levelFour.length).toBeGreaterThan(levelThree.length);
     expect(levelFour.some((wall) => wall.run === 'inner_left')).toBe(true);
     expect(levelFour.some((wall) => wall.run === 'inner_right')).toBe(true);
-    expect(levelFour.some((wall) => wall.run === 'inner_back')).toBe(true);
+    expect(levelFour.some((wall) => wall.run === 'inner_front')).toBe(true);
+    expect(levelFour.some((wall) => wall.run === 'inner_back_left')).toBe(true);
+    expect(levelFour.some((wall) => wall.run === 'inner_back_right')).toBe(true);
 
     const innerWall = levelFour.find((wall) => wall.run === 'inner_left');
     if (!innerWall) throw new Error('level-four inner wall missing');
@@ -377,7 +461,14 @@ describe('territory siege instance layout', () => {
     );
     expect(blocked.x).toBeLessThan(origin.x + innerWall.x);
 
-    const sideWalk = { x: origin.x + 37.375, z: origin.z - 43 };
+    const sideWalk = {
+      x:
+        origin.x +
+        TERRITORY_SIEGE_CITADEL_WALL_WALK_X -
+        TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH +
+        0.1,
+      z: origin.z - 43,
+    };
     expect(
       clampTerritorySiegeDestructibleStructures(
         0,
@@ -389,6 +480,30 @@ describe('territory siege instance layout', () => {
         4,
       ),
     ).toEqual(sideWalk);
+
+    const rearLeft = levelFour
+      .filter((wall) => wall.run === 'inner_back_left')
+      .sort((a, b) => a.x - b.x)
+      .at(-1);
+    const rearRight = levelFour
+      .filter((wall) => wall.run === 'inner_back_right')
+      .sort((a, b) => a.x - b.x)
+      .at(0);
+    expect(rearLeft && rearLeft.x + rearLeft.scaleX).toBeCloseTo(
+      -TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH,
+      8,
+    );
+    expect(rearRight && rearRight.x - rearRight.scaleX).toBeCloseTo(
+      TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH,
+      8,
+    );
+    expect(TERRITORY_SIEGE_CITADEL_WALL_WALKS.map((walk) => walk.id)).toEqual([
+      'left',
+      'right',
+      'back',
+      'front_left',
+      'front_right',
+    ]);
   });
 
   it('restricts ram construction to the marked gate apron', () => {
@@ -422,7 +537,7 @@ describe('territory siege instance layout', () => {
     });
     expect(territorySiegeMortarPlacementAllowed(0, -18, [])).toBe(true);
     expect(territorySiegeMortarPlacementAllowed(24, 50, [])).toBe(true);
-    expect(territorySiegeMortarPlacementAllowed(0, 18, [])).toBe(false);
+    expect(territorySiegeMortarPlacementAllowed(0, TERRITORY_SIEGE_GATE_Z, [])).toBe(false);
     expect(territorySiegeMortarPlacementAllowed(0, -18, [{ x: 1, z: -18 }])).toBe(false);
     expect(territorySiegeMortarPlacementAllowed(0, -18, [], [{ x: 1, z: -18 }])).toBe(false);
     expect(territorySiegeMortarPlacementAllowed(0, -18, [], [], [{ x: 1, z: -18 }])).toBe(false);
@@ -441,7 +556,7 @@ describe('territory siege instance layout', () => {
     });
     expect(territorySiegeCatapultPlacementAllowed(20, 52, [])).toBe(true);
     expect(territorySiegeCatapultPlacementAllowed(20, 52, [{ x: 21, z: 52 }])).toBe(false);
-    expect(territorySiegeCatapultPlacementAllowed(0, 18, [])).toBe(false);
+    expect(territorySiegeCatapultPlacementAllowed(0, TERRITORY_SIEGE_GATE_Z, [])).toBe(false);
     const wall = territorySiegeWallSegmentPlacements()['left:3'];
     expect(territorySiegeCatapultPlacementAllowed(wall.x, wall.z, [])).toBe(false);
     expect(

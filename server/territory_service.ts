@@ -5,6 +5,7 @@ import {
   TERRITORY_WAR_COST,
   type TerritorySiegeCraftKind,
   territoryStructureCost,
+  territoryStructureRepairCost,
 } from '../src/sim/territory_economy';
 import type { TerritoryResourceKind } from '../src/sim/territory_manifest';
 import {
@@ -481,6 +482,7 @@ export class TerritoryService {
               endsAtMs: record.endsAtMs,
               gateLevel: record.gateLevel,
               coreLevel: record.coreLevel,
+              structures: record.structures,
               // The public test preset deliberately removes territory build
               // requirements. Keep the workshop rule data-driven for normal
               // seasons, but never strand test attackers without either siege
@@ -548,7 +550,7 @@ export class TerritoryService {
     );
     const constructionDue = this.publicSnapshot.structures.some(
       (structure) =>
-        structure.state === 'building' &&
+        (structure.state === 'building' || structure.state === 'repairing') &&
         structure.completesAt !== null &&
         new Date(structure.completesAt).getTime() <= nowMs,
     );
@@ -797,17 +799,20 @@ export class TerritoryService {
     };
     const structureCost = (() => {
       if (command.kind === 'build') return territoryStructureCost(command.structureKind, 1);
-      if (command.kind !== 'upgrade') return null;
+      if (command.kind !== 'upgrade' && command.kind !== 'repair') return null;
       const current = this.publicSnapshot?.structures.find(
         (structure) => structure.cellId === command.cellId && structure.slot === command.slot,
       );
-      return current ? territoryStructureCost(current.kind, current.level + 1) : null;
+      if (!current) return null;
+      return command.kind === 'repair'
+        ? territoryStructureRepairCost(current.kind, current.level)
+        : territoryStructureCost(current.kind, current.level + 1);
     })();
     const resourceCost: TerritoryResourceCost | null = (() => {
       if (command.kind === 'claim') return this.requirementsEnabled ? TERRITORY_CLAIM_COST : null;
       if (command.kind === 'declare_war')
         return this.requirementsEnabled ? TERRITORY_WAR_COST : null;
-      if (command.kind === 'build' || command.kind === 'upgrade')
+      if (command.kind === 'build' || command.kind === 'upgrade' || command.kind === 'repair')
         return structureCost?.resources ?? null;
       if (command.kind === 'craft_siege')
         return TERRITORY_SIEGE_RECIPES[command.siegeKind].resources;
@@ -822,7 +827,13 @@ export class TerritoryService {
       return { ok: false, error: 'insufficient_resources' };
     }
     if (command.kind === 'harvest') {
-      const available = this.guildSnapshots.get(actor.guildId)?.resources[command.resource] ?? 0;
+      const guild = this.guildSnapshots.get(actor.guildId);
+      const available =
+        guild?.stockpiles?.find((stockpile) => stockpile.cellId === command.cellId)?.resources[
+          command.resource
+        ] ??
+        guild?.resources[command.resource] ??
+        0;
       if (
         available > 0 &&
         !this.siegeInventory.canGrant?.(
@@ -890,7 +901,15 @@ export class TerritoryService {
         }
         break;
       case 'repair':
-        result = await this.repository.repair(ctx);
+        result = await this.repository.repair(ctx, command.cellId, command.slot);
+        if (
+          result.ok &&
+          !result.duplicate &&
+          structureCost &&
+          !this.siegeInventory.spendCopper?.(characterId, structureCost.copper)
+        ) {
+          return { ok: false, error: 'insufficient_currency' };
+        }
         break;
       case 'craft_siege':
         result = await this.repository.craftSiege(ctx, command.siegeKind);

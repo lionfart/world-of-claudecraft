@@ -60,6 +60,26 @@ function repositoryFake(): TerritoryRepository {
   } as unknown as TerritoryRepository;
 }
 
+function participantRepositoryFake(
+  action: 'joinWar' | 'leaveWar',
+  ok: boolean,
+): TerritoryRepository {
+  const repository = repositoryFake() as TerritoryRepository & Record<string, unknown>;
+  repository[action] = vi.fn().mockResolvedValue(
+    ok
+      ? {
+          ok: true,
+          delta: null,
+          duplicate: false,
+          guildId: 7,
+          seat: { warId: war.id, side: 'attacker', seatNo: 1 },
+          war: { ...war, attackerCount: action === 'joinWar' ? 2 : 0, registered: true },
+        }
+      : { ok: false, error: 'registration_closed' },
+  );
+  return repository;
+}
+
 describe('territory game runtime entry notice', () => {
   it('refreshes the badge after the join-time guild stamp becomes available', async () => {
     const session = {
@@ -149,5 +169,87 @@ describe('territory game runtime entry notice', () => {
 
     expect(teleport).toHaveBeenCalledWith(session, PLAYER_START);
     expect(setTerritorySiegeTeam).toHaveBeenCalledWith(session.pid, null);
+  });
+
+  it.each([
+    ['territory_join_war', 'joinWar'],
+    ['territory_leave_war', 'leaveWar'],
+  ] as const)('resyncs every personalized war card after %s succeeds', async (command, action) => {
+    const session = {
+      accountId: 1,
+      characterId: 11,
+      pid: 101,
+      left: false,
+      linkdead: false,
+    };
+    const sent: unknown[] = [];
+    const runtime = new TerritoryGameRuntime(
+      participantRepositoryFake(action, true),
+      () => ({ characterId: 11, guildId: 7, guildName: 'Seven', rank: 'member' }),
+      {
+        sim: {
+          meta: () => ({ guildMembership: { guildId: 7, rank: 'member' } }),
+          entities: new Map(),
+          setTerritorySiegeTeam: () => undefined,
+        } as unknown as Sim,
+        sessions: () => [session],
+        sessionByCharacterId: () => session,
+        send: (_session, message) => sent.push(message),
+        sendRaw: () => undefined,
+        teleport: () => undefined,
+      },
+    );
+
+    expect(
+      runtime.dispatch(
+        session,
+        {
+          commandId: '00000000-0000-4000-8000-000000000099',
+          expectedRevision: 4,
+          warId: war.id,
+        },
+        command,
+      ),
+    ).toBe(true);
+
+    await vi.waitFor(() => expect(sent).toContainEqual({ t: 'territory_resync' }));
+  });
+
+  it('does not resync personalized war cards when joining is rejected', async () => {
+    const session = {
+      accountId: 1,
+      characterId: 11,
+      pid: 101,
+      left: false,
+      linkdead: false,
+    };
+    const sent: unknown[] = [];
+    const runtime = new TerritoryGameRuntime(
+      participantRepositoryFake('joinWar', false),
+      () => ({ characterId: 11, guildId: 7, guildName: 'Seven', rank: 'member' }),
+      {
+        sim: { meta: () => null, entities: new Map() } as unknown as Sim,
+        sessions: () => [session],
+        sessionByCharacterId: () => session,
+        send: (_session, message) => sent.push(message),
+        sendRaw: () => undefined,
+        teleport: () => undefined,
+      },
+    );
+
+    runtime.dispatch(
+      session,
+      {
+        commandId: '00000000-0000-4000-8000-000000000098',
+        expectedRevision: 4,
+        warId: war.id,
+      },
+      'territory_join_war',
+    );
+
+    await vi.waitFor(() =>
+      expect(sent).toContainEqual({ t: 'territory_error', code: 'registration_closed' }),
+    );
+    expect(sent).not.toContainEqual({ t: 'territory_resync' });
   });
 });

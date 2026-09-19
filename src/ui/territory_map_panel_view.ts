@@ -4,6 +4,8 @@ import {
   territoryStructureLevelCap,
   territoryStructureUpgradeAllowed,
 } from '../sim/territory_castle_progression';
+import { territoryResourceProductionPerHour } from '../sim/territory_economy';
+import type { TerritoryResourceKind } from '../sim/territory_manifest';
 import type { TerritorySiegeBiome } from '../sim/territory_siege_biome';
 import type {
   TerritoryMapState,
@@ -52,7 +54,11 @@ export const TERRITORY_SLOT_DESCRIPTORS: readonly TerritorySlotDescriptor[] = [
   { slot: 'mine', kind: 'mine', labelKey: 'slotMine' },
   { slot: 'house', kind: 'house', labelKey: 'slotHouse' },
   { slot: 'stockpile', kind: 'stockpile', labelKey: 'slotStockpile' },
-  { slot: 'siege_workshop', kind: 'siege_workshop', labelKey: 'slotSiegeWorkshop' },
+  {
+    slot: 'siege_workshop',
+    kind: 'siege_workshop',
+    labelKey: 'slotSiegeWorkshop',
+  },
 ];
 
 export type TerritorySlotAction =
@@ -62,14 +68,100 @@ export type TerritorySlotAction =
       slot: TerritoryStructureSlot;
       structureKind: TerritoryStructureKind;
     }
-  | { kind: 'upgrade'; cellId: number; slot: TerritoryStructureSlot };
+  | { kind: 'upgrade'; cellId: number; slot: TerritoryStructureSlot }
+  | { kind: 'repair'; cellId: number; slot: TerritoryStructureSlot };
 
 export interface TerritorySlotModel extends TerritorySlotDescriptor {
   level: number;
-  state: 'empty' | 'building' | 'active' | 'max' | 'locked' | 'castle_locked';
+  state:
+    | 'empty'
+    | 'building'
+    | 'repairing'
+    | 'damaged'
+    | 'active'
+    | 'max'
+    | 'locked'
+    | 'castle_locked';
   completesAt: string | null;
   requiredCastleLevel: number | null;
   action: TerritorySlotAction | null;
+}
+
+const TERRITORY_SLOT_RESOURCE = {
+  granary: 'grain',
+  forester: 'wood',
+  mine: 'iron',
+  house: 'labor',
+} as const satisfies Partial<Record<TerritoryStructureSlot, TerritoryResourceKind>>;
+
+/** Exact rate shown by a resource-building card and credited by the server. */
+export function territoryStructureProduction(
+  model: TerritorySlotModel | null,
+  naturalResource: { kind: TerritoryResourceKind; yield: number } | null,
+): { resource: TerritoryResourceKind; amount: number } | null {
+  if (!model || !(model.slot in TERRITORY_SLOT_RESOURCE)) return null;
+  const resource = TERRITORY_SLOT_RESOURCE[model.slot as keyof typeof TERRITORY_SLOT_RESOURCE];
+  const active = ['active', 'max', 'castle_locked'].includes(model.state);
+  return {
+    resource,
+    amount: active
+      ? territoryResourceProductionPerHour(
+          resource,
+          naturalResource?.kind === resource ? naturalResource.yield : 1,
+          { [model.slot]: model.level },
+        )
+      : 0,
+  };
+}
+
+export type TerritoryStructureStatusKey =
+  | 'hudChrome.territoryMap.slotUnavailable'
+  | 'hudChrome.territoryMap.slotEmpty'
+  | 'hudChrome.territoryMap.slotBuilding'
+  | 'hudChrome.territoryMap.slotRepairing'
+  | 'hudChrome.territoryMap.slotDamaged'
+  | 'hudChrome.territoryMap.slotCastleRequired'
+  | 'hudChrome.territoryMap.slotMax'
+  | 'hudChrome.territoryMap.slotLevel'
+  | 'hudChrome.territoryMap.slotLevelReadOnly';
+
+export interface TerritoryStructureStatusPart {
+  key: TerritoryStructureStatusKey;
+  values?: Readonly<Record<string, string | number>>;
+}
+
+/** Keeps the current level visible even when the next upgrade is castle-gated. */
+export function territoryStructureStatusParts(
+  model: TerritorySlotModel | null,
+): TerritoryStructureStatusPart[] {
+  if (!model || model.state === 'locked')
+    return [{ key: 'hudChrome.territoryMap.slotUnavailable' }];
+  if (model.state === 'empty') return [{ key: 'hudChrome.territoryMap.slotEmpty' }];
+  if (model.state === 'building')
+    return [{ key: 'hudChrome.territoryMap.slotBuilding', values: { level: model.level } }];
+  if (model.state === 'repairing')
+    return [{ key: 'hudChrome.territoryMap.slotRepairing', values: { level: model.level } }];
+  if (model.state === 'damaged')
+    return [{ key: 'hudChrome.territoryMap.slotDamaged', values: { level: model.level } }];
+  if (model.state === 'castle_locked') {
+    return [
+      { key: 'hudChrome.territoryMap.slotLevelReadOnly', values: { level: model.level } },
+      {
+        key: 'hudChrome.territoryMap.slotCastleRequired',
+        values: { level: model.requiredCastleLevel ?? model.level + 1 },
+      },
+    ];
+  }
+  if (model.state === 'max')
+    return [{ key: 'hudChrome.territoryMap.slotMax', values: { level: model.level } }];
+  return [
+    {
+      key: model.action
+        ? 'hudChrome.territoryMap.slotLevel'
+        : 'hudChrome.territoryMap.slotLevelReadOnly',
+      values: { level: model.level },
+    },
+  ];
 }
 
 export type TerritoryCellPanelMode = 'mountain' | 'neutral' | 'owned';
@@ -147,6 +239,32 @@ export function territorySlotModels(
         action: null,
       };
     }
+    if (structure.state === 'repairing') {
+      return {
+        ...descriptor,
+        level: structure.level,
+        state: 'repairing',
+        completesAt: structure.completesAt,
+        requiredCastleLevel: null,
+        action: null,
+      };
+    }
+    if (structure.state === 'damaged') {
+      return {
+        ...descriptor,
+        level: structure.level,
+        state: 'damaged',
+        completesAt: null,
+        requiredCastleLevel: null,
+        action: canManage
+          ? {
+              kind: 'repair',
+              cellId: selectedCellId as number,
+              slot: descriptor.slot,
+            }
+          : null,
+      };
+    }
     const cap = territoryStructureLevelCap(descriptor.slot, activeCastleLevel);
     if (structure.level >= TERRITORY_CASTLE_MAX_LEVEL) {
       return {
@@ -181,7 +299,11 @@ export function territorySlotModels(
       completesAt: null,
       requiredCastleLevel: null,
       action: canManage
-        ? { kind: 'upgrade', cellId: selectedCellId as number, slot: descriptor.slot }
+        ? {
+            kind: 'upgrade',
+            cellId: selectedCellId as number,
+            slot: descriptor.slot,
+          }
         : null,
     };
   });

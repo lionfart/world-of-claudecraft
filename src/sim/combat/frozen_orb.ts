@@ -18,6 +18,7 @@
 import { evadeIncomingAttack } from '../player_dodge';
 import type { SimContext } from '../sim_context';
 import { DT, type Entity } from '../types';
+import { groundHeight } from '../world';
 import { gainIcicle } from './frost_mage';
 import { spellDamageMultFromAuras } from './spell_combat';
 
@@ -37,6 +38,7 @@ export const FROZEN_ORB_SLOW_DURATION = 2.5; // refreshed every pulse it keeps h
 export interface FrozenOrbState {
   sourceId: number;
   x: number;
+  y: number;
   z: number;
   dirX: number;
   dirZ: number;
@@ -68,11 +70,14 @@ export function spawnFrozenOrb(
 ): void {
   const dirX = Math.sin(p.facing);
   const dirZ = Math.cos(p.facing);
+  const y =
+    ctx.groundHeightAt?.(p, p.pos.x, p.pos.z) ?? groundHeight(p.pos.x, p.pos.z, ctx.cfg.seed);
   // Release feedback at the caster; each pulse then draws its own nova ring
   // along the drift, so the player can read where the orb is.
   ctx.emit({
     type: 'spellfxAt',
     x: p.pos.x,
+    y,
     z: p.pos.z,
     school: 'frost',
     fx: 'nova',
@@ -86,6 +91,7 @@ export function spawnFrozenOrb(
   ctx.emit({
     type: 'spellfxAt',
     x: p.pos.x,
+    y,
     z: p.pos.z,
     school: 'frost',
     fx: 'orb',
@@ -101,6 +107,7 @@ export function spawnFrozenOrb(
   ctx.frozenOrbs.push({
     sourceId: p.id,
     x: p.pos.x,
+    y,
     z: p.pos.z,
     dirX,
     dirZ,
@@ -141,6 +148,7 @@ export function tickFrozenOrbs(ctx: SimContext): void {
       ctx.emit({
         type: 'spellfxAt',
         x: orb.x,
+        y: orb.y,
         z: orb.z,
         school: 'frost',
         fx: 'orb',
@@ -152,6 +160,11 @@ export function tickFrozenOrbs(ctx: SimContext): void {
     if (!orb.halted) {
       orb.x += orb.dirX * FROZEN_ORB_SPEED * DT;
       orb.z += orb.dirZ * FROZEN_ORB_SPEED * DT;
+      // Frostglobe is a spell projectile, not a player relocation: walls do
+      // not stop it. It does, however, ride the visible siege floor so the
+      // level-four inner ward cannot swallow the orb below its raised slab.
+      orb.y =
+        ctx.groundHeightAt?.(source, orb.x, orb.z) ?? groundHeight(orb.x, orb.z, ctx.cfg.seed);
     }
     orb.remaining -= DT;
     orb.pulseTimer -= DT;
@@ -168,7 +181,7 @@ export function tickFrozenOrbs(ctx: SimContext): void {
 // exactly "the orb is hitting someone" (owner: it must never drift onward
 // while its area is still damaging a target).
 function hasOrbContact(ctx: SimContext, orb: FrozenOrbState, source: Entity): boolean {
-  const center = { x: orb.x, y: source.pos.y, z: orb.z };
+  const center = { x: orb.x, y: orb.y, z: orb.z };
   for (const t of ctx.hostilesInRadius(source, center, orb.radius)) {
     if (t.dead) continue;
     if (!ctx.hasLineOfSight(source, t)) continue;
@@ -178,10 +191,11 @@ function hasOrbContact(ctx: SimContext, orb: FrozenOrbState, source: Entity): bo
 }
 
 function pulseOrb(ctx: SimContext, orb: FrozenOrbState, source: Entity): void {
-  const center = { x: orb.x, y: source.pos.y, z: orb.z };
+  const center = { x: orb.x, y: orb.y, z: orb.z };
   ctx.emit({
     type: 'spellfxAt',
     x: orb.x,
+    y: orb.y,
     z: orb.z,
     school: 'frost',
     fx: 'nova',

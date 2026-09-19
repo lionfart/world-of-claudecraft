@@ -171,9 +171,82 @@ export function sweptLanding(ctx: SimContext, entity: Entity, aim: Vec3): Vec3 {
   );
 }
 
-/** Instant relocation through the same collision/terrain sweep as Vaulting Charge. */
+function relocationGroundHeight(
+  ctx: SimContext,
+  entity: Entity,
+  x: number,
+  z: number,
+  feetY: number,
+): number {
+  return ctx.groundHeightAt?.(entity, x, z, feetY) ?? groundHeight(x, z, ctx.cfg.seed);
+}
+
+/** Ground-bound teleports must follow every live collision layer rather than
+ * the leap's airborne crest resolver. This makes intact siege gates/walls
+ * authoritative while still letting an opened gate or exact destroyed wall
+ * segment through, and carries the feet height up authored stairs. */
+function sweptRelocationLanding(ctx: SimContext, entity: Entity, aim: Vec3): Vec3 {
+  const dx = aim.x - entity.pos.x;
+  const dz = aim.z - entity.pos.z;
+  const distance = Math.hypot(dx, dz);
+  let safeX = entity.pos.x;
+  let safeZ = entity.pos.z;
+  let safeY = relocationGroundHeight(ctx, entity, safeX, safeZ, entity.pos.y);
+
+  if (distance > 1e-6) {
+    const steps = Math.max(1, Math.ceil(distance / SWEEP_STEP));
+    for (let index = 1; index <= steps; index++) {
+      const progress = index / steps;
+      const nextX = entity.pos.x + dx * progress;
+      const nextZ = entity.pos.z + dz * progress;
+      const step = Math.hypot(nextX - safeX, nextZ - safeZ);
+      const nextGround = relocationGroundHeight(ctx, entity, nextX, nextZ, safeY);
+      if (nextGround < waterLevelAt(nextX, nextZ, ctx.cfg.seed) - PLAYER_SWIM_DEPTH) break;
+      if (
+        nextGround > safeY &&
+        step > 1e-6 &&
+        ((nextGround - safeY) / step > PLAYER_MAX_CLIMB_SLOPE ||
+          terrainSteepnessAt(nextX, nextZ, ctx.cfg.seed) > PLAYER_MAX_CLIMB_SLOPE)
+      ) {
+        break;
+      }
+
+      // Keep the point resolver in the chain for the ordinary world/delve
+      // collider contract, then run the swept live resolver that layers the
+      // mutable Territory Siege walls and gates on top.
+      const point = ctx.resolveMovePoint(nextX, nextZ, PLAYER_BODY_RADIUS, entity);
+      if (Math.hypot(point.x - nextX, point.z - nextZ) > PLAYER_BODY_RADIUS * 0.25) break;
+      const resolved = ctx.resolvePlayerMove(
+        safeX,
+        safeZ,
+        point.x,
+        point.z,
+        PLAYER_BODY_RADIUS,
+        entity,
+        false,
+        safeY,
+      );
+      const moved = Math.hypot(resolved.x - safeX, resolved.z - safeZ);
+      const diverted =
+        Math.hypot(resolved.x - nextX, resolved.z - nextZ) > PLAYER_BODY_RADIUS * 0.25;
+      if (diverted || moved < step * 0.5) break;
+      safeX = resolved.x;
+      safeZ = resolved.z;
+      safeY = relocationGroundHeight(ctx, entity, safeX, safeZ, safeY);
+    }
+  }
+
+  const seat = seatGroundedAt(ctx.cfg.seed, safeX, safeZ, PLAYER_BODY_RADIUS, safeY + MANTLE_REACH);
+  return {
+    x: seat.x,
+    y: Math.max(seat.y, relocationGroundHeight(ctx, entity, seat.x, seat.z, safeY)),
+    z: seat.z,
+  };
+}
+
+/** Instant ground-bound relocation through the live collision/terrain sweep. */
 export function relocateSwept(ctx: SimContext, entity: Entity, aim: Vec3): void {
-  const landing = sweptLanding(ctx, entity, aim);
+  const landing = sweptRelocationLanding(ctx, entity, aim);
   entity.pos = landing;
   entity.vy = 0;
   entity.onGround = true;

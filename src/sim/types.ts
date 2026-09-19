@@ -6945,6 +6945,8 @@ export type SimEvent = { pid?: number } & (
   | {
       type: 'spellfxAt';
       x: number;
+      /** Authoritative surface height when the sim owns a raised floor. */
+      y?: number;
       z: number;
       school: string;
       // 'tick' is a ground-zone pulse (Consecration et al) anchored at the

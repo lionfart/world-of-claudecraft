@@ -3,7 +3,9 @@ import type {
   TerritorySiegeWallId,
   TerritoryStructureKind,
   TerritoryStructureSlot,
+  TerritoryStructureView,
 } from '../world_api/territory';
+import { DUNGEON_FLOOR_Y, isTerritorySiegePos, territorySiegeOriginAt } from './data';
 import {
   territoryActiveCastleLevel,
   territoryStructureSlotBuildable,
@@ -12,6 +14,7 @@ import {
 import { territoryStockpileCapacity } from './territory_economy';
 import { createTerritoryManifest } from './territory_manifest';
 import type { TerritorySiegeControl } from './territory_siege';
+import { territorySiegeGroundLiftForCastleLocal } from './territory_siege_ground';
 import {
   clampTerritorySiegeCatapults,
   clampTerritorySiegeFieldForSide,
@@ -25,12 +28,14 @@ import {
   territorySiegeProjectilePathClear,
 } from './territory_siege_layout';
 import { isTerritoryClaimAdjacent } from './territory_topology';
+import { groundHeight } from './world';
 
 export interface TerritorySimTeam {
   warId: string;
   side: 'attacker' | 'defender';
   slot: number;
   castleLevel?: number;
+  structures?: readonly TerritoryStructureView[];
   /** Neutral-camp expeditions use the battlefield band without castle walls/gates. */
   capture?: boolean;
   gateOpen: boolean;
@@ -310,6 +315,35 @@ export function territorySimLocksMovement(host: object, pid: number): boolean {
   return !!territorySimTeamFor(host, pid)?.control;
 }
 
+/** One authoritative ground sampler for player traversal and ground-bound
+ * abilities inside Territory Siege. An explicit feet height keeps a mover on
+ * its current vertical layer (stairs raise it gradually); omitting it selects
+ * the visible floor so spell effects never travel underneath the citadel. */
+export function territorySimGroundHeightAt(
+  host: object,
+  pid: number,
+  seed: number,
+  x: number,
+  z: number,
+  feetY?: number,
+): number {
+  const base = groundHeight(x, z, seed);
+  if (!isTerritorySiegePos(x)) return base;
+  const team = territorySimTeamFor(host, pid);
+  const castleLevel = team?.castleLevel ?? 1;
+  if (!team || castleLevel < 4) return base;
+  const origin = territorySiegeOriginAt(z);
+  return (
+    DUNGEON_FLOOR_Y +
+    territorySiegeGroundLiftForCastleLocal(
+      x - origin.x,
+      z - origin.z,
+      castleLevel,
+      feetY === undefined ? undefined : feetY - DUNGEON_FLOOR_Y,
+    )
+  );
+}
+
 export function resolveTerritorySiegeTeamMovement(
   team: TerritorySimTeam,
   fromX: number,
@@ -320,6 +354,7 @@ export function resolveTerritorySiegeTeamMovement(
 ): { x: number; z: number } {
   if (team.capture)
     return clampTerritorySiegeFieldForSide(team.slot, 'attacker', position.x, position.z, radius);
+  const castleLevel = team.castleLevel ?? 3;
   const swept = clampTerritorySiegeGate(
     team.slot,
     team.gateOpen,
@@ -327,6 +362,7 @@ export function resolveTerritorySiegeTeamMovement(
     position.x,
     position.z,
     radius,
+    castleLevel,
   );
   const sealed = sealTerritorySiegeGateForSide(
     team.slot,
@@ -336,6 +372,7 @@ export function resolveTerritorySiegeTeamMovement(
     swept.z,
     radius,
     team.wallHealth?.some((entry) => entry.hp <= 0) ?? false,
+    castleLevel,
   );
   const clearOfRams =
     team.control?.kind === 'ram' || !team.rams?.length
@@ -355,7 +392,6 @@ export function resolveTerritorySiegeTeamMovement(
           clearOfMortars.z,
           radius,
         );
-  const castleLevel = team.castleLevel ?? 3;
   const clearOfCourtyard = resolveTerritorySiegeCourtyardStructures(
     team.slot,
     fromX,
@@ -364,6 +400,7 @@ export function resolveTerritorySiegeTeamMovement(
     clearOfCatapults.z,
     radius,
     castleLevel,
+    team.structures,
   );
   const clearOfStructures = resolveTerritorySiegeDestructibleStructures(
     team.slot,
@@ -418,7 +455,14 @@ export function territorySimProjectilePathClear(
 ): boolean {
   const team = territorySimTeamFor(host, pid);
   return team
-    ? territorySiegeProjectilePathClear(team.slot, team.gateOpen, from, to, radius)
+    ? territorySiegeProjectilePathClear(
+        team.slot,
+        team.gateOpen,
+        from,
+        to,
+        radius,
+        team.castleLevel ?? 3,
+      )
     : true;
 }
 

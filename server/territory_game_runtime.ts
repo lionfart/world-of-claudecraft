@@ -898,6 +898,7 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       side: placement.side,
       slot: placement.slot,
       castleLevel: siege.castleLevel,
+      structures: siege.structures,
       gateOpen: false,
       control: null,
       rams: [],
@@ -936,6 +937,7 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
       side: placement.side,
       slot: placement.slot,
       castleLevel: siege.castleLevel,
+      structures: siege.structures,
       gateOpen: siege.gateOpen,
       control,
       rams: siege.rams ?? [],
@@ -1091,7 +1093,16 @@ export class TerritoryGameRuntime<S extends TerritoryGameSession> {
     void this.service
       .execute(session.characterId, commandId, revision, command)
       .then((result) => {
-        if (result.ok) return;
+        if (result.ok) {
+          // Participation does not advance the public territory revision. Refresh
+          // the actor's personalized map so every simultaneous war card receives
+          // its authoritative count and registered state, not only the one private
+          // notice selected as the launcher headline.
+          if (command.kind === 'join_war' || command.kind === 'leave_war') {
+            this.deps.send(session, { t: 'territory_resync' });
+          }
+          return;
+        }
         this.deps.send(session, { t: 'territory_error', code: result.error });
         if (result.error === 'revision_conflict')
           this.deps.send(session, { t: 'territory_resync' });

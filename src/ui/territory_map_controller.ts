@@ -4,15 +4,15 @@ import { TERRITORY_CASTLE_MAX_LEVEL } from '../sim/territory_castle_progression'
 import {
   TERRITORY_SIEGE_RECIPES,
   type TerritorySiegeCraftKind,
-  territoryResourceProductionPerHour,
   territoryStockpileCapacity,
   territoryStructureCost,
+  territoryStructureRepairCost,
 } from '../sim/territory_economy';
 import { createTerritoryManifest, type TerritoryResourceKind } from '../sim/territory_manifest';
 import { territorySiegeBiomeForCell } from '../sim/territory_siege_biome';
 import {
-  TERRITORY_SIEGE_GATE_Z,
   territorySiegeActionPoint,
+  territorySiegeCastleBounds,
   territorySiegeDefenderGateDestination,
   territorySiegeNearestCatapult,
   territorySiegeNearestMortar,
@@ -34,6 +34,8 @@ import {
   territorySiegeMapLabelKey,
   territorySlotModels,
   territoryStructureCountdown,
+  territoryStructureProduction,
+  territoryStructureStatusParts,
   territoryWarCountdown,
   territoryWarNoticeModel,
 } from './territory_map_panel_view';
@@ -76,19 +78,6 @@ interface TerritoryWarNoticeEntryRefs {
   countdown: HTMLElement;
   teleport: HTMLElement;
   action: HTMLButtonElement;
-}
-
-const TERRITORY_SLOT_RESOURCE = {
-  granary: 'grain',
-  forester: 'wood',
-  mine: 'iron',
-  house: 'labor',
-} as const satisfies Partial<Record<TerritoryStructureSlot, TerritoryResourceKind>>;
-
-function territorySlotResource(slot: TerritoryStructureSlot): TerritoryResourceKind | null {
-  return slot in TERRITORY_SLOT_RESOURCE
-    ? TERRITORY_SLOT_RESOURCE[slot as keyof typeof TERRITORY_SLOT_RESOURCE]
-    : null;
 }
 
 function element<T extends HTMLElement>(selector: string): T {
@@ -686,7 +675,8 @@ export class TerritoryMapController {
                     : ramInteractAction === 'enter'
                       ? 'hudChrome.territoryMap.ramInteractUse'
                       : defenderGateVisible
-                        ? this.siegeLocalPlayerPosition().z > TERRITORY_SIEGE_GATE_Z
+                        ? this.siegeLocalPlayerPosition().z >
+                          territorySiegeCastleBounds(siege.castleLevel).gateZ
                           ? 'hudChrome.territoryMap.defenderGateEnter'
                           : 'hudChrome.territoryMap.defenderGateExit'
                         : siege.coreChanneling
@@ -941,7 +931,7 @@ export class TerritoryMapController {
     }
     if (siege.coreChanneling) return true;
     const slot = territorySiegeOriginAt(this.world.player.pos.z).slot;
-    const point = territorySiegeActionPoint(slot, 'start_core_channel');
+    const point = territorySiegeActionPoint(slot, 'start_core_channel', siege.castleLevel);
     return (
       (this.world.player.pos.x - point.x) ** 2 + (this.world.player.pos.z - point.z) ** 2 <=
       point.radius ** 2
@@ -969,7 +959,9 @@ export class TerritoryMapController {
       return false;
     }
     const position = this.siegeLocalPlayerPosition();
-    return territorySiegeDefenderGateDestination(position.x, position.z) !== null;
+    return (
+      territorySiegeDefenderGateDestination(position.x, position.z, siege.castleLevel) !== null
+    );
   }
 
   private updateWarNotice(siegeVisible: boolean): void {
@@ -1304,6 +1296,7 @@ export class TerritoryMapController {
     if (action?.kind === 'build')
       this.world.territoryBuild(action.cellId, action.slot, action.structureKind);
     else if (action?.kind === 'upgrade') this.world.territoryUpgrade(action.cellId, action.slot);
+    else if (action?.kind === 'repair') this.world.territoryRepair(action.cellId, action.slot);
   }
 
   private performWorkshopUpgrade(): void {
@@ -1457,21 +1450,9 @@ export class TerritoryMapController {
   }
 
   private structureStatus(model: TerritorySlotModel | null): string {
-    return !model || model.state === 'locked'
-      ? t('hudChrome.territoryMap.slotUnavailable')
-      : model.state === 'empty'
-        ? t('hudChrome.territoryMap.slotEmpty')
-        : model.state === 'building'
-          ? t('hudChrome.territoryMap.slotBuilding', { level: model.level })
-          : model.state === 'castle_locked'
-            ? t('hudChrome.territoryMap.slotCastleRequired', {
-                level: model.requiredCastleLevel ?? model.level + 1,
-              })
-            : model.state === 'max'
-              ? t('hudChrome.territoryMap.slotMax', { level: model.level })
-              : model.action
-                ? t('hudChrome.territoryMap.slotLevel', { level: model.level })
-                : t('hudChrome.territoryMap.slotLevelReadOnly', { level: model.level });
+    return territoryStructureStatusParts(model)
+      .map((part) => t(part.key, part.values))
+      .join(' · ');
   }
 
   private renderStructureSlots(state: TerritoryMapState | null): void {
@@ -1498,19 +1479,19 @@ export class TerritoryMapController {
         !!model &&
         (model.state === 'active' || model.state === 'max' || model.state === 'castle_locked');
       const canOpenDetail = !!model && !canOpenWorkshop && !canOpenStockpile;
-      const nextLevel = model?.action?.kind === 'build' ? 1 : (model?.level ?? 0) + 1;
-      const cost = model?.action ? this.structureCostLabel(descriptor.kind, nextLevel) : null;
-      const producedResource = territorySlotResource(descriptor.slot);
-      const productionActive = !!model && ['active', 'max', 'castle_locked'].includes(model.state);
-      const hourlyProduction =
-        producedResource && resourceProfile?.kind === producedResource && productionActive
-          ? territoryResourceProductionPerHour(producedResource, resourceProfile.yield, {
-              [descriptor.slot]: model.level,
-            })
-          : 0;
-      const productionLabel = producedResource
+      const nextLevel =
+        model?.action?.kind === 'build'
+          ? 1
+          : model?.action?.kind === 'repair'
+            ? (model?.level ?? 1)
+            : (model?.level ?? 0) + 1;
+      const cost = model?.action
+        ? this.structureCostLabel(descriptor.kind, nextLevel, model.action.kind === 'repair')
+        : null;
+      const production = territoryStructureProduction(model ?? null, resourceProfile);
+      const productionLabel = production
         ? t('hudChrome.territoryMap.productionRate', {
-            amount: formatNumber(hourlyProduction, {
+            amount: formatNumber(production.amount, {
               maximumFractionDigits: 0,
             }),
           })
@@ -1520,7 +1501,7 @@ export class TerritoryMapController {
         element(`#territory-slot-${descriptor.slot}-countdown`),
         constructionCountdown ?? '',
       );
-      if (producedResource) {
+      if (production) {
         this.writers.setText(
           element(`#territory-slot-${descriptor.slot}-production`),
           productionLabel ?? '',
@@ -1553,7 +1534,12 @@ export class TerritoryMapController {
         'is-built',
         !!model && model.state !== 'empty' && model.state !== 'locked',
       );
-      this.writers.toggleClass(button, 'is-building', model?.state === 'building');
+      this.writers.toggleClass(
+        button,
+        'is-building',
+        model?.state === 'building' || model?.state === 'repairing',
+      );
+      this.writers.toggleClass(button, 'is-damaged', model?.state === 'damaged');
       button.disabled = !model;
     }
   }
@@ -1575,8 +1561,15 @@ export class TerritoryMapController {
 
     const status = this.structureStatus(model);
     const countdown = territoryStructureCountdown(model.completesAt, Date.now());
-    const nextLevel = model.action?.kind === 'build' ? 1 : model.level + 1;
-    const cost = model.action ? this.structureCostLabel(descriptor.kind, nextLevel) : '';
+    const nextLevel =
+      model.action?.kind === 'build'
+        ? 1
+        : model.action?.kind === 'repair'
+          ? model.level
+          : model.level + 1;
+    const cost = model.action
+      ? this.structureCostLabel(descriptor.kind, nextLevel, model.action.kind === 'repair')
+      : '';
     const action = element<HTMLButtonElement>('#territory-structure-detail-action');
     this.writers.setText(
       element('#territory-structure-detail-title'),
@@ -1595,7 +1588,9 @@ export class TerritoryMapController {
         ? t('hudChrome.territoryMap.build')
         : model.action?.kind === 'upgrade'
           ? t('hudChrome.territoryMap.upgrade')
-          : status,
+          : model.action?.kind === 'repair'
+            ? t('hudChrome.territoryMap.repair')
+            : status,
     );
     action.disabled = !model.action;
   }
@@ -1643,8 +1638,16 @@ export class TerritoryMapController {
     upgrade.disabled = !upgradeAction;
 
     const canManage = guild.rank === 'leader' || guild.rank === 'officer';
+    const warLocked = state.wars.some(
+      (war) =>
+        war.targetCellId === cellId && ['declared', 'forming', 'active'].includes(war.status),
+    );
+    const cityStockpile = guild.stockpiles?.find((candidate) => candidate.cellId === cellId);
     for (const resource of TERRITORY_RESOURCE_KINDS) {
-      const stored = Math.max(0, Math.floor(guild.resources[resource] ?? 0));
+      const stored = Math.max(
+        0,
+        Math.floor(cityStockpile?.resources[resource] ?? guild.resources[resource] ?? 0),
+      );
       const formattedStored = formatNumber(stored, {
         maximumFractionDigits: 0,
       });
@@ -1665,9 +1668,11 @@ export class TerritoryMapController {
       );
       this.writers.setText(
         withdraw,
-        canManage
-          ? t('hudChrome.territoryMap.stockpileWithdraw')
-          : t('hudChrome.territoryMap.stockpileOfficerOnly'),
+        warLocked
+          ? t('hudChrome.territoryMap.stockpileWarLocked')
+          : canManage
+            ? t('hudChrome.territoryMap.stockpileWithdraw')
+            : t('hudChrome.territoryMap.stockpileOfficerOnly'),
       );
       this.writers.setAttr(
         withdraw,
@@ -1676,7 +1681,7 @@ export class TerritoryMapController {
           resource: this.resourceLabel(resource),
         }),
       );
-      withdraw.disabled = !canManage || stored <= 0;
+      withdraw.disabled = warLocked || !canManage || stored <= 0;
     }
   }
 
@@ -1763,8 +1768,11 @@ export class TerritoryMapController {
   private structureCostLabel(
     kind: Parameters<typeof territoryStructureCost>[0],
     level: number,
+    repair = false,
   ): string {
-    const cost = territoryStructureCost(kind, level);
+    const cost = repair
+      ? territoryStructureRepairCost(kind, level)
+      : territoryStructureCost(kind, level);
     return [
       formatMoney(cost.copper),
       ...Object.entries(cost.resources)

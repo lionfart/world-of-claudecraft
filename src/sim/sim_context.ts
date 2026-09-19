@@ -794,6 +794,10 @@ export interface SimContextCallbacks {
   moveSpeedMult(e: Entity): number;
   swingIntervalMult(e: Entity, channel?: 'melee' | 'ranged'): number;
   mobCanSwim(template: { family?: string; canSwim?: boolean } | undefined): boolean;
+  /** State-aware floor for mutable/raised instance architecture. Passing a
+   * feet height preserves the current layer; omitting it selects the visible
+   * ground surface for ground-bound spell effects. */
+  groundHeightAt?(entity: Entity, x: number, z: number, feetY?: number): number;
   resolveMovePoint(nx: number, nz: number, r: number, e: Entity): { x: number; z: number };
   // Exact swept player movement resolver, exposed for the local unstuck search.
   // Keeping the from-point and fence flag preserves the normal movement rules,
@@ -806,6 +810,7 @@ export interface SimContextCallbacks {
     r: number,
     e: Entity,
     ignoreFences?: boolean,
+    fromFeetY?: number,
   ): { x: number; z: number };
   // From-point collision resolve (walls/fences/delve bounds) for swept teleports
   // (repositionToAim/blinkForward): same body Sim movement uses, exposed on the seam.
@@ -817,6 +822,7 @@ export interface SimContextCallbacks {
     r: number,
     e: Entity,
     ignoreFences?: boolean,
+    fromFeetY?: number,
   ): { x: number; z: number };
   // --- pet / delve-companion / boss-mechanic branches (owners: P1 / delve / M3-N1 / M5) ---
   updatePet(pet: Entity): void;
@@ -1662,6 +1668,7 @@ export function createSimContext(host: SimContextHost): SimContext {
     moveSpeedMult: host.moveSpeedMult,
     swingIntervalMult: host.swingIntervalMult,
     mobCanSwim: host.mobCanSwim,
+    groundHeightAt: host.groundHeightAt,
     resolveMovePoint: host.resolveMovePoint,
     resolvePlayerMove: host.resolvePlayerMove,
     resolveMove: host.resolveMove,

@@ -4,6 +4,8 @@ import {
   territorySiegeMapLabelKey,
   territorySlotModels,
   territoryStructureCountdown,
+  territoryStructureProduction,
+  territoryStructureStatusParts,
   territoryWarCountdown,
   territoryWarNoticeModel,
 } from '../src/ui/territory_map_panel_view';
@@ -94,7 +96,12 @@ describe('territory structure slot cards', () => {
     const forester = territorySlotModels(state(), 9).find((slot) => slot.slot === 'forester');
     expect(forester).toMatchObject({
       state: 'empty',
-      action: { kind: 'build', cellId: 9, slot: 'forester', structureKind: 'forester' },
+      action: {
+        kind: 'build',
+        cellId: 9,
+        slot: 'forester',
+        structureKind: 'forester',
+      },
     });
   });
 
@@ -129,6 +136,27 @@ describe('territory structure slot cards', () => {
     });
   });
 
+  it('keeps a castle-gated tower current level visible in its UI status', () => {
+    const capped = state();
+    const castle = capped.structures.find((structure) => structure.slot === 'keep_core');
+    if (!castle) throw new Error('castle fixture incomplete');
+    castle.level = 3;
+    capped.structures.push({
+      cellId: 9,
+      slot: 'towers',
+      kind: 'towers',
+      level: 3,
+      state: 'active',
+      completesAt: null,
+    });
+
+    const tower = territorySlotModels(capped, 9).find((card) => card.slot === 'towers') ?? null;
+    expect(territoryStructureStatusParts(tower)).toEqual([
+      { key: 'hudChrome.territoryMap.slotLevelReadOnly', values: { level: 3 } },
+      { key: 'hudChrome.territoryMap.slotCastleRequired', values: { level: 4 } },
+    ]);
+  });
+
   it('projects a live construction deadline for the same building button', () => {
     const building = state();
     const granary = building.structures.find((structure) => structure.slot === 'granary');
@@ -145,6 +173,24 @@ describe('territory structure slot cards', () => {
     ).toBe('01:30');
   });
 
+  it('shows base production for an active resource building on a hex without a deposit', () => {
+    const built = state();
+    built.structures.push({
+      cellId: 9,
+      slot: 'mine',
+      kind: 'mine',
+      level: 2,
+      state: 'active',
+      completesAt: null,
+    });
+    const mine = territorySlotModels(built, 9).find((card) => card.slot === 'mine') ?? null;
+    expect(territoryStructureProduction(mine, null)).toEqual({ resource: 'iron', amount: 2 });
+    expect(territoryStructureProduction(mine, { kind: 'iron', yield: 3 })).toEqual({
+      resource: 'iron',
+      amount: 6,
+    });
+  });
+
   it('keeps all cards visible but non-actionable for ordinary members', () => {
     const cards = territorySlotModels(state('member'), 9);
     expect(cards).toHaveLength(8);
@@ -158,6 +204,28 @@ describe('territory structure slot cards', () => {
       level: 1,
       state: 'active',
       action: { kind: 'upgrade', cellId: 9, slot: 'stockpile' },
+    });
+  });
+
+  it('offers level-preserving repairs to officers and shows the repair countdown in place', () => {
+    const damaged = state('officer');
+    const granary = damaged.structures.find((structure) => structure.slot === 'granary');
+    if (!granary) throw new Error('granary fixture incomplete');
+    granary.level = 3;
+    granary.state = 'damaged';
+    expect(territorySlotModels(damaged, 9).find((card) => card.slot === 'granary')).toMatchObject({
+      level: 3,
+      state: 'damaged',
+      action: { kind: 'repair', cellId: 9, slot: 'granary' },
+    });
+
+    granary.state = 'repairing';
+    granary.completesAt = '2026-01-01T00:02:00.000Z';
+    expect(territorySlotModels(damaged, 9).find((card) => card.slot === 'granary')).toMatchObject({
+      level: 3,
+      state: 'repairing',
+      completesAt: granary.completesAt,
+      action: null,
     });
   });
 });

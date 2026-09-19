@@ -10,16 +10,16 @@ import {
   TERRITORY_SIEGE_CORE_ATTACK_RADIUS,
   TERRITORY_SIEGE_CORE_Z,
   TERRITORY_SIEGE_FLOOR_Y,
-  TERRITORY_SIEGE_GATE_Z,
   TERRITORY_SIEGE_MAX_CATAPULTS_PER_SIDE,
   TERRITORY_SIEGE_MAX_RAMS,
-  TERRITORY_SIEGE_TOWER_RANGE,
-  TERRITORY_SIEGE_TOWER_X,
-  TERRITORY_SIEGE_TOWER_Z,
-  territorySiegeWallPlacements,
-  territorySiegeWallSegmentId,
+  territorySiegeCastleBounds,
+  territorySiegeWallSegmentPlacements,
 } from '../sim/territory_siege_layout';
-import type { TerritorySiegeObjectiveTarget, TerritorySiegeView } from '../world_api';
+import type {
+  TerritorySiegeObjectiveTarget,
+  TerritorySiegeView,
+  TerritorySiegeWallId,
+} from '../world_api';
 import { surfaceMat } from './gfx';
 import {
   cloneTerritorySiegeAsset,
@@ -659,83 +659,92 @@ export function buildTerritorySiegePrototype(
 
   const castleSettlement = buildTerritorySiegeCastleSettlement(root);
 
-  const wallModels = territorySiegeWallPlacements(4).map((wall) => {
-    const wallModel = new THREE.Group();
-    wallModel.name = `territory-siege-wall-segment:${territorySiegeWallSegmentId(wall)}`;
-    wallModel.position.set(wall.x, 0, wall.z);
-    wallModel.rotation.y = wall.yaw;
-    root.add(wallModel);
-    const innerWall = wall.run.startsWith('inner_');
-    const tiers = [1, 2, 3, 4].map((level) => {
-      const style = territoryCastleVisualStyle(level);
-      if (innerWall && level < 4) {
-        const emptyTier = new THREE.Group();
-        emptyTier.name = `territory-siege-wall-tier:${level}:absent-inner-wall`;
-        wallModel.add(emptyTier);
-        return emptyTier;
-      }
-      if (level === 3) {
-        return buildDrakelandsWallTier(wallModel, wall.scaleX, wall.index);
-      }
-      if (level === 4) {
-        return buildDrakelandsWallTier(wallModel, wall.scaleX, wall.index, true);
-      }
-      const tier = model(
-        wallModel,
-        style.wallAsset,
-        [0, 0, 0],
-        [wall.scaleX * style.wallScale[0], style.wallScale[1], style.wallScale[2]],
-        style.wallYawOffset,
+  const castleLevels = [1, 2, 3, 4] as const;
+  const wallPlacementsByLevel = castleLevels.map((level) =>
+    territorySiegeWallSegmentPlacements(level),
+  );
+  const wallModels = (Object.keys(wallPlacementsByLevel[3]) as TerritorySiegeWallId[]).map(
+    (objectiveId) => {
+      const placements = wallPlacementsByLevel.map(
+        (levelPlacements) => levelPlacements[objectiveId],
       );
-      tier.name = `territory-siege-wall-tier:${level}:${style.wallAsset}`;
-      return tier;
-    });
-    wallModel.userData.territorySiegeObjective = {
-      kind: 'wall',
-      id: territorySiegeWallSegmentId(wall),
-    } satisfies TerritorySiegeObjectiveTarget;
-    return { wall, model: wallModel, tiers };
-  });
+      const tiers = castleLevels.map((level, tierIndex) => {
+        const wall = placements[tierIndex];
+        const wallModel = new THREE.Group();
+        wallModel.name = `territory-siege-wall-segment:${objectiveId}:tier:${level}`;
+        wallModel.userData.territorySiegeObjective = {
+          kind: 'wall',
+          id: objectiveId,
+        } satisfies TerritorySiegeObjectiveTarget;
+        root.add(wallModel);
+        if (!wall) return wallModel;
+        wallModel.position.set(wall.x, 0, wall.z);
+        wallModel.rotation.y = wall.yaw;
+        const style = territoryCastleVisualStyle(level);
+        if (level === 3) {
+          buildDrakelandsWallTier(wallModel, wall.scaleX, wall.index);
+        } else if (level === 4) {
+          buildDrakelandsWallTier(wallModel, wall.scaleX, wall.index, true);
+        } else {
+          const tier = model(
+            wallModel,
+            style.wallAsset,
+            [0, 0, 0],
+            [wall.scaleX * style.wallScale[0], style.wallScale[1], style.wallScale[2]],
+            style.wallYawOffset,
+          );
+          tier.name = `territory-siege-wall-tier:${level}:${style.wallAsset}`;
+        }
+        return wallModel;
+      });
+      showTerritoryCastleTier(tiers, 2);
+      return { id: objectiveId, placements, tiers };
+    },
+  );
 
-  const towerModels = [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].map((x, index) => {
-    const towerRoot = new THREE.Group();
-    towerRoot.name = `territory-siege-defense-tower:${index === 0 ? 'left' : 'right'}`;
-    towerRoot.position.set(x, 0, TERRITORY_SIEGE_TOWER_Z);
-    root.add(towerRoot);
-    const tiers = [1, 2, 3, 4].map((level) => {
-      const style = territoryDefenseTowerVisualStyle(level);
-      const towerId = index === 0 ? 'left' : 'right';
-      if (level === 4) {
-        return buildDrakelandsBastion(towerRoot, towerId, true);
-      }
-      if (style.towerAsset === 'drakelandsBastion') {
-        return buildDrakelandsBastion(towerRoot, towerId);
-      }
-      const tier = model(
-        towerRoot,
-        style.towerAsset,
-        [0, 0, 0],
-        [...style.towerScale],
-        level === 1 ? territoryWoodTowerYaw(towerId) : 0,
-      );
-      tier.name = `territory-siege-tower-tier:${level}:${style.towerAsset}`;
-      return tier;
-    });
-    towerRoot.userData.territorySiegeObjective = {
-      kind: 'tower',
-      id: index === 0 ? 'left' : 'right',
-    } satisfies TerritorySiegeObjectiveTarget;
-    return { root: towerRoot, tiers };
-  });
+  const standardCastleBounds = territorySiegeCastleBounds(3);
+  const towerModels = [-standardCastleBounds.towerX, standardCastleBounds.towerX].map(
+    (x, index) => {
+      const towerRoot = new THREE.Group();
+      towerRoot.name = `territory-siege-defense-tower:${index === 0 ? 'left' : 'right'}`;
+      towerRoot.position.set(x, 0, standardCastleBounds.towerZ);
+      root.add(towerRoot);
+      const tiers = [1, 2, 3, 4].map((level) => {
+        const style = territoryDefenseTowerVisualStyle(level);
+        const towerId = index === 0 ? 'left' : 'right';
+        if (level === 4) {
+          return buildDrakelandsBastion(towerRoot, towerId, true);
+        }
+        if (style.towerAsset === 'drakelandsBastion') {
+          return buildDrakelandsBastion(towerRoot, towerId);
+        }
+        const tier = model(
+          towerRoot,
+          style.towerAsset,
+          [0, 0, 0],
+          [...style.towerScale],
+          level === 1 ? territoryWoodTowerYaw(towerId) : 0,
+        );
+        tier.name = `territory-siege-tower-tier:${level}:${style.towerAsset}`;
+        return tier;
+      });
+      towerRoot.userData.territorySiegeObjective = {
+        kind: 'tower',
+        id: index === 0 ? 'left' : 'right',
+      } satisfies TerritorySiegeObjectiveTarget;
+      return { root: towerRoot, tiers };
+    },
+  );
 
-  const towerRanges = [-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_X].map((x) => {
-    const range = towerRangeBeacon(x, TERRITORY_SIEGE_TOWER_Z, TERRITORY_SIEGE_TOWER_RANGE);
+  const citadelCastleBounds = territorySiegeCastleBounds(4);
+  const towerRanges = [-standardCastleBounds.towerX, standardCastleBounds.towerX].map((x) => {
+    const range = towerRangeBeacon(x, standardCastleBounds.towerZ, citadelCastleBounds.towerRange);
     root.add(range);
     return range;
   });
 
   const fittedGate = buildFittedGate();
-  fittedGate.root.position.set(0, 0, TERRITORY_SIEGE_GATE_Z);
+  fittedGate.root.position.set(0, 0, standardCastleBounds.gateZ);
   fittedGate.root.userData.territorySiegeObjective = {
     kind: 'gate',
   } satisfies TerritorySiegeObjectiveTarget;
@@ -944,9 +953,9 @@ export function buildTerritorySiegePrototype(
     towers: (['left', 'right'] as const).map((id, index) => {
       const plate = buildStructureHealthPlate();
       plate.sprite.position.set(
-        index === 0 ? -TERRITORY_SIEGE_TOWER_X : TERRITORY_SIEGE_TOWER_X,
+        index === 0 ? -standardCastleBounds.towerX : standardCastleBounds.towerX,
         7.6,
-        TERRITORY_SIEGE_TOWER_Z,
+        standardCastleBounds.towerZ,
       );
       root.add(plate.sprite);
       return { id, plate };
@@ -1038,31 +1047,51 @@ export function buildTerritorySiegePrototype(
     const state = territorySiegeVisualState(siege, timeSeconds);
     if (siege) displayedCastleLevel = siege.castleLevel;
     const castleLevel = displayedCastleLevel;
+    const castleBounds = territorySiegeCastleBounds(castleLevel);
+    const castleTierIndex = Math.max(0, Math.min(3, Math.floor(castleLevel) - 1));
     const coreElevation = castleLevel >= 4 ? TERRITORY_SIEGE_CITADEL_INNER_HEIGHT : 0;
     castleSettlement.setCastleLevel(castleLevel);
+    castleSettlement.setStructures(siege?.structures ?? [], castleLevel);
     fittedGate.setCastleLevel(castleLevel);
     showTerritoryCastleTier(corePedestals, castleLevel);
     coreRoot.position.y = coreElevation;
     coreHealth.sprite.position.y = 7.15 + coreElevation;
     channelTo.y = 5.1 + coreElevation;
+    fittedGate.root.position.z = castleBounds.gateZ;
     fittedGate.leaf.visible = state.gateVisible;
     fittedGate.leaf.scale.y = state.gateScaleY;
     core.scale.setScalar(TERRITORY_SIEGE_CORE_CRYSTAL_SCALE * state.coreScaleY);
     coreRoot.visible = siege !== null;
     const towersActive = !!siege && siege.defenseTowerLevel > 0;
     const defenseTowerVisualLevel = territoryDefenseTowerVisualLevel(siege?.defenseTowerLevel ?? 0);
-    for (const tower of towerModels) tower.root.visible = towersActive;
+    for (let index = 0; index < towerModels.length; index += 1) {
+      const tower = towerModels[index];
+      tower.root.position.set(
+        index === 0 ? -castleBounds.towerX : castleBounds.towerX,
+        0,
+        castleBounds.towerZ,
+      );
+    }
     for (const entry of wallModels) {
-      const objectiveId = territorySiegeWallSegmentId(entry.wall);
-      const health = siege?.wallHealth?.find((value) => value.id === objectiveId);
-      entry.model.visible = !health || health.hp > 0;
+      const health = siege?.wallHealth?.find((value) => value.id === entry.id);
       showTerritoryCastleTier(entry.tiers, castleLevel);
+      const activeTier = entry.tiers[castleTierIndex];
+      activeTier.visible = !!entry.placements[castleTierIndex] && (!health || health.hp > 0);
     }
     for (let index = 0; index < towerModels.length; index += 1) {
       const id = index === 0 ? 'left' : 'right';
       const health = siege?.towerHealth?.find((value) => value.id === id);
       towerModels[index].root.visible = towersActive && (!health || health.hp > 0);
       showTerritoryCastleTier(towerModels[index].tiers, defenseTowerVisualLevel || 1);
+    }
+    const towerRangeScale = castleBounds.towerRange / citadelCastleBounds.towerRange;
+    for (let index = 0; index < towerRanges.length; index += 1) {
+      towerRanges[index].position.set(
+        index === 0 ? -castleBounds.towerX : castleBounds.towerX,
+        towerRanges[index].position.y,
+        castleBounds.towerZ,
+      );
+      towerRanges[index].scale.setScalar(towerRangeScale);
     }
     const deployedRams = siege?.rams?.length
       ? siege.rams
@@ -1245,7 +1274,11 @@ export function buildTerritorySiegePrototype(
     }
     for (const { id, plate } of structureHealth.towers) {
       const health = siege?.towerHealth?.find((entry) => entry.id === id);
-      plate.sprite.position.y = defenseTowerVisualLevel === 3 ? 10.55 : 7.6;
+      plate.sprite.position.set(
+        id === 'left' ? -castleBounds.towerX : castleBounds.towerX,
+        defenseTowerVisualLevel === 3 ? 10.55 : 7.6,
+        castleBounds.towerZ,
+      );
       plate.update(
         'Defense Tower',
         health?.hp ?? 0,
@@ -1260,22 +1293,21 @@ export function buildTerritorySiegePrototype(
       if (selectedObjective.kind === 'gate' && !siege.gateOpen) {
         selectionPose = {
           x: 0,
-          z: TERRITORY_SIEGE_GATE_Z,
+          z: castleBounds.gateZ,
           yaw: 0,
           scaleX: 10.8,
           scaleZ: 2.35,
         };
       } else if (selectedObjective.kind === 'wall') {
-        const entry = wallModels.find(
-          ({ wall }) => territorySiegeWallSegmentId(wall) === selectedObjective.id,
-        );
+        const entry = wallModels.find(({ id }) => id === selectedObjective.id);
+        const wall = entry?.placements[castleTierIndex];
         const health = siege.wallHealth?.find((value) => value.id === selectedObjective.id);
-        if (entry?.model.visible && health && health.hp > 0) {
+        if (wall && entry?.tiers[castleTierIndex].visible && health && health.hp > 0) {
           selectionPose = {
-            x: entry.wall.x,
-            z: entry.wall.z,
-            yaw: entry.wall.yaw,
-            scaleX: entry.wall.scaleX + 0.8,
+            x: wall.x,
+            z: wall.z,
+            yaw: wall.yaw,
+            scaleX: wall.scaleX + 0.8,
             scaleZ: 2.05,
           };
         }
@@ -1284,8 +1316,8 @@ export function buildTerritorySiegePrototype(
         const health = siege.towerHealth?.find((value) => value.id === selectedObjective.id);
         if (towerModels[index]?.root.visible && health && health.hp > 0) {
           selectionPose = {
-            x: index === 0 ? -TERRITORY_SIEGE_TOWER_X : TERRITORY_SIEGE_TOWER_X,
-            z: TERRITORY_SIEGE_TOWER_Z,
+            x: index === 0 ? -castleBounds.towerX : castleBounds.towerX,
+            z: castleBounds.towerZ,
             yaw: 0,
             scaleX: 4.8,
             scaleZ: 4.8,
@@ -1417,7 +1449,7 @@ export function buildTerritorySiegePrototype(
     group: root,
     objectiveTargets: [
       fittedGate.root,
-      ...wallModels.map((entry) => entry.model),
+      ...wallModels.flatMap((entry) => entry.tiers),
       ...towerModels.map((entry) => entry.root),
       ...ramParts.map((entry) => entry.root),
       ...mortarModels.map((entry) => entry.root),

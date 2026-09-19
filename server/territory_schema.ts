@@ -41,11 +41,14 @@ CREATE TABLE IF NOT EXISTS territory_guild_state (
   iron BIGINT NOT NULL DEFAULT 0 CHECK (iron >= 0),
   grain BIGINT NOT NULL DEFAULT 0 CHECK (grain >= 0),
   labor BIGINT NOT NULL DEFAULT 0 CHECK (labor >= 0),
+  stockpile_migrated BOOLEAN NOT NULL DEFAULT FALSE,
   accrued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (season_id, guild_id)
 );
+ALTER TABLE territory_guild_state
+  ADD COLUMN IF NOT EXISTS stockpile_migrated BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE territory_guild_state
   ALTER COLUMN wood SET DEFAULT 0,
   ALTER COLUMN iron SET DEFAULT 0,
@@ -57,9 +60,20 @@ CREATE TABLE IF NOT EXISTS territory_cells (
   cell_id INT NOT NULL,
   guild_id INT NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
   keep_root BOOLEAN NOT NULL DEFAULT FALSE,
+  wood BIGINT NOT NULL DEFAULT 0 CHECK (wood >= 0),
+  iron BIGINT NOT NULL DEFAULT 0 CHECK (iron >= 0),
+  grain BIGINT NOT NULL DEFAULT 0 CHECK (grain >= 0),
+  labor BIGINT NOT NULL DEFAULT 0 CHECK (labor >= 0),
+  accrued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   claimed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (season_id, cell_id)
 );
+ALTER TABLE territory_cells
+  ADD COLUMN IF NOT EXISTS wood BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS iron BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS grain BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS labor BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS accrued_at TIMESTAMPTZ NOT NULL DEFAULT now();
 CREATE INDEX IF NOT EXISTS territory_cells_owner
   ON territory_cells(season_id, guild_id, cell_id);
 CREATE INDEX IF NOT EXISTS territory_cells_keep_roots
@@ -80,7 +94,7 @@ CREATE TABLE IF NOT EXISTS territory_structures (
   )),
   level SMALLINT NOT NULL CHECK (level BETWEEN 1 AND 5),
   target_level SMALLINT CHECK (target_level BETWEEN 1 AND 5),
-  state TEXT NOT NULL DEFAULT 'active' CHECK (state IN ('building', 'active')),
+  state TEXT NOT NULL DEFAULT 'active' CHECK (state IN ('building', 'active', 'damaged', 'repairing')),
   completes_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -90,6 +104,9 @@ CREATE TABLE IF NOT EXISTS territory_structures (
 );
 ALTER TABLE territory_structures
   ADD COLUMN IF NOT EXISTS target_level SMALLINT CHECK (target_level BETWEEN 1 AND 5);
+ALTER TABLE territory_structures DROP CONSTRAINT IF EXISTS territory_structures_state_check;
+ALTER TABLE territory_structures ADD CONSTRAINT territory_structures_state_check
+  CHECK (state IN ('building', 'active', 'damaged', 'repairing'));
 -- Older deployments created generated-name checks containing only the legacy
 -- building set. Replace them idempotently while keeping those values readable
 -- until their seasonal rows naturally expire.
@@ -105,8 +122,9 @@ ALTER TABLE territory_structures ADD CONSTRAINT territory_structures_kind_check 
   'siege_workshop', 'gate', 'wall', 'defense_tower', 'storehouse',
   'construction_workshop'
 ));
-CREATE INDEX IF NOT EXISTS territory_structures_due
-  ON territory_structures(completes_at) WHERE state = 'building';
+DROP INDEX IF EXISTS territory_structures_due;
+CREATE INDEX territory_structures_due
+  ON territory_structures(completes_at) WHERE state IN ('building', 'repairing');
 
 CREATE TABLE IF NOT EXISTS territory_wars (
   id UUID PRIMARY KEY,

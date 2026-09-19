@@ -38,6 +38,7 @@ function territoryTeamForPrediction(
     side: siege.mySide,
     slot: territorySiegeOriginAt(z).slot,
     castleLevel: siege.castleLevel,
+    structures: siege.structures,
     gateOpen: siege.gateOpen,
     control: territoryControlForView(siege),
     rams: siege.rams,

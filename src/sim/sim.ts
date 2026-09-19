@@ -236,7 +236,6 @@ import {
   RIFT_SLOT_COUNT,
   riftInstanceOrigin,
   SPIRIT_HEALER_NPC_ID,
-  territorySiegeOriginAt,
   zoneAt,
 } from './data';
 import { refusedWhileDead } from './dead_gate';
@@ -697,7 +696,6 @@ import {
   migrateCharacterTalentsV2,
 } from './talent_save_migration';
 import * as territoryMod from './territory_local';
-import { territorySiegeGroundLiftForCastleLocal } from './territory_siege_ground';
 import { updateAbilityDrill } from './tutorial/ability_drill';
 import { updateGauntletRuns } from './tutorial/gauntlet_run';
 import { resolveStartTutorial, updateTutorialGreeting } from './tutorial/greeting';
@@ -2293,22 +2291,8 @@ export class Sim {
     // Movement-kernel deps (MV1): pure binding, no rng draws, no construction effects.
     this.playerMotionDeps = {
       seed: this.cfg.seed,
-      groundHeightAt: (entity, x, z) => {
-        const base = groundHeight(x, z, this.cfg.seed);
-        if (!isTerritorySiegePos(x)) return base;
-        const team = territoryMod.territorySimTeamFor(this, entity.id);
-        if (!team || (team.castleLevel ?? 1) < 4) return base;
-        const origin = territorySiegeOriginAt(z);
-        return (
-          DUNGEON_FLOOR_Y +
-          territorySiegeGroundLiftForCastleLocal(
-            x - origin.x,
-            z - origin.z,
-            team.castleLevel ?? 1,
-            entity.pos.y - DUNGEON_FLOOR_Y,
-          )
-        );
-      },
+      groundHeightAt: (entity, x, z) =>
+        territoryMod.territorySimGroundHeightAt(this, entity.id, this.cfg.seed, x, z, entity.pos.y),
       moveSpeedMult: (e) => this.moveSpeedMult(e),
       resolveMove: (fromX, fromZ, nx, nz, r, e, ignoreFences) =>
         this.resolveMove(fromX, fromZ, nx, nz, r, e, ignoreFences),
@@ -5699,6 +5683,8 @@ export class Sim {
       moveSpeedMult: sim.moveSpeedMult.bind(sim),
       swingIntervalMult: sim.swingIntervalMult.bind(sim),
       mobCanSwim: sim.mobCanSwim.bind(sim),
+      groundHeightAt: (entity, x, z, feetY) =>
+        territoryMod.territorySimGroundHeightAt(sim, entity.id, sim.cfg.seed, x, z, feetY),
       resolveMovePoint: sim.resolveMovePoint.bind(sim),
       resolvePlayerMove: sim.resolveMove.bind(sim),
       resolveMove: sim.resolveMove.bind(sim),
@@ -11310,6 +11296,7 @@ export class Sim {
     r: number,
     e: Entity,
     ignoreFences = false,
+    fromFeetY?: number,
   ): { x: number; z: number } {
     const run = isDelvePos(nx) || isDelvePos(e.pos.x) ? this.delveRunForEntity(e) : undefined;
     // Parkour heights are a PLAYER traversal mechanic: only players pass over
@@ -11336,7 +11323,7 @@ export class Sim {
       fromZ,
       res,
       r,
-      e.pos.y - DUNGEON_FLOOR_Y,
+      (fromFeetY ?? e.pos.y) - DUNGEON_FLOOR_Y,
     );
     if (!run) return territoryResolved;
     const clamped = this.clampDelveModuleBounds(run, territoryResolved.x, territoryResolved.z, r);

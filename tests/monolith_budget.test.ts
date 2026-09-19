@@ -432,7 +432,9 @@ const MONOLITHS: MonolithRow[] = [
     // prompt_dialog.ts (the family home), hud.ts keeps a delegator.
     // Re-pinned to the measured v0.41.3 plus Territory/directional-combat merge.
     // Corrected to the actual merge result plus the log follower compatibility line.
-    ceiling: 19521,
+    // Lowered after the territory-siege objective resolver moved into
+    // src/ui/territory_siege_objective_view.ts. Exact count, zero slack.
+    ceiling: 19102,
     seam: 'pure view core + thin painter on PainterHost (src/ui/CLAUDE.md)',
   },
   {

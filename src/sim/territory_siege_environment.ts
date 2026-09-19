@@ -1,3 +1,4 @@
+import type { TerritoryStructureSlot, TerritoryStructureView } from '../world_api';
 import { hexBuildingBounds } from './hex_building_dims';
 import {
   TERRITORY_SIEGE_CITADEL_INNER_BACK_Z,
@@ -8,11 +9,10 @@ import {
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_CLEAR_HALF_WIDTH,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z,
   TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT,
 } from './territory_siege_ground';
 
@@ -188,10 +188,93 @@ export const TERRITORY_SIEGE_HOMES: readonly TerritorySiegeBuildingPlacement[] =
   { kind: 'homeA', x: 27, z: -39, scale: 7.8, yaw: -0.2 },
 ];
 
-const sharedFlags: readonly TerritorySiegeCourtyardFootprint[] = [
-  { id: 'flag:left', type: 'circle', x: -7, z: 13, r: 0.35, height: 6 },
-  { id: 'flag:right', type: 'circle', x: 7, z: 13, r: 0.35, height: 6 },
+/**
+ * A restrained level-four residential cluster. Two homes occupy each side
+ * bailey, leaving the central gate road, wall stairs, and rear inner-ward
+ * approach as deliberate negative space.
+ */
+export const TERRITORY_SIEGE_CITADEL_OUTER_HOMES: readonly TerritorySiegeBuildingPlacement[] = [
+  { kind: 'homeB', x: -49, z: -45, scale: 5.8, yaw: Math.PI / 2 - 0.08 },
+  { kind: 'homeA', x: 49, z: -48, scale: 5.6, yaw: -Math.PI / 2 + 0.12 },
+  { kind: 'homeA', x: -50, z: -112, scale: 5.4, yaw: Math.PI / 2 + 0.14 },
+  { kind: 'homeB', x: 50, z: -111, scale: 5.2, yaw: -Math.PI / 2 - 0.1 },
 ];
+
+const RESOURCE_BUILDING_SLOTS = new Set<TerritoryStructureSlot>([
+  'granary',
+  'forester',
+  'mine',
+  'house',
+]);
+
+export function territorySiegeResourceStructureFamily(
+  slot: TerritoryStructureSlot,
+  levelValue: number,
+): string | null {
+  if (!RESOURCE_BUILDING_SLOTS.has(slot)) return null;
+  const level = Math.max(1, Math.min(4, Math.floor(levelValue)));
+  if (level === 1) return 'tent';
+  if (level === 2) {
+    if (slot === 'mine') return 'blacksmith';
+    return slot === 'forester' ? 'homeB' : 'homeA';
+  }
+  if (slot === 'granary') return 'townhall';
+  if (slot === 'forester') return 'homeA';
+  if (slot === 'mine') return 'blacksmith';
+  return 'homeB';
+}
+
+export function territorySiegeResourceBuildingPlacement(
+  slot: TerritoryStructureSlot,
+  castleLevel: number,
+): TerritorySiegeSceneryPlacement {
+  const index = ['granary', 'forester', 'mine', 'house'].indexOf(slot);
+  if (castleLevel >= 4) {
+    return [
+      { x: -27, z: 7, yaw: 0.22, scale: 5.35 },
+      { x: 27, z: 5, yaw: -0.2, scale: 7.0 },
+      { x: -53, z: -15, yaw: Math.PI / 3, scale: 5.2 },
+      { x: 53, z: -17, yaw: -0.2, scale: 7.0 },
+    ][Math.max(0, index)];
+  }
+  const placement = [
+    { x: -27, z: -5, yaw: 0.35 },
+    { x: 27, z: -7, yaw: -0.3 },
+    { x: -27, z: -37, yaw: 0.15 },
+    { x: 27, z: -39, yaw: -0.2 },
+  ][Math.max(0, index)];
+  const scale =
+    (castleLevel === 1
+      ? [4.8, 4.7, 4.5, 4.6]
+      : castleLevel === 2
+        ? [8.2, 8, 4.4, 7.8]
+        : [5.1, 8.2, 5.4, 7.2])[Math.max(0, index)] ?? 5.1;
+  return { ...placement, scale };
+}
+
+function territorySiegeResourceFootprints(
+  structures: readonly TerritoryStructureView[],
+  castleLevel: number,
+): TerritorySiegeCourtyardFootprint[] {
+  return structures.flatMap((structure) => {
+    const family = territorySiegeResourceStructureFamily(structure.slot, structure.level);
+    if (!family) return [];
+    const placement = territorySiegeResourceBuildingPlacement(structure.slot, castleLevel);
+    const height =
+      family === 'tent' ? 4.5 : family === 'blacksmith' ? 8 : family === 'townhall' ? 12 : 11;
+    return [
+      measuredObb(
+        `resource:${structure.slot}:level:${structure.level}`,
+        family,
+        placement.x,
+        placement.z,
+        placement.scale,
+        placement.yaw,
+        height,
+      ),
+    ];
+  });
+}
 
 const hayFootprints: readonly TerritorySiegeCourtyardFootprint[] = [
   measuredObb('hay:0', 'hay', -17, -19, 3.2, 0.5, 1),
@@ -206,7 +289,6 @@ const TERRITORY_SIEGE_FRONTIER_FOOTPRINTS: readonly TerritorySiegeCourtyardFootp
   measuredObb('frontier-workshop-tent', 'tent', -35, -52, 4.6, Math.PI / 5, 4),
   measuredObb('frontier-well', 'well', 16, -25, 5.4, 0.2, 5),
   ...hayFootprints,
-  ...sharedFlags,
 ];
 
 const TERRITORY_SIEGE_CURRENT_FOOTPRINTS: readonly TerritorySiegeCourtyardFootprint[] = [
@@ -217,7 +299,6 @@ const TERRITORY_SIEGE_CURRENT_FOOTPRINTS: readonly TerritorySiegeCourtyardFootpr
   measuredObb('workshop', 'blacksmith', -35, -52, 4.4, Math.PI / 5, 8),
   measuredObb('well', 'well', 16, -25, 7.2, 0.2, 6),
   ...hayFootprints,
-  ...sharedFlags,
 ];
 
 /** Level-three footprints remain the default for compatibility with static camera colliders. */
@@ -229,38 +310,42 @@ export const TERRITORY_SIEGE_COURTYARD_FOOTPRINTS: readonly TerritorySiegeCourty
   measuredObb('drakelands-keep', 'castle', 0, -63, 4.6, Math.PI, 20),
   measuredObb('drakelands-workshop', 'blacksmith', -35, -52, 5.4, Math.PI / 5, 8),
   measuredObb('drakelands-well', 'well', 16, -25, 7.2, 0.2, 6),
-  ...sharedFlags,
 ];
 
 const CITADEL_WALL_STAIR_EDGE_HALF_THICKNESS = 0.12;
 const CITADEL_WARD_EDGE_HALF_THICKNESS = 0.16;
 
 const TERRITORY_SIEGE_CITADEL_FOOTPRINTS: readonly TerritorySiegeCourtyardFootprint[] = [
-  measuredObb('citadel-home:0', 'homeA', -29, -3, 7.8, 0.32, 11),
-  measuredObb('citadel-home:1', 'homeB', 29, -5, 7, -0.28, 11),
-  measuredObb('citadel-barracks', 'barracks', -15, -39, 5.35, 0.12, 12),
-  measuredObb('citadel-townhall', 'townhall', 15, -40, 5.35, -0.16, 12),
-  measuredObb('citadel-keep', 'castle', 0, -56, 5.1, Math.PI, 20),
-  measuredObb('citadel-workshop', 'blacksmith', -34, -50, 5.2, Math.PI / 5, 8),
-  measuredObb('citadel-well', 'well', 16, -15, 7.2, 0.2, 6),
+  // The broad lower bailey keeps both side routes to the rear inner gate open.
+  measuredObb('citadel-home:0', 'homeA', -27, 7, 7.8, 0.22, 11),
+  measuredObb('citadel-home:1', 'homeB', 27, 5, 7, -0.2, 11),
+  measuredObb('citadel-workshop', 'blacksmith', -53, -15, 5.2, Math.PI / 3, 8),
+  measuredObb('citadel-well', 'well', 53, -17, 7.2, -0.2, 6),
+  ...TERRITORY_SIEGE_CITADEL_OUTER_HOMES.map((home, index) =>
+    measuredObb(`citadel-outer-home:${index}`, home.kind, home.x, home.z, home.scale, home.yaw, 9),
+  ),
+  // The enlarged inner ward keeps the core's twelve-yard combat circle free.
+  // The keep anchors the rear vista and the two civic buildings flank it.
+  measuredObb('citadel-barracks', 'barracks', -24, -59, 5.35, 0.08, 12),
+  measuredObb('citadel-townhall', 'townhall', 24, -59, 5.35, -0.08, 12),
+  measuredObb('citadel-keep', 'castle', 0, -76, 5.1, 0, 20),
   ...[-1, 1].flatMap((side): TerritorySiegeCourtyardFootprint[] => {
-    const stairX = side * TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X;
+    const stairCenterX =
+      side *
+      ((TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X + TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X) /
+        2);
     const halfLength =
-      (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z) /
-      2;
-    const centerZ =
-      (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z) /
-      2;
+      (TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X - TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X) / 2;
     return [-1, 1].map((edge) => ({
       id: `citadel-wall-stair-rail:${side}:${edge}`,
       type: 'obb',
-      x:
-        stairX +
+      x: stairCenterX,
+      z:
+        TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z +
         edge *
-          (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH - CITADEL_WALL_STAIR_EDGE_HALF_THICKNESS),
-      z: centerZ,
-      hw: CITADEL_WALL_STAIR_EDGE_HALF_THICKNESS,
-      hd: halfLength,
+          (TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH - CITADEL_WALL_STAIR_EDGE_HALF_THICKNESS),
+      hw: halfLength,
+      hd: CITADEL_WALL_STAIR_EDGE_HALF_THICKNESS,
       yaw: 0,
       height: TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT,
     }));
@@ -282,31 +367,24 @@ const TERRITORY_SIEGE_CITADEL_FOOTPRINTS: readonly TerritorySiegeCourtyardFootpr
           TERRITORY_SIEGE_CITADEL_INNER_STAIR_CLEAR_HALF_WIDTH) /
         2,
       hd:
-        (TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z - TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z) /
-        2,
+        Math.abs(
+          TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z - TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
+        ) / 2,
       yaw: 0,
       height: TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
     }),
   ),
-  // The raised inner ward has a solid vertical skirt on every exposed edge.
-  // Its front edge is split around the central stair mouth so the stair is
-  // the only route onto the deck, even after the inner curtain is destroyed.
-  ...[-1, 1].map(
-    (side): TerritorySiegeCourtyardFootprint => ({
-      id: `citadel-inner-ward-front-skirt:${side}`,
-      type: 'obb',
-      x:
-        side *
-        ((TERRITORY_SIEGE_CITADEL_INNER_HALF_X + TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH) /
-          2),
-      z: TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z - CITADEL_WARD_EDGE_HALF_THICKNESS,
-      hw:
-        (TERRITORY_SIEGE_CITADEL_INNER_HALF_X - TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH) / 2,
-      hd: CITADEL_WARD_EDGE_HALF_THICKNESS,
-      yaw: 0,
-      height: TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
-    }),
-  ),
+  // The former front opening is sealed. Entry is on the opposite, rear edge.
+  {
+    id: 'citadel-inner-ward-front-skirt',
+    type: 'obb',
+    x: 0,
+    z: TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z - CITADEL_WARD_EDGE_HALF_THICKNESS,
+    hw: TERRITORY_SIEGE_CITADEL_INNER_HALF_X,
+    hd: CITADEL_WARD_EDGE_HALF_THICKNESS,
+    yaw: 0,
+    height: TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
+  },
   ...[-1, 1].map(
     (side): TerritorySiegeCourtyardFootprint => ({
       id: `citadel-inner-ward-side-skirt:${side}`,
@@ -319,31 +397,59 @@ const TERRITORY_SIEGE_CITADEL_FOOTPRINTS: readonly TerritorySiegeCourtyardFootpr
       height: TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
     }),
   ),
-  {
-    id: 'citadel-inner-ward-back-skirt',
-    type: 'obb',
-    x: 0,
-    z: TERRITORY_SIEGE_CITADEL_INNER_BACK_Z + CITADEL_WARD_EDGE_HALF_THICKNESS,
-    hw: TERRITORY_SIEGE_CITADEL_INNER_HALF_X,
-    hd: CITADEL_WARD_EDGE_HALF_THICKNESS,
-    yaw: 0,
-    height: TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
-  },
+  ...[-1, 1].map(
+    (side): TerritorySiegeCourtyardFootprint => ({
+      id: `citadel-inner-ward-back-skirt:${side}`,
+      type: 'obb',
+      x:
+        side *
+        ((TERRITORY_SIEGE_CITADEL_INNER_HALF_X + TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH) /
+          2),
+      z: TERRITORY_SIEGE_CITADEL_INNER_BACK_Z + CITADEL_WARD_EDGE_HALF_THICKNESS,
+      hw:
+        (TERRITORY_SIEGE_CITADEL_INNER_HALF_X - TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH) / 2,
+      hd: CITADEL_WARD_EDGE_HALF_THICKNESS,
+      yaw: 0,
+      height: TERRITORY_SIEGE_CITADEL_INNER_HEIGHT,
+    }),
+  ),
   // The outer wall-walk deck is a thin elevated slab, not a column down to
   // the courtyard. It deliberately has no ground-level skirt collider, so a
   // character can walk beneath it without meeting an invisible wall. Height
   // adoption remains gated by the character's actual feet in the ground
   // solver, preventing the old upward snap.
-  ...sharedFlags,
 ];
 
 /** Exact solid dressing for the visible castle tier. */
 export function territorySiegeCourtyardFootprints(
   castleLevel: number,
+  structures?: readonly TerritoryStructureView[],
 ): readonly TerritorySiegeCourtyardFootprint[] {
-  if (castleLevel <= 1) return TERRITORY_SIEGE_FRONTIER_FOOTPRINTS;
-  if (castleLevel === 2) return TERRITORY_SIEGE_CURRENT_FOOTPRINTS;
-  return castleLevel >= 4
-    ? TERRITORY_SIEGE_CITADEL_FOOTPRINTS
-    : TERRITORY_SIEGE_COURTYARD_FOOTPRINTS;
+  const tier =
+    castleLevel <= 1
+      ? TERRITORY_SIEGE_FRONTIER_FOOTPRINTS
+      : castleLevel === 2
+        ? TERRITORY_SIEGE_CURRENT_FOOTPRINTS
+        : castleLevel >= 4
+          ? TERRITORY_SIEGE_CITADEL_FOOTPRINTS
+          : TERRITORY_SIEGE_COURTYARD_FOOTPRINTS;
+  // Callers without a durable structure snapshot retain the conservative
+  // legacy footprint set. Live movement passes an array (including empty), so
+  // absent city buildings cannot leave invisible collision behind.
+  if (structures === undefined) return tier;
+  const fixed = tier.filter((footprint) => {
+    if (castleLevel <= 1) return !footprint.id.startsWith('frontier-tent:');
+    if (castleLevel === 2) return !footprint.id.startsWith('home:');
+    if (castleLevel === 3) {
+      return (
+        !footprint.id.startsWith('drakelands-home:') &&
+        footprint.id !== 'barracks' &&
+        footprint.id !== 'townhall'
+      );
+    }
+    return !['citadel-home:0', 'citadel-home:1', 'citadel-workshop', 'citadel-well'].includes(
+      footprint.id,
+    );
+  });
+  return [...fixed, ...territorySiegeResourceFootprints(structures, castleLevel)];
 }

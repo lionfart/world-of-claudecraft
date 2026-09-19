@@ -20,6 +20,8 @@ import {
   territorySiegeViewFor,
 } from '../src/sim/territory_siege';
 import {
+  TERRITORY_SIEGE_GATE_Z,
+  TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
   TERRITORY_SIEGE_TOWER_X,
   TERRITORY_SIEGE_TOWER_Z,
   territorySiegeWallSegmentPlacements,
@@ -70,9 +72,10 @@ describe('territory siege', () => {
     expect(state.gateMaxHp).toBe(200);
     expect(state.wallMaxHp).toBe(220);
     expect(state.coreMaxHp).toBe(250);
-    expect(Object.keys(state.wallHp)).toHaveLength(47);
+    expect(Object.keys(state.wallHp)).toHaveLength(74);
     expect(state.wallHp['inner_left:0']).toBe(220);
-    expect(state.wallHp['inner_back:4']).toBe(220);
+    expect(state.wallHp['inner_front:4']).toBe(220);
+    expect(state.wallHp['inner_back_right:0']).toBe(220);
   });
 
   it('keeps a registered attacker seat reconnectable for the entire battle', () => {
@@ -239,35 +242,35 @@ describe('territory siege', () => {
     expect(
       territorySiegeApplyAction(state, 10, 'deploy_ram', 2_000, largeRules, {
         x: -6,
-        z: 27,
+        z: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
         hasRamItem: false,
       }),
     ).toEqual({ ok: false, reason: 'ram_item_required' });
     expect(
       territorySiegeApplyAction(state, 10, 'deploy_ram', 2_500, largeRules, {
         x: -6,
-        z: 27,
+        z: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
         hasRamItem: true,
       }),
     ).toMatchObject({ ok: true, consumeRam: true });
     expect(
       territorySiegeApplyAction(state, 11, 'deploy_ram', 2_500, largeRules, {
         x: 9,
-        z: 27,
+        z: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
         hasRamItem: true,
       }),
     ).toEqual({ ok: false, reason: 'ram_out_of_zone' });
     expect(
       territorySiegeApplyAction(state, 11, 'deploy_ram', 2_500, largeRules, {
         x: -4,
-        z: 27,
+        z: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
         hasRamItem: true,
       }).ok,
     ).toBe(true);
     expect(
       territorySiegeApplyAction(state, 12, 'deploy_ram', 3_000, largeRules, {
         x: 0,
-        z: 27,
+        z: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
         hasRamItem: true,
       }).ok,
     ).toBe(true);
@@ -286,7 +289,7 @@ describe('territory siege', () => {
     expect(
       territorySiegeApplyAction(state, 14, 'deploy_ram', 3_000, largeRules, {
         x: 9,
-        z: 27,
+        z: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
         hasRamItem: true,
       }),
     ).toEqual({ ok: false, reason: 'ram_limit' });
@@ -460,7 +463,7 @@ describe('territory siege', () => {
       territorySiegeApplyCatapultStructureImpact(state, {
         side: 'attacker',
         x: 0,
-        z: 18,
+        z: TERRITORY_SIEGE_GATE_Z,
         radius: 2,
         structureDamage: 36,
       }),
@@ -509,7 +512,7 @@ describe('territory siege', () => {
     state.rams.set(1, {
       id: 1,
       x: 0,
-      z: 27,
+      z: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
       yaw: 0,
       operatorCharacterId: 10,
       nextSwingAtMs: 0,
@@ -549,7 +552,7 @@ describe('territory siege', () => {
       territorySiegeApplyCatapultStructureImpact(state, {
         side: 'defender',
         x: 0,
-        z: 27,
+        z: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
         radius: 2,
         structureDamage: 999,
       }),

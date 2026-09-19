@@ -2,6 +2,7 @@ import type {
   TerritorySiegeAction,
   TerritorySiegeWallId,
   TerritorySiegeWallRun,
+  TerritoryStructureView,
   TerritoryWarSide,
 } from '../world_api';
 import type { Collider } from './colliders';
@@ -29,15 +30,21 @@ export const TERRITORY_SIEGE_GATE_Z = 18;
 export const TERRITORY_SIEGE_GATE_HALF_WIDTH = 10;
 export const TERRITORY_SIEGE_WALL_HALF_X = 44;
 export const TERRITORY_SIEGE_BACK_WALL_Z = -72;
-export const TERRITORY_SIEGE_INNER_WALL_HALF_X = 28;
-export const TERRITORY_SIEGE_INNER_BACK_WALL_Z = -66;
-export const TERRITORY_SIEGE_INNER_FRONT_WALL_Z = -22;
-export const TERRITORY_SIEGE_INNER_GATE_HALF_WIDTH = 6;
+export const TERRITORY_SIEGE_CITADEL_GATE_Z = 24;
+export const TERRITORY_SIEGE_CITADEL_WALL_HALF_X = 70;
+export const TERRITORY_SIEGE_CITADEL_BACK_WALL_Z = -132;
+export const TERRITORY_SIEGE_INNER_WALL_HALF_X = 36;
+export const TERRITORY_SIEGE_INNER_BACK_WALL_Z = -92;
+export const TERRITORY_SIEGE_INNER_FRONT_WALL_Z = -20;
+// Exact authored half-width of kcas_stairs_walled after citadel scaling. The
+// rear curtain terminates on the stair parapets instead of leaving two slots.
+export const TERRITORY_SIEGE_INNER_GATE_HALF_WIDTH = 3.75;
 export const TERRITORY_SIEGE_TOWER_X = TERRITORY_SIEGE_WALL_HALF_X;
 export const TERRITORY_SIEGE_TOWER_Z = TERRITORY_SIEGE_GATE_Z;
 // Covers the gate and a useful slice of the approach instead of merely touching
 // the gate centre at one tangent point. The attacker spawn row remains safe.
 export const TERRITORY_SIEGE_TOWER_RANGE = 58;
+export const TERRITORY_SIEGE_CITADEL_TOWER_RANGE = 88;
 export const TERRITORY_SIEGE_TOWER_IMPACT_RADIUS = 5;
 export const TERRITORY_SIEGE_CORE_Z = -42;
 export const TERRITORY_SIEGE_CORE_ATTACK_RADIUS = 12;
@@ -51,6 +58,10 @@ export const TERRITORY_SIEGE_RAM_COLLIDER_RADIUS = 2.65;
 export const TERRITORY_SIEGE_RAM_INTERACT_RADIUS = 5;
 export const TERRITORY_SIEGE_RAM_DEPLOY_MIN_Z = 23;
 export const TERRITORY_SIEGE_RAM_DEPLOY_MAX_Z = 29;
+export const TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z =
+  (TERRITORY_SIEGE_RAM_DEPLOY_MIN_Z + TERRITORY_SIEGE_RAM_DEPLOY_MAX_Z) / 2;
+export const TERRITORY_SIEGE_CITADEL_RAM_DEPLOY_MIN_Z = 29;
+export const TERRITORY_SIEGE_CITADEL_RAM_DEPLOY_MAX_Z = 35;
 export const TERRITORY_SIEGE_RAM_DEPLOY_HALF_X = 8;
 export const TERRITORY_SIEGE_MAX_MORTARS_PER_SIDE = 3;
 export const TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS = 2.45;
@@ -60,6 +71,60 @@ export const TERRITORY_SIEGE_MAX_CATAPULTS_PER_SIDE = 3;
 export const TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS = 3.1;
 export const TERRITORY_SIEGE_CATAPULT_INTERACT_RADIUS = 5.5;
 export const TERRITORY_SIEGE_CATAPULT_RANGE = 100;
+
+export interface TerritorySiegeCastleBounds {
+  gateZ: number;
+  gateHalfWidth: number;
+  wallHalfX: number;
+  backWallZ: number;
+  towerX: number;
+  towerZ: number;
+  towerRange: number;
+  sideWallSegments: number;
+  backWallSegments: number;
+  frontWallSegments: number;
+  ramDeployMinZ: number;
+  ramDeployMaxZ: number;
+  ramDeployCenterZ: number;
+}
+
+const STANDARD_CASTLE_BOUNDS: TerritorySiegeCastleBounds = {
+  gateZ: TERRITORY_SIEGE_GATE_Z,
+  gateHalfWidth: TERRITORY_SIEGE_GATE_HALF_WIDTH,
+  wallHalfX: TERRITORY_SIEGE_WALL_HALF_X,
+  backWallZ: TERRITORY_SIEGE_BACK_WALL_Z,
+  towerX: TERRITORY_SIEGE_TOWER_X,
+  towerZ: TERRITORY_SIEGE_TOWER_Z,
+  towerRange: TERRITORY_SIEGE_TOWER_RANGE,
+  sideWallSegments: 8,
+  backWallSegments: 8,
+  frontWallSegments: 3,
+  ramDeployMinZ: TERRITORY_SIEGE_RAM_DEPLOY_MIN_Z,
+  ramDeployMaxZ: TERRITORY_SIEGE_RAM_DEPLOY_MAX_Z,
+  ramDeployCenterZ: TERRITORY_SIEGE_RAM_DEPLOY_CENTER_Z,
+};
+
+const CITADEL_CASTLE_BOUNDS: TerritorySiegeCastleBounds = {
+  gateZ: TERRITORY_SIEGE_CITADEL_GATE_Z,
+  gateHalfWidth: TERRITORY_SIEGE_GATE_HALF_WIDTH,
+  wallHalfX: TERRITORY_SIEGE_CITADEL_WALL_HALF_X,
+  backWallZ: TERRITORY_SIEGE_CITADEL_BACK_WALL_Z,
+  towerX: TERRITORY_SIEGE_CITADEL_WALL_HALF_X,
+  towerZ: TERRITORY_SIEGE_CITADEL_GATE_Z,
+  towerRange: TERRITORY_SIEGE_CITADEL_TOWER_RANGE,
+  sideWallSegments: 14,
+  backWallSegments: 12,
+  frontWallSegments: 5,
+  ramDeployMinZ: TERRITORY_SIEGE_CITADEL_RAM_DEPLOY_MIN_Z,
+  ramDeployMaxZ: TERRITORY_SIEGE_CITADEL_RAM_DEPLOY_MAX_Z,
+  ramDeployCenterZ:
+    (TERRITORY_SIEGE_CITADEL_RAM_DEPLOY_MIN_Z + TERRITORY_SIEGE_CITADEL_RAM_DEPLOY_MAX_Z) / 2,
+};
+
+/** Levels one through three keep the original compact perimeter; only level four expands. */
+export function territorySiegeCastleBounds(castleLevel = 3): TerritorySiegeCastleBounds {
+  return castleLevel >= 4 ? CITADEL_CASTLE_BOUNDS : STANDARD_CASTLE_BOUNDS;
+}
 
 export interface TerritorySiegeRamPlacement {
   id: number;
@@ -77,21 +142,23 @@ export interface TerritorySiegeRamPlacement {
 export function territorySiegeDefenderGateDestination(
   x: number,
   z: number,
+  castleLevel = 3,
 ): { x: number; z: number } | null {
+  const bounds = territorySiegeCastleBounds(castleLevel);
   if (
     !Number.isFinite(x) ||
     !Number.isFinite(z) ||
     Math.abs(x) > TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_HALF_WIDTH ||
-    Math.abs(z - TERRITORY_SIEGE_GATE_Z) > TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_DEPTH
+    Math.abs(z - bounds.gateZ) > TERRITORY_SIEGE_DEFENDER_GATE_INTERACT_DEPTH
   ) {
     return null;
   }
   return {
     x,
     z:
-      z > TERRITORY_SIEGE_GATE_Z
-        ? TERRITORY_SIEGE_GATE_Z - TERRITORY_SIEGE_DEFENDER_GATE_TRANSIT_OFFSET
-        : TERRITORY_SIEGE_GATE_Z + TERRITORY_SIEGE_DEFENDER_GATE_TRANSIT_OFFSET,
+      z > bounds.gateZ
+        ? bounds.gateZ - TERRITORY_SIEGE_DEFENDER_GATE_TRANSIT_OFFSET
+        : bounds.gateZ + TERRITORY_SIEGE_DEFENDER_GATE_TRANSIT_OFFSET,
   };
 }
 
@@ -107,6 +174,17 @@ export const TERRITORY_SIEGE_RAM_FORMATION: readonly Omit<TerritorySiegeRamPlace
   z: TERRITORY_SIEGE_GATE_Z + Math.cos(yaw) * 9.5,
   yaw,
 }));
+
+function territorySiegeRamFormation(
+  castleLevel: number,
+): readonly Omit<TerritorySiegeRamPlacement, 'id'>[] {
+  const bounds = territorySiegeCastleBounds(castleLevel);
+  return [-0.6, 0, 0.6].map((yaw) => ({
+    x: Math.sin(yaw) * 9.5,
+    z: bounds.gateZ + Math.cos(yaw) * 9.5,
+    yaw,
+  }));
+}
 
 export interface TerritorySiegeMortarPlacement {
   id: number;
@@ -189,6 +267,7 @@ export function territorySiegeMortarPlacementAllowed(
   catapults: Iterable<Pick<TerritorySiegeCatapultPlacement, 'x' | 'z'>> = [],
   castleLevel = 3,
 ): boolean {
+  const bounds = territorySiegeCastleBounds(castleLevel);
   const radius = TERRITORY_SIEGE_MORTAR_COLLIDER_RADIUS;
   if (
     !Number.isFinite(x) ||
@@ -198,10 +277,7 @@ export function territorySiegeMortarPlacementAllowed(
   ) {
     return false;
   }
-  if (
-    Math.abs(x) < TERRITORY_SIEGE_GATE_HALF_WIDTH + radius &&
-    Math.abs(z - TERRITORY_SIEGE_GATE_Z) < 1.4 + radius
-  ) {
+  if (Math.abs(x) < bounds.gateHalfWidth + radius && Math.abs(z - bounds.gateZ) < 1.4 + radius) {
     return false;
   }
   if (
@@ -265,6 +341,7 @@ export function territorySiegeCatapultPlacementAllowed(
   rams: Iterable<Pick<TerritorySiegeRamPlacement, 'x' | 'z'>> = [],
   castleLevel = 3,
 ): boolean {
+  const bounds = territorySiegeCastleBounds(castleLevel);
   const radius = TERRITORY_SIEGE_CATAPULT_COLLIDER_RADIUS;
   if (
     !Number.isFinite(x) ||
@@ -274,10 +351,7 @@ export function territorySiegeCatapultPlacementAllowed(
   ) {
     return false;
   }
-  if (
-    Math.abs(x) < TERRITORY_SIEGE_GATE_HALF_WIDTH + radius &&
-    Math.abs(z - TERRITORY_SIEGE_GATE_Z) < 1.4 + radius
-  ) {
+  if (Math.abs(x) < bounds.gateHalfWidth + radius && Math.abs(z - bounds.gateZ) < 1.4 + radius) {
     return false;
   }
   if (
@@ -333,20 +407,26 @@ export function territorySiegeCatapultTargetAllowed(
   );
 }
 
-export function territorySiegeRamDeploymentAreaContains(x: number, z: number): boolean {
+export function territorySiegeRamDeploymentAreaContains(
+  x: number,
+  z: number,
+  castleLevel = 3,
+): boolean {
+  const bounds = territorySiegeCastleBounds(castleLevel);
   return (
     Number.isFinite(x) &&
     Number.isFinite(z) &&
     Math.abs(x) <= TERRITORY_SIEGE_RAM_DEPLOY_HALF_X &&
-    z >= TERRITORY_SIEGE_RAM_DEPLOY_MIN_Z &&
-    z <= TERRITORY_SIEGE_RAM_DEPLOY_MAX_Z
+    z >= bounds.ramDeployMinZ &&
+    z <= bounds.ramDeployMaxZ
   );
 }
 
 export function territorySiegeRamDeployPlacement(
   deployedCount: number,
+  castleLevel = 3,
 ): Omit<TerritorySiegeRamPlacement, 'id'> | null {
-  return TERRITORY_SIEGE_RAM_FORMATION[Math.max(0, Math.floor(deployedCount))] ?? null;
+  return territorySiegeRamFormation(castleLevel)[Math.max(0, Math.floor(deployedCount))] ?? null;
 }
 
 /** The cart must be wholly inside the gate apron and clear of every other cart. */
@@ -354,8 +434,9 @@ export function territorySiegeRamPlacementAllowed(
   x: number,
   z: number,
   existing: Iterable<Pick<TerritorySiegeRamPlacement, 'x' | 'z'>>,
+  castleLevel = 3,
 ): boolean {
-  if (!territorySiegeRamDeploymentAreaContains(x, z)) {
+  if (!territorySiegeRamDeploymentAreaContains(x, z, castleLevel)) {
     return false;
   }
   const minimumDistance = TERRITORY_SIEGE_RAM_COLLIDER_RADIUS * 2;
@@ -396,6 +477,21 @@ export interface TerritorySiegeWallPlacement {
 export const TERRITORY_SIEGE_WALL_SCALE_Z = 2.25;
 export const TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH = 0.4 * TERRITORY_SIEGE_WALL_SCALE_Z;
 
+/**
+ * Full-extent exclusion shared by rendering and static collision. Radius is
+ * the prop's horizontal visual reach, so trunks, foliage, stones, and grass
+ * cannot cross the outer wall merely because their origin sits outside it.
+ */
+export function territorySiegeSceneryIntersectsCastle(x: number, z: number, radius = 0): boolean {
+  const bounds = territorySiegeCastleBounds(4);
+  const padding = TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH + Math.max(0, radius);
+  return (
+    Math.abs(x) <= bounds.wallHalfX + padding &&
+    z >= bounds.backWallZ - padding &&
+    z <= bounds.gateZ + padding
+  );
+}
+
 export function territorySiegeWallColliderHalfDepth(castleLevel: number, detailIndex = 0): number {
   if (castleLevel <= 1) return 0.37501 * 2.4;
   if (castleLevel === 2) return 0.39995 * TERRITORY_SIEGE_WALL_SCALE_Z;
@@ -430,11 +526,12 @@ export function territorySiegeTowerCollider(
   if (!bounds) throw new Error(`missing measured siege tower footprint: ${family}`);
   const cosine = Math.cos(rot);
   const sine = Math.sin(rot);
-  const baseX = towerId === 'left' ? -TERRITORY_SIEGE_TOWER_X : TERRITORY_SIEGE_TOWER_X;
+  const castleBounds = territorySiegeCastleBounds(castleLevel);
+  const baseX = towerId === 'left' ? -castleBounds.towerX : castleBounds.towerX;
   return {
     type: 'obb',
     x: baseX + bounds.cx * cosine + bounds.cz * sine,
-    z: TERRITORY_SIEGE_TOWER_Z - bounds.cx * sine + bounds.cz * cosine,
+    z: castleBounds.towerZ - bounds.cx * sine + bounds.cz * cosine,
     hw: bounds.hw,
     hd: bounds.hd,
     rot,
@@ -508,39 +605,40 @@ export function territorySiegeWallSegmentPlacements(
 export function territorySiegeWallPlacements(
   castleLevel = 3,
 ): readonly TerritorySiegeWallPlacement[] {
-  const outside = TERRITORY_SIEGE_WALL_HALF_X + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
+  const bounds = territorySiegeCastleBounds(castleLevel);
+  const outside = bounds.wallHalfX + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH;
   const outer = [
     ...wallRunZ(
       'left',
-      -TERRITORY_SIEGE_WALL_HALF_X,
-      TERRITORY_SIEGE_BACK_WALL_Z + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
-      TERRITORY_SIEGE_GATE_Z - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
-      8,
+      -bounds.wallHalfX,
+      bounds.backWallZ + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      bounds.gateZ - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      bounds.sideWallSegments,
       -Math.PI / 2,
     ),
     ...wallRunZ(
       'right',
-      TERRITORY_SIEGE_WALL_HALF_X,
-      TERRITORY_SIEGE_BACK_WALL_Z + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
-      TERRITORY_SIEGE_GATE_Z - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
-      8,
+      bounds.wallHalfX,
+      bounds.backWallZ + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      bounds.gateZ - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+      bounds.sideWallSegments,
       Math.PI / 2,
     ),
-    ...wallRunX('back', TERRITORY_SIEGE_BACK_WALL_Z, -outside, outside, 8, Math.PI),
+    ...wallRunX('back', bounds.backWallZ, -outside, outside, bounds.backWallSegments, Math.PI),
     ...wallRunX(
       'front_left',
-      TERRITORY_SIEGE_GATE_Z,
+      bounds.gateZ,
       -outside,
-      -TERRITORY_SIEGE_GATE_HALF_WIDTH,
-      3,
+      -bounds.gateHalfWidth,
+      bounds.frontWallSegments,
       0,
     ),
     ...wallRunX(
       'front_right',
-      TERRITORY_SIEGE_GATE_Z,
-      TERRITORY_SIEGE_GATE_HALF_WIDTH,
+      bounds.gateZ,
+      bounds.gateHalfWidth,
       outside,
-      3,
+      bounds.frontWallSegments,
       0,
     ),
   ];
@@ -553,7 +651,7 @@ export function territorySiegeWallPlacements(
       -TERRITORY_SIEGE_INNER_WALL_HALF_X,
       TERRITORY_SIEGE_INNER_BACK_WALL_Z + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
       TERRITORY_SIEGE_INNER_FRONT_WALL_Z - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
-      4,
+      6,
       -Math.PI / 2,
     ),
     ...wallRunZ(
@@ -561,32 +659,32 @@ export function territorySiegeWallPlacements(
       TERRITORY_SIEGE_INNER_WALL_HALF_X,
       TERRITORY_SIEGE_INNER_BACK_WALL_Z + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
       TERRITORY_SIEGE_INNER_FRONT_WALL_Z - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
-      4,
+      6,
       Math.PI / 2,
     ),
     ...wallRunX(
-      'inner_back',
-      TERRITORY_SIEGE_INNER_BACK_WALL_Z,
+      'inner_front',
+      TERRITORY_SIEGE_INNER_FRONT_WALL_Z,
       -innerOutside,
       innerOutside,
-      5,
+      6,
+      0,
+    ),
+    ...wallRunX(
+      'inner_back_left',
+      TERRITORY_SIEGE_INNER_BACK_WALL_Z,
+      -innerOutside,
+      -TERRITORY_SIEGE_INNER_GATE_HALF_WIDTH,
+      3,
       Math.PI,
     ),
     ...wallRunX(
-      'inner_front_left',
-      TERRITORY_SIEGE_INNER_FRONT_WALL_Z,
-      -innerOutside,
-      -TERRITORY_SIEGE_INNER_GATE_HALF_WIDTH,
-      2,
-      0,
-    ),
-    ...wallRunX(
-      'inner_front_right',
-      TERRITORY_SIEGE_INNER_FRONT_WALL_Z,
+      'inner_back_right',
+      TERRITORY_SIEGE_INNER_BACK_WALL_Z,
       TERRITORY_SIEGE_INNER_GATE_HALF_WIDTH,
       innerOutside,
-      2,
-      0,
+      3,
+      Math.PI,
     ),
   ];
 }
@@ -610,23 +708,30 @@ export function territorySiegeSpawn(
 
 export function territorySiegeTowerPositions(
   slot: number,
+  castleLevel = 3,
 ): readonly [{ x: number; z: number }, { x: number; z: number }] {
   const origin = territorySiegeOrigin(slot);
+  const bounds = territorySiegeCastleBounds(castleLevel);
   return [
     {
-      x: origin.x - TERRITORY_SIEGE_TOWER_X,
-      z: origin.z + TERRITORY_SIEGE_TOWER_Z,
+      x: origin.x - bounds.towerX,
+      z: origin.z + bounds.towerZ,
     },
     {
-      x: origin.x + TERRITORY_SIEGE_TOWER_X,
-      z: origin.z + TERRITORY_SIEGE_TOWER_Z,
+      x: origin.x + bounds.towerX,
+      z: origin.z + bounds.towerZ,
     },
   ];
 }
 
-export function territorySiegeInTowerRange(slot: number, x: number, z: number): boolean {
+export function territorySiegeInTowerRange(
+  slot: number,
+  x: number,
+  z: number,
+  castleLevel = 3,
+): boolean {
   return (['left', 'right'] as const).some((towerId) =>
-    territorySiegeInSpecificTowerRange(slot, towerId, x, z),
+    territorySiegeInSpecificTowerRange(slot, towerId, x, z, 0, castleLevel),
   );
 }
 
@@ -637,17 +742,21 @@ export function territorySiegeInSpecificTowerRange(
   x: number,
   z: number,
   impactRadius = 0,
+  castleLevel = 3,
 ): boolean {
-  const tower = territorySiegeTowerPositions(slot)[towerId === 'left' ? 0 : 1];
-  const effectiveRange = Math.max(0, TERRITORY_SIEGE_TOWER_RANGE - impactRadius);
+  const bounds = territorySiegeCastleBounds(castleLevel);
+  const tower = territorySiegeTowerPositions(slot, castleLevel)[towerId === 'left' ? 0 : 1];
+  const effectiveRange = Math.max(0, bounds.towerRange - impactRadius);
   return (x - tower.x) ** 2 + (z - tower.z) ** 2 <= effectiveRange ** 2;
 }
 
 export function territorySiegeActionPoint(
   slot: number,
   action: TerritorySiegeAction,
+  castleLevel = 3,
 ): { x: number; z: number; radius: number } {
   const origin = territorySiegeOrigin(slot);
+  const bounds = territorySiegeCastleBounds(castleLevel);
   const local =
     action === 'start_core_channel'
       ? {
@@ -658,7 +767,7 @@ export function territorySiegeActionPoint(
       : action === 'stop_core_channel'
         ? { x: 0, z: TERRITORY_SIEGE_CORE_Z, radius: Number.POSITIVE_INFINITY }
         : action === 'deploy_ram'
-          ? { x: 0, z: 27, radius: 8 }
+          ? { x: 0, z: bounds.ramDeployCenterZ, radius: 8 }
           : action === 'leave_ram'
             ? { x: 0, z: 23, radius: Number.POSITIVE_INFINITY }
             : { x: 0, z: 23, radius: 5 };
@@ -890,9 +999,13 @@ function resolveSweptClamp(
   return collided ? current : { x: toX, z: toZ };
 }
 
-function territorySiegeCourtyardColliders(slot: number, castleLevel: number): Collider[] {
+function territorySiegeCourtyardColliders(
+  slot: number,
+  castleLevel: number,
+  structures?: readonly TerritoryStructureView[],
+): Collider[] {
   const origin = territorySiegeOrigin(slot);
-  return territorySiegeCourtyardFootprints(castleLevel).map(
+  return territorySiegeCourtyardFootprints(castleLevel, structures).map(
     (footprint): Collider =>
       footprint.type === 'circle'
         ? {
@@ -921,8 +1034,9 @@ export function resolveTerritorySiegeCourtyardStructures(
   toZ: number,
   radius: number,
   castleLevel = 3,
+  structures?: readonly TerritoryStructureView[],
 ): { x: number; z: number } {
-  const colliders = territorySiegeCourtyardColliders(slot, castleLevel);
+  const colliders = territorySiegeCourtyardColliders(slot, castleLevel, structures);
   return resolveSweptClamp(fromX, fromZ, toX, toZ, (x, z) =>
     clampOutsideColliders(x, z, radius, colliders),
   );
@@ -1026,12 +1140,14 @@ export function clampTerritorySiegeGate(
   x: number,
   z: number,
   radius: number,
+  castleLevel = 3,
 ): { x: number; z: number } {
   if (gateOpen) return { x, z };
   const origin = territorySiegeOrigin(slot);
+  const bounds = territorySiegeCastleBounds(castleLevel);
   const localX = x - origin.x;
-  const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
-  if (Math.abs(localX) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius) return { x, z };
+  const gateZ = origin.z + bounds.gateZ;
+  if (Math.abs(localX) > bounds.gateHalfWidth + radius) return { x, z };
   const front = gateZ + 1.4 + radius;
   const back = gateZ - 1.4 - radius;
   if (fromZ >= front && z < front) return { x, z: front };
@@ -1077,15 +1193,17 @@ export function territorySiegeProjectilePathClear(
   from: Readonly<{ x: number; z: number }>,
   to: Readonly<{ x: number; z: number }>,
   radius = 0.05,
+  castleLevel = 3,
 ): boolean {
   if (gateOpen) return true;
   const origin = territorySiegeOrigin(slot);
-  const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
+  const bounds = territorySiegeCastleBounds(castleLevel);
+  const gateZ = origin.z + bounds.gateZ;
   return !segmentIntersectsRect(
     from,
     to,
-    origin.x - TERRITORY_SIEGE_GATE_HALF_WIDTH - radius,
-    origin.x + TERRITORY_SIEGE_GATE_HALF_WIDTH + radius,
+    origin.x - bounds.gateHalfWidth - radius,
+    origin.x + bounds.gateHalfWidth + radius,
     gateZ - 1.4 - radius,
     gateZ + 1.4 + radius,
   );
@@ -1105,14 +1223,16 @@ export function sealTerritorySiegeGateForSide(
   z: number,
   radius: number,
   breachOpen = false,
+  castleLevel = 3,
 ): { x: number; z: number } {
   // Once any wall segment has fallen, either side may legitimately be on the
   // opposite side of the still-closed gate. The swept gate leaf still blocks
   // walking through the gate itself; only the stale-position backstop relaxes.
   if (gateOpen || breachOpen) return { x, z };
   const origin = territorySiegeOrigin(slot);
-  if (Math.abs(x - origin.x) > TERRITORY_SIEGE_GATE_HALF_WIDTH + radius) return { x, z };
-  const gateZ = origin.z + TERRITORY_SIEGE_GATE_Z;
+  const bounds = territorySiegeCastleBounds(castleLevel);
+  if (Math.abs(x - origin.x) > bounds.gateHalfWidth + radius) return { x, z };
+  const gateZ = origin.z + bounds.gateZ;
   const front = gateZ + 1.4 + radius;
   if (side === 'attacker' && z < front) return { x, z: front };
   // Defenders may legitimately be on either side after using the closed gate.
@@ -1152,7 +1272,9 @@ export function clampTerritorySiegeFieldForSide(
 export function territorySiegeLocalColliders(castleLevel = 3, includeCourtyard = true): Collider[] {
   const y = TERRITORY_SIEGE_FLOOR_Y;
   const scenery: Collider[] = [
-    ...TERRITORY_SIEGE_TREES.map(
+    ...TERRITORY_SIEGE_TREES.filter(
+      (tree) => !territorySiegeSceneryIntersectsCastle(tree.x, tree.z, tree.scale),
+    ).map(
       (tree): Collider => ({
         type: 'circle',
         x: tree.x,
@@ -1160,7 +1282,9 @@ export function territorySiegeLocalColliders(castleLevel = 3, includeCourtyard =
         r: 1.5,
       }),
     ),
-    ...TERRITORY_SIEGE_ROCKS.map(
+    ...TERRITORY_SIEGE_ROCKS.filter(
+      (rock) => !territorySiegeSceneryIntersectsCastle(rock.x, rock.z, rock.scale),
+    ).map(
       (rock): Collider => ({
         type: 'circle',
         x: rock.x,

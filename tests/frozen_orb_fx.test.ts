@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { FrozenOrbFx, handleFrozenOrbSpellfxEvent } from '../src/render/frozen_orb_fx';
 
 interface OrbInternals {
+  group: THREE.Group;
   shellMat: THREE.MeshStandardMaterial;
   coreMat: THREE.MeshBasicMaterial;
   shardMat: THREE.MeshStandardMaterial;
@@ -14,6 +15,18 @@ function orbs(fx: FrozenOrbFx): OrbInternals[] {
 }
 
 describe('Frostglobe visual', () => {
+  it('resamples the changing ground beneath the orb while it travels', () => {
+    const scene = new THREE.Scene();
+    const ground = vi.fn((x: number, _z: number, _feetY?: number) => (x >= 1 ? 2.4 : 0));
+    const fx = new FrozenOrbFx(scene, ground);
+    fx.spawn({ sourceId: 1, x: 0, z: 0, dirX: 1, dirZ: 0, speed: 2, duration: 3 });
+
+    fx.update(1);
+
+    expect(orbs(fx)[0].group.position.y).toBeGreaterThan(3.4);
+    expect(ground.mock.calls.at(-1)?.[2]).toBe(0);
+  });
+
   it("reuses a released orb's materials for the next spawn and resets its faded opacity", () => {
     const scene = new THREE.Scene();
     const fx = new FrozenOrbFx(scene, () => 0);

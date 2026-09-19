@@ -7,18 +7,17 @@ import type {
   TerritorySiegeAction,
   TerritorySiegeView,
   TerritorySiegeWallId,
+  TerritoryStructureView,
   TerritoryWarSide,
 } from '../world_api';
 import { territoryCastleLevel } from './territory_castle_progression';
 import type { TerritorySiegeBiome } from './territory_siege_biome';
 import {
-  TERRITORY_SIEGE_GATE_Z,
   TERRITORY_SIEGE_MAX_CATAPULTS_PER_SIDE,
   TERRITORY_SIEGE_MAX_MORTARS_PER_SIDE,
   TERRITORY_SIEGE_MAX_RAMS,
-  TERRITORY_SIEGE_TOWER_X,
-  TERRITORY_SIEGE_TOWER_Z,
   TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+  territorySiegeCastleBounds,
   territorySiegeCatapultDeployPlacement,
   territorySiegeCatapultPlacementAllowed,
   territorySiegeCatapultTargetAllowed,
@@ -53,6 +52,7 @@ export interface TerritorySiegeDefinition {
   endsAtMs: number;
   gateLevel: number;
   coreLevel: number;
+  structures?: TerritoryStructureView[];
   attackerHasSiegeWorkshop: boolean;
   defenseTowerLevel?: number;
 }
@@ -764,15 +764,15 @@ export function territorySiegeApplyCatapultStructureImpact(
   }
   const inRange = (x: number, z: number, extra = 0) =>
     (impact.x - x) ** 2 + (impact.z - z) ** 2 <= (impact.radius + extra) ** 2;
+  const castleLevel = territoryCastleLevel(state.definition.coreLevel);
+  const castleBounds = territorySiegeCastleBounds(castleLevel);
   let changed = false;
-  if (impact.side === 'attacker' && state.gateHp > 0 && inRange(0, TERRITORY_SIEGE_GATE_Z, 3)) {
+  if (impact.side === 'attacker' && state.gateHp > 0 && inRange(0, castleBounds.gateZ, 3)) {
     state.gateHp = Math.max(0, state.gateHp - impact.structureDamage);
     changed = true;
   }
   if (impact.side === 'attacker') {
-    for (const [id, wall] of Object.entries(
-      territorySiegeWallSegmentPlacements(territoryCastleLevel(state.definition.coreLevel)),
-    ) as [
+    for (const [id, wall] of Object.entries(territorySiegeWallSegmentPlacements(castleLevel)) as [
       TerritorySiegeWallId,
       ReturnType<typeof territorySiegeWallSegmentPlacements>[TerritorySiegeWallId],
     ][]) {
@@ -780,11 +780,11 @@ export function territorySiegeApplyCatapultStructureImpact(
       state.wallHp[id] = Math.max(0, state.wallHp[id] - impact.structureDamage);
       changed = true;
     }
-    if (state.towerHp.left > 0 && inRange(-TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_Z, 4)) {
+    if (state.towerHp.left > 0 && inRange(-castleBounds.towerX, castleBounds.towerZ, 4)) {
       state.towerHp.left = Math.max(0, state.towerHp.left - impact.structureDamage);
       changed = true;
     }
-    if (state.towerHp.right > 0 && inRange(TERRITORY_SIEGE_TOWER_X, TERRITORY_SIEGE_TOWER_Z, 4)) {
+    if (state.towerHp.right > 0 && inRange(castleBounds.towerX, castleBounds.towerZ, 4)) {
       state.towerHp.right = Math.max(0, state.towerHp.right - impact.structureDamage);
       changed = true;
     }
@@ -850,6 +850,7 @@ export function territorySiegeApplyAction(
   ) {
     return { ok: false, reason: 'cooldown' };
   }
+  const castleLevel = territoryCastleLevel(state.definition.coreLevel);
 
   switch (action) {
     case 'deploy_ram': {
@@ -862,11 +863,11 @@ export function territorySiegeApplyAction(
         return { ok: false, reason: 'ram_limit' };
       }
       const actorX = context.x ?? 0;
-      const actorZ = context.z ?? 27;
-      if (!territorySiegeRamDeploymentAreaContains(actorX, actorZ)) {
+      const actorZ = context.z ?? territorySiegeCastleBounds(castleLevel).ramDeployCenterZ;
+      if (!territorySiegeRamDeploymentAreaContains(actorX, actorZ, castleLevel)) {
         return { ok: false, reason: 'ram_out_of_zone' };
       }
-      const placement = territorySiegeRamDeployPlacement(state.rams.size);
+      const placement = territorySiegeRamDeployPlacement(state.rams.size, castleLevel);
       if (!placement) return { ok: false, reason: 'ram_limit' };
       const id = state.nextRamId++;
       state.rams.set(id, {
@@ -919,7 +920,7 @@ export function territorySiegeApplyAction(
           state.mortars.values(),
           state.rams.values(),
           state.catapults.values(),
-          territoryCastleLevel(state.definition.coreLevel),
+          castleLevel,
         )
       ) {
         return { ok: false, reason: 'mortar_out_of_zone' };
@@ -1074,7 +1075,7 @@ export function territorySiegeApplyAction(
           state.catapults.values(),
           state.mortars.values(),
           state.rams.values(),
-          territoryCastleLevel(state.definition.coreLevel),
+          castleLevel,
         )
       ) {
         return { ok: false, reason: 'catapult_out_of_zone' };
@@ -1275,6 +1276,7 @@ export function territorySiegeViewFor(
     warId: state.definition.warId,
     biome: state.definition.biome,
     castleLevel: territoryCastleLevel(state.definition.coreLevel),
+    structures: state.definition.structures,
     state: state.phase,
     mySide: seat.side,
     attackerCount: countSide(state, 'attacker'),

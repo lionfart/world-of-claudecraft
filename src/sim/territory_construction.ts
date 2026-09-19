@@ -19,8 +19,8 @@ const KIND_TIME_WEIGHT: Readonly<Record<TerritoryStructureKind, number>> = {
 
 /**
  * Calculates a build/upgrade deadline without consulting a clock. Each active
- * construction-workshop level removes 10%, capped at 50%. A zero base is an
- * explicit local-test preset that completes the mutation immediately.
+ * construction-workshop level removes 10%, capped at 50%. Stale zero presets
+ * are clamped to one second so a build always has a real server deadline.
  */
 export function territoryConstructionDurationMs(
   kind: TerritoryStructureKind,
@@ -28,12 +28,35 @@ export function territoryConstructionDurationMs(
   activeWorkshopLevels: number,
   baseSeconds: number,
 ): number {
-  if (baseSeconds <= 0) return 0;
   const level = Math.max(1, Math.min(5, Math.floor(targetLevel)));
   const workshop = Math.max(0, Math.floor(activeWorkshopLevels));
   const speedMultiplier = Math.max(0.5, 1 - workshop * 0.1);
+  const safeBaseSeconds = Number.isFinite(baseSeconds) ? Math.max(1, baseSeconds) : 1;
   return Math.max(
     1_000,
-    Math.ceil(Math.max(1, baseSeconds) * KIND_TIME_WEIGHT[kind] * level * speedMultiplier * 1_000),
+    Math.ceil(safeBaseSeconds * KIND_TIME_WEIGHT[kind] * level * speedMultiplier * 1_000),
   );
+}
+
+export function territoryRepairDurationMs(
+  kind: TerritoryStructureKind,
+  level: number,
+  activeWorkshopLevels: number,
+  baseSeconds: number,
+): number {
+  return Math.max(
+    1_000,
+    Math.ceil(territoryConstructionDurationMs(kind, level, activeWorkshopLevels, baseSeconds) / 2),
+  );
+}
+
+/** A live battle blocks construction; a notice window only permits work that finishes in time. */
+export function territoryConstructionFitsWarWindow(
+  nowMs: number,
+  durationMs: number,
+  war: { status: 'declared' | 'forming' | 'active'; startsAtMs: number } | null,
+): boolean {
+  if (!war) return true;
+  if (war.status === 'active' || nowMs >= war.startsAtMs) return false;
+  return nowMs + Math.max(0, durationMs) <= war.startsAtMs;
 }

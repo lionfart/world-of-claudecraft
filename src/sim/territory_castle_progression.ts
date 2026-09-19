@@ -1,4 +1,4 @@
-import type { TerritoryStructureSlot } from '../world_api/territory';
+import type { TerritoryStructureSlot, TerritoryStructureState } from '../world_api/territory';
 
 export const TERRITORY_CASTLE_MAX_LEVEL = 4;
 
@@ -36,7 +36,7 @@ export function territoryStructureUpgradeAllowed(
 export function territoryActiveCastleLevel(
   input: {
     level: number;
-    state: 'building' | 'active';
+    state: TerritoryStructureState;
   } | null,
 ): number {
   if (!input) return 1;

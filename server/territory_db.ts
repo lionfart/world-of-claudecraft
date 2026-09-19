@@ -7,7 +7,11 @@ import {
   territoryStructureSlotBuildable,
   territoryStructureUpgradeAllowed,
 } from '../src/sim/territory_castle_progression';
-import { territoryConstructionDurationMs } from '../src/sim/territory_construction';
+import {
+  territoryConstructionDurationMs,
+  territoryConstructionFitsWarWindow,
+  territoryRepairDurationMs,
+} from '../src/sim/territory_construction';
 import type { TerritoryDelta } from '../src/sim/territory_delta';
 import {
   TERRITORY_RESOURCE_TICK_MS,
@@ -34,6 +38,7 @@ import type {
   TerritoryOwnedCellView,
   TerritoryStructureKind,
   TerritoryStructureSlot,
+  TerritoryStructureState,
   TerritoryStructureView,
   TerritoryWarSide,
   TerritoryWarStatus,
@@ -74,6 +79,16 @@ const SLOT_KIND: Readonly<Record<TerritoryStructureSlot, TerritoryStructureKind>
 type TerritoryExtractorKind = 'granary' | 'forester' | 'mine' | 'house';
 type TerritoryResourceAmounts = Record<TerritoryResourceKind, number>;
 
+interface TerritoryCellStockpileRow {
+  cell_id: number;
+  wood: string | number;
+  iron: string | number;
+  grain: string | number;
+  labor: string | number;
+  accrued_at: Date | string;
+  stockpile_level: number | null;
+}
+
 interface TerritoryExtractorRow {
   cell_id: number;
   kind: TerritoryExtractorKind;
@@ -85,8 +100,9 @@ function emptyTerritoryResourceAmounts(): TerritoryResourceAmounts {
 }
 
 /**
- * Computes one authoritative hourly slice from per-city structures. A mine in
- * one city must never multiply an ore deposit owned on a different hex.
+ * Computes one authoritative hourly slice from per-city structures. Every
+ * active extractor produces its level as a baseline; the same city's matching
+ * natural deposit supplies the stronger yield multiplier.
  */
 function territoryProductionPerTickForCells(
   manifest: TerritoryManifest,
@@ -103,12 +119,14 @@ function territoryProductionPerTickForCells(
   for (const cellId of cellIds) {
     const cell = manifest.byId.get(cellId);
     const resource = cell ? territoryResourceProfile(cell, manifest.radius) : null;
-    if (!resource) continue;
-    production[resource.kind] += territoryResourceProductionPerTick(
-      resource.kind,
-      resource.yield,
-      levelsByCell.get(cellId) ?? {},
-    );
+    const levels = levelsByCell.get(cellId) ?? {};
+    for (const kind of ['wood', 'iron', 'grain', 'labor'] as const) {
+      production[kind] += territoryResourceProductionPerTick(
+        kind,
+        resource?.kind === kind ? resource.yield : 1,
+        levels,
+      );
+    }
   }
   return production;
 }
@@ -137,6 +155,8 @@ type MutationError =
   | 'occupied'
   | 'invalid_structure'
   | 'not_repairable'
+  | 'war_construction_locked'
+  | 'stockpile_locked'
   | 'war_conflict'
   | 'war_slots_full'
   | 'war_not_found'
@@ -186,6 +206,7 @@ export interface TerritorySiegeRuntimeRecord {
   endsAtMs: number;
   gateLevel: number;
   coreLevel: number;
+  structures?: TerritoryStructureView[];
   attackerHasSiegeWorkshop: boolean;
   defenseTowerLevel: number;
   participants: Array<{
@@ -308,6 +329,15 @@ export class TerritoryRepository {
              ON CONFLICT (season_id, cell_id, slot) DO NOTHING`,
             [season.id],
           );
+          const legacyGuilds = await client.query<{ guild_id: number }>(
+            `SELECT guild_id FROM territory_guild_state
+              WHERE season_id = $1 AND stockpile_migrated = FALSE
+              ORDER BY guild_id`,
+            [season.id],
+          );
+          for (const guild of legacyGuilds.rows) {
+            await this.migrateLegacyStockpile(client, num(season.id), guild.guild_id);
+          }
           await client.query('COMMIT');
           return;
         }
@@ -503,7 +533,7 @@ export class TerritoryRepository {
         slot: TerritoryStructureSlot;
         kind: TerritoryStructureKind;
         level: number;
-        state: 'building' | 'active';
+        state: TerritoryStructureState;
         completes_at: Date | string | null;
       }>(
         `SELECT cell_id, slot, kind, COALESCE(target_level, level)::int AS level,
@@ -602,7 +632,10 @@ export class TerritoryRepository {
   /** One startup/cache-refresh batch; never queried per map viewer. */
   async loadActiveWarRegistrations(): Promise<Array<{ warId: string; characterId: number }>> {
     const season = await this.activeSeason(this.pool);
-    const result = await this.pool.query<{ war_id: string; character_id: number }>(
+    const result = await this.pool.query<{
+      war_id: string;
+      character_id: number;
+    }>(
       `SELECT p.war_id, p.character_id
          FROM territory_war_participants p
          JOIN territory_wars w ON w.id = p.war_id
@@ -612,7 +645,10 @@ export class TerritoryRepository {
         ORDER BY p.war_id, p.character_id`,
       [season.id],
     );
-    return result.rows.map((row) => ({ warId: row.war_id, characterId: row.character_id }));
+    return result.rows.map((row) => ({
+      warId: row.war_id,
+      characterId: row.character_id,
+    }));
   }
 
   /**
@@ -624,7 +660,7 @@ export class TerritoryRepository {
   async loadGuildViewsSnapshot(now = new Date()): Promise<Map<number, TerritoryGuildSnapshot>> {
     const season = await this.activeSeason(this.pool);
     const seasonId = num(season.id);
-    const [states, owned, extractors, stockpiles] = await Promise.all([
+    const [states, cells, extractors] = await Promise.all([
       this.pool.query<GuildStateRow & { guild_id: number; guild_name: string }>(
         `SELECT s.guild_id, g.name AS guild_name, s.territory_level,
                 s.wood, s.iron, s.grain, s.labor, s.accrued_at
@@ -632,9 +668,14 @@ export class TerritoryRepository {
           WHERE s.season_id = $1 ORDER BY s.guild_id`,
         [seasonId],
       ),
-      this.pool.query<{ guild_id: number; cell_id: number }>(
-        `SELECT guild_id, cell_id FROM territory_cells
-          WHERE season_id = $1 ORDER BY guild_id, cell_id`,
+      this.pool.query<TerritoryCellStockpileRow & { guild_id: number }>(
+        `SELECT c.guild_id, c.cell_id, c.wood, c.iron, c.grain, c.labor, c.accrued_at,
+                (SELECT max(s.level)::int FROM territory_structures s
+                  WHERE s.season_id = c.season_id AND s.cell_id = c.cell_id
+                    AND s.kind = 'stockpile') AS stockpile_level
+           FROM territory_cells c
+          WHERE c.season_id = $1
+          ORDER BY c.guild_id, c.cell_id`,
         [seasonId],
       ),
       this.pool.query<{
@@ -651,54 +692,34 @@ export class TerritoryRepository {
           ORDER BY c.guild_id, c.cell_id, s.kind`,
         [seasonId],
       ),
-      this.pool.query<{ guild_id: number; level: number }>(
-        `SELECT c.guild_id, s.level
-           FROM territory_structures s
-           JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
-          WHERE s.season_id = $1 AND s.kind = 'stockpile' AND s.state = 'active'
-          ORDER BY c.guild_id, s.cell_id`,
-        [seasonId],
-      ),
     ]);
-    const cellsByGuild = new Map<number, number[]>();
-    for (const cell of owned.rows) {
+    const cellsByGuild = new Map<number, TerritoryCellStockpileRow[]>();
+    for (const cell of cells.rows) {
       const cells = cellsByGuild.get(cell.guild_id) ?? [];
-      cells.push(cell.cell_id);
+      cells.push(cell);
       cellsByGuild.set(cell.guild_id, cells);
     }
     const extractorsByGuild = new Map<number, TerritoryExtractorRow[]>();
     for (const row of extractors.rows) {
       const guildExtractors = extractorsByGuild.get(row.guild_id) ?? [];
-      guildExtractors.push({ cell_id: row.cell_id, kind: row.kind, level: row.level });
+      guildExtractors.push({
+        cell_id: row.cell_id,
+        kind: row.kind,
+        level: row.level,
+      });
       extractorsByGuild.set(row.guild_id, guildExtractors);
-    }
-    const stockpileCapacityByGuild = new Map<number, number>();
-    for (const row of stockpiles.rows) {
-      stockpileCapacityByGuild.set(
-        row.guild_id,
-        (stockpileCapacityByGuild.get(row.guild_id) ?? 0) + territoryStockpileCapacity(row.level),
-      );
     }
     const views = new Map<number, TerritoryGuildSnapshot>();
     for (const state of states.rows) {
-      const cellIds = cellsByGuild.get(state.guild_id) ?? [];
-      const capacity = stockpileCapacityByGuild.get(state.guild_id) ?? 0;
-      const accruedMs = new Date(state.accrued_at).getTime();
-      const ticks = Math.max(
-        0,
-        Math.floor((now.getTime() - accruedMs) / TERRITORY_RESOURCE_TICK_MS),
-      );
-      const productionPerTick = territoryProductionPerTickForCells(
-        this.manifest,
-        cellIds,
+      const guildCells = cellsByGuild.get(state.guild_id) ?? [];
+      const cityStockpiles = this.projectCityStockpiles(
+        guildCells,
         extractorsByGuild.get(state.guild_id) ?? [],
+        now,
       );
-      const production = {
-        wood: ticks * productionPerTick.wood,
-        iron: ticks * productionPerTick.iron,
-        grain: ticks * productionPerTick.grain,
-        labor: ticks * productionPerTick.labor,
-      };
+      const resources = this.sumCityResources(cityStockpiles);
+      const productionPerHour = this.sumCityProduction(cityStockpiles);
+      const capacity = cityStockpiles.reduce((total, city) => total + city.capacity, 0);
       const level = state.territory_level;
       views.set(state.guild_id, {
         id: String(state.guild_id),
@@ -710,16 +731,12 @@ export class TerritoryRepository {
           this.manifest.cells.length,
           this.config.requirementsEnabled,
         ),
-        ownedCellCount: cellIds.length,
-        resources: {
-          wood: Math.min(capacity, num(state.wood) + production.wood),
-          iron: Math.min(capacity, num(state.iron) + production.iron),
-          grain: Math.min(capacity, num(state.grain) + production.grain),
-          labor: Math.min(capacity, num(state.labor) + production.labor),
-        },
-        productionPerHour: territoryProductionPerHour(productionPerTick),
+        ownedCellCount: guildCells.length,
+        resources,
+        productionPerHour,
+        stockpiles: cityStockpiles,
         resourceCapacity: capacity,
-        accruedAt: new Date(accruedMs + ticks * TERRITORY_RESOURCE_TICK_MS).toISOString(),
+        accruedAt: cityStockpiles[0]?.accruedAt ?? iso(state.accrued_at),
       });
     }
     return views;
@@ -737,6 +754,130 @@ export class TerritoryRepository {
     );
   }
 
+  private async migrateLegacyStockpile(
+    client: PoolClient,
+    seasonId: number,
+    guildId: number,
+  ): Promise<void> {
+    const state = await client.query<GuildStateRow & { stockpile_migrated: boolean }>(
+      `SELECT territory_level, wood, iron, grain, labor, accrued_at, stockpile_migrated
+         FROM territory_guild_state
+        WHERE season_id = $1 AND guild_id = $2 FOR UPDATE`,
+      [seasonId, guildId],
+    );
+    const legacy = state.rows[0];
+    if (!legacy || legacy.stockpile_migrated) return;
+    const cells = await client.query<TerritoryCellStockpileRow>(
+      `SELECT c.cell_id, c.wood, c.iron, c.grain, c.labor, c.accrued_at,
+              (SELECT max(s.level)::int FROM territory_structures s
+                WHERE s.season_id = c.season_id AND s.cell_id = c.cell_id
+                  AND s.kind = 'stockpile') AS stockpile_level
+         FROM territory_cells c
+        WHERE c.season_id = $1 AND c.guild_id = $2
+        ORDER BY c.keep_root DESC, c.cell_id
+        FOR UPDATE OF c`,
+      [seasonId, guildId],
+    );
+    const remaining: TerritoryResourceAmounts = {
+      wood: num(legacy.wood),
+      iron: num(legacy.iron),
+      grain: num(legacy.grain),
+      labor: num(legacy.labor),
+    };
+    for (const cell of cells.rows) {
+      if (!cell.stockpile_level) continue;
+      const capacity = territoryStockpileCapacity(cell.stockpile_level);
+      const allocation = emptyTerritoryResourceAmounts();
+      for (const kind of ['wood', 'iron', 'grain', 'labor'] as const) {
+        const room = Math.max(0, capacity - num(cell[kind]));
+        allocation[kind] = Math.min(room, remaining[kind]);
+        remaining[kind] -= allocation[kind];
+      }
+      await client.query(
+        `UPDATE territory_cells
+            SET wood = LEAST($3, wood + $4), iron = LEAST($3, iron + $5),
+                grain = LEAST($3, grain + $6), labor = LEAST($3, labor + $7),
+                accrued_at = LEAST(accrued_at, $8)
+          WHERE season_id = $1 AND cell_id = $2`,
+        [
+          seasonId,
+          cell.cell_id,
+          capacity,
+          allocation.wood,
+          allocation.iron,
+          allocation.grain,
+          allocation.labor,
+          legacy.accrued_at,
+        ],
+      );
+    }
+    await client.query(
+      `UPDATE territory_guild_state
+          SET wood = 0, iron = 0, grain = 0, labor = 0,
+              stockpile_migrated = TRUE, updated_at = now()
+        WHERE season_id = $1 AND guild_id = $2`,
+      [seasonId, guildId],
+    );
+  }
+
+  private projectCityStockpiles(
+    cells: readonly TerritoryCellStockpileRow[],
+    extractors: readonly TerritoryExtractorRow[],
+    now: Date,
+  ): Array<{
+    cellId: number;
+    resources: TerritoryResourceAmounts;
+    productionPerHour: TerritoryResourceAmounts;
+    capacity: number;
+    accruedAt: string;
+  }> {
+    return cells.map((cell) => {
+      const capacity = cell.stockpile_level ? territoryStockpileCapacity(cell.stockpile_level) : 0;
+      const accruedMs = new Date(cell.accrued_at).getTime();
+      const ticks = Math.max(
+        0,
+        Math.floor((now.getTime() - accruedMs) / TERRITORY_RESOURCE_TICK_MS),
+      );
+      const productionPerTick = territoryProductionPerTickForCells(
+        this.manifest,
+        [cell.cell_id],
+        extractors.filter((extractor) => extractor.cell_id === cell.cell_id),
+      );
+      return {
+        cellId: cell.cell_id,
+        resources: {
+          wood: Math.min(capacity, num(cell.wood) + ticks * productionPerTick.wood),
+          iron: Math.min(capacity, num(cell.iron) + ticks * productionPerTick.iron),
+          grain: Math.min(capacity, num(cell.grain) + ticks * productionPerTick.grain),
+          labor: Math.min(capacity, num(cell.labor) + ticks * productionPerTick.labor),
+        },
+        productionPerHour: territoryProductionPerHour(productionPerTick),
+        capacity,
+        accruedAt: new Date(accruedMs + ticks * TERRITORY_RESOURCE_TICK_MS).toISOString(),
+      };
+    });
+  }
+
+  private sumCityResources(
+    cities: readonly { resources: TerritoryResourceAmounts }[],
+  ): TerritoryResourceAmounts {
+    return cities.reduce((total, city) => {
+      for (const kind of ['wood', 'iron', 'grain', 'labor'] as const)
+        total[kind] += city.resources[kind];
+      return total;
+    }, emptyTerritoryResourceAmounts());
+  }
+
+  private sumCityProduction(
+    cities: readonly { productionPerHour: TerritoryResourceAmounts }[],
+  ): TerritoryResourceAmounts {
+    return cities.reduce((total, city) => {
+      for (const kind of ['wood', 'iron', 'grain', 'labor'] as const)
+        total[kind] += city.productionPerHour[kind];
+      return total;
+    }, emptyTerritoryResourceAmounts());
+  }
+
   private async stockpileCapacity(
     client: Pool | PoolClient,
     seasonId: number,
@@ -747,10 +888,40 @@ export class TerritoryRepository {
          FROM territory_structures s
          JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
         WHERE s.season_id = $1 AND c.guild_id = $2
-          AND s.kind = 'stockpile' AND s.state = 'active'`,
+          AND s.kind = 'stockpile'`,
       [seasonId, guildId],
     );
     return result.rows.reduce((total, row) => total + territoryStockpileCapacity(row.level), 0);
+  }
+
+  private async constructionAllowedBeforeWar(
+    client: Pool | PoolClient,
+    seasonId: number,
+    cellId: number,
+    now: Date,
+    durationMs: number,
+  ): Promise<boolean> {
+    const result = await client.query<{
+      status: 'declared' | 'forming' | 'active';
+      starts_at: Date | string;
+    }>(
+      `SELECT status, starts_at FROM territory_wars
+        WHERE season_id = $1 AND target_cell_id = $2
+          AND status IN ('declared', 'forming', 'active')
+        ORDER BY starts_at LIMIT 1`,
+      [seasonId, cellId],
+    );
+    const war = result.rows[0];
+    return territoryConstructionFitsWarWindow(
+      now.getTime(),
+      durationMs,
+      war
+        ? {
+            status: war.status,
+            startsAtMs: new Date(war.starts_at).getTime(),
+          }
+        : null,
+    );
   }
 
   private async resourceProductionPerTick(
@@ -788,44 +959,58 @@ export class TerritoryRepository {
     now: Date,
   ): Promise<GuildStateRow> {
     await this.ensureGuildState(client, seasonId, guildId);
-    const result = await client.query<GuildStateRow>(
-      `SELECT territory_level, wood, iron, grain, labor, accrued_at
-         FROM territory_guild_state WHERE season_id = $1 AND guild_id = $2 FOR UPDATE`,
+    await this.migrateLegacyStockpile(client, seasonId, guildId);
+    const state = await client.query<{
+      territory_level: number;
+      accrued_at: Date | string;
+    }>(
+      `SELECT territory_level, accrued_at FROM territory_guild_state
+        WHERE season_id = $1 AND guild_id = $2 FOR UPDATE`,
       [seasonId, guildId],
     );
-    let row = result.rows[0];
-    const accruedMs = new Date(row.accrued_at).getTime();
-    const ticks = Math.max(0, Math.floor((now.getTime() - accruedMs) / TERRITORY_RESOURCE_TICK_MS));
-    if (ticks === 0) return row;
-    const productionPerTick = await this.resourceProductionPerTick(client, seasonId, guildId);
-    const capacity = await this.stockpileCapacity(client, seasonId, guildId);
-    const production = {
-      wood: ticks * productionPerTick.wood,
-      iron: ticks * productionPerTick.iron,
-      grain: ticks * productionPerTick.grain,
-      labor: ticks * productionPerTick.labor,
-    };
-    const advancedAt = new Date(accruedMs + ticks * TERRITORY_RESOURCE_TICK_MS);
-    const updated = await client.query<GuildStateRow>(
-      `UPDATE territory_guild_state
-          SET wood = LEAST($3, wood + $4), iron = LEAST($3, iron + $5),
-              grain = LEAST($3, grain + $6), labor = LEAST($3, labor + $7),
-              accrued_at = $8, updated_at = now()
-        WHERE season_id = $1 AND guild_id = $2
-        RETURNING territory_level, wood, iron, grain, labor, accrued_at`,
-      [
-        seasonId,
-        guildId,
-        capacity,
-        production.wood,
-        production.iron,
-        production.grain,
-        production.labor,
-        advancedAt,
-      ],
+    const cells = await client.query<TerritoryCellStockpileRow>(
+      `SELECT c.cell_id, c.wood, c.iron, c.grain, c.labor, c.accrued_at,
+              (SELECT max(s.level)::int FROM territory_structures s
+                WHERE s.season_id = c.season_id AND s.cell_id = c.cell_id
+                  AND s.kind = 'stockpile') AS stockpile_level
+         FROM territory_cells c
+        WHERE c.season_id = $1 AND c.guild_id = $2
+        ORDER BY c.cell_id
+        FOR UPDATE OF c`,
+      [seasonId, guildId],
     );
-    row = updated.rows[0];
-    return row;
+    const extractors = await client.query<TerritoryExtractorRow>(
+      `SELECT c.cell_id, s.kind, s.level
+         FROM territory_structures s
+         JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
+        WHERE s.season_id = $1 AND c.guild_id = $2
+          AND s.kind IN ('granary', 'forester', 'mine', 'house') AND s.state = 'active'
+        ORDER BY c.cell_id, s.kind`,
+      [seasonId, guildId],
+    );
+    const projected = this.projectCityStockpiles(cells.rows, extractors.rows, now);
+    for (const city of projected) {
+      await client.query(
+        `UPDATE territory_cells
+            SET wood = $3, iron = $4, grain = $5, labor = $6, accrued_at = $7
+          WHERE season_id = $1 AND cell_id = $2`,
+        [
+          seasonId,
+          city.cellId,
+          city.resources.wood,
+          city.resources.iron,
+          city.resources.grain,
+          city.resources.labor,
+          city.accruedAt,
+        ],
+      );
+    }
+    const resources = this.sumCityResources(projected);
+    return {
+      territory_level: state.rows[0]?.territory_level ?? 1,
+      ...resources,
+      accrued_at: projected[0]?.accruedAt ?? state.rows[0]?.accrued_at ?? now,
+    };
   }
 
   async loadGuildView(actor: TerritoryActor, now = new Date()): Promise<TerritoryGuildView> {
@@ -845,6 +1030,25 @@ export class TerritoryRepository {
         seasonId,
         actor.guildId,
       );
+      const cityRows = await client.query<TerritoryCellStockpileRow>(
+        `SELECT c.cell_id, c.wood, c.iron, c.grain, c.labor, c.accrued_at,
+                (SELECT max(s.level)::int FROM territory_structures s
+                  WHERE s.season_id = c.season_id AND s.cell_id = c.cell_id
+                    AND s.kind = 'stockpile') AS stockpile_level
+           FROM territory_cells c
+          WHERE c.season_id = $1 AND c.guild_id = $2
+          ORDER BY c.cell_id`,
+        [seasonId, actor.guildId],
+      );
+      const extractorRows = await client.query<TerritoryExtractorRow>(
+        `SELECT c.cell_id, s.kind, s.level
+           FROM territory_structures s
+           JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
+          WHERE s.season_id = $1 AND c.guild_id = $2
+            AND s.kind IN ('granary', 'forester', 'mine', 'house') AND s.state = 'active'`,
+        [seasonId, actor.guildId],
+      );
+      const stockpiles = this.projectCityStockpiles(cityRows.rows, extractorRows.rows, now);
       await client.query('COMMIT');
       const level = state.territory_level;
       return {
@@ -866,6 +1070,7 @@ export class TerritoryRepository {
           labor: num(state.labor),
         },
         productionPerHour: territoryProductionPerHour(productionPerTick),
+        stockpiles,
         resourceCapacity,
         accruedAt: iso(state.accrued_at),
       };
@@ -1009,7 +1214,13 @@ export class TerritoryRepository {
                 seatNo: row.detail.seatNo as number,
               }
             : undefined;
-        return { ok: true, delta: null, duplicate: true, guildId: ctx.guildId, seat };
+        return {
+          ok: true,
+          delta: null,
+          duplicate: true,
+          guildId: ctx.guildId,
+          seat,
+        };
       }
       const season = await this.activeSeason(client);
       if (num(season.revision) !== ctx.expectedRevision) {
@@ -1027,7 +1238,11 @@ export class TerritoryRepository {
         [
           ctx.commandId,
           season.id,
-          JSON.stringify({ revision: num(season.revision), warId, ...outcome.seat }),
+          JSON.stringify({
+            revision: num(season.revision),
+            warId,
+            ...outcome.seat,
+          }),
         ],
       );
       const war = await this.warView(client, warId, ctx.guildId, ctx.characterId);
@@ -1143,28 +1358,36 @@ export class TerritoryRepository {
   ): Promise<TerritoryMutationResult> {
     return this.mutate(ctx, `harvest_${kind}`, cellId, async (client, season) => {
       if (!validRankForManage(ctx.rank)) return 'forbidden';
+      const war = await client.query(
+        `SELECT 1 FROM territory_wars
+          WHERE season_id = $1 AND target_cell_id = $2
+            AND status IN ('declared', 'forming', 'active')
+          LIMIT 1`,
+        [season.id, cellId],
+      );
+      if ((war.rowCount ?? 0) > 0) return 'stockpile_locked';
       const stockpile = await client.query(
-        `SELECT 1
+        `SELECT c.${kind} AS amount
            FROM territory_cells c
            JOIN territory_structures s
              ON s.season_id = c.season_id AND s.cell_id = c.cell_id
           WHERE c.season_id = $1 AND c.cell_id = $2 AND c.guild_id = $3
-            AND s.slot = 'stockpile' AND s.kind = 'stockpile' AND s.state = 'active'`,
+            AND s.slot = 'stockpile' AND s.kind = 'stockpile' AND s.state = 'active'
+          FOR UPDATE OF c`,
         [season.id, cellId, ctx.guildId],
       );
       if ((stockpile.rowCount ?? 0) !== 1) return 'invalid_structure';
-      const stock = await client.query<Record<TerritoryResourceKind, number>>(
-        `SELECT wood, iron, grain, labor FROM territory_guild_state
-          WHERE season_id = $1 AND guild_id = $2 FOR UPDATE`,
-        [season.id, ctx.guildId],
+      const amount = Math.max(
+        0,
+        Math.floor(
+          num((stockpile.rows[0] as { amount?: string | number } | undefined)?.amount ?? 0),
+        ),
       );
-      const amount = Math.max(0, Math.floor(num(stock.rows[0]?.[kind] ?? 0)));
       if (amount <= 0) return 'nothing_to_harvest';
       await client.query(
-        `UPDATE territory_guild_state
-            SET ${kind} = ${kind} - $3, updated_at = now()
-          WHERE season_id = $1 AND guild_id = $2`,
-        [season.id, ctx.guildId, amount],
+        `UPDATE territory_cells SET ${kind} = ${kind} - $3
+          WHERE season_id = $1 AND cell_id = $2`,
+        [season.id, cellId, amount],
       );
       return {
         revision: 0,
@@ -1203,8 +1426,14 @@ export class TerritoryRepository {
         num(workshops.rows[0]?.total ?? 0),
         this.config.constructionBaseSeconds,
       );
+      const now = new Date();
+      if (
+        !(await this.constructionAllowedBeforeWar(client, num(season.id), cellId, now, durationMs))
+      ) {
+        return 'war_construction_locked';
+      }
       const immediate = durationMs === 0;
-      const completesAt = immediate ? null : new Date(Date.now() + durationMs);
+      const completesAt = immediate ? null : new Date(now.getTime() + durationMs);
       const inserted = await client.query(
         `INSERT INTO territory_structures
            (season_id, cell_id, slot, kind, level, target_level, state, completes_at)
@@ -1260,7 +1489,7 @@ export class TerritoryRepository {
       const structure = await client.query<{
         kind: TerritoryStructureKind;
         level: number;
-        state: 'building' | 'active';
+        state: TerritoryStructureState;
         castle_level: number;
       }>(
         `SELECT s.kind, s.level, s.state,
@@ -1301,8 +1530,14 @@ export class TerritoryRepository {
         num(workshops.rows[0]?.total ?? 0),
         this.config.constructionBaseSeconds,
       );
+      const now = new Date();
+      if (
+        !(await this.constructionAllowedBeforeWar(client, num(season.id), cellId, now, durationMs))
+      ) {
+        return 'war_construction_locked';
+      }
       const immediate = durationMs === 0;
-      const completesAt = immediate ? null : new Date(Date.now() + durationMs);
+      const completesAt = immediate ? null : new Date(now.getTime() + durationMs);
       await client.query(
         immediate
           ? `UPDATE territory_structures
@@ -1340,14 +1575,80 @@ export class TerritoryRepository {
     });
   }
 
-  repair(_ctx: TerritoryMutationContext): Promise<TerritoryMutationResult> {
-    return Promise.resolve({ ok: false, error: 'not_repairable' });
+  repair(
+    ctx: TerritoryMutationContext,
+    cellId: number,
+    slot: TerritoryStructureSlot,
+  ): Promise<TerritoryMutationResult> {
+    return this.mutate(ctx, 'repair', cellId, async (client, season) => {
+      if (!validRankForManage(ctx.rank)) return 'forbidden';
+      const structure = await client.query<{
+        kind: TerritoryStructureKind;
+        level: number;
+        state: TerritoryStructureState;
+      }>(
+        `SELECT s.kind, s.level, s.state
+           FROM territory_structures s
+           JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
+          WHERE s.season_id = $1 AND s.cell_id = $2 AND s.slot = $3 AND c.guild_id = $4
+          FOR UPDATE OF s`,
+        [season.id, cellId, slot, ctx.guildId],
+      );
+      const current = structure.rows[0];
+      if (!current || current.kind === 'keep' || current.state !== 'damaged') {
+        return 'not_repairable';
+      }
+      const workshops = await client.query<{ total: string | number }>(
+        `SELECT COALESCE(sum(s.level), 0) AS total
+           FROM territory_structures s
+           JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
+          WHERE s.season_id = $1 AND c.guild_id = $2
+            AND s.kind = 'construction_workshop' AND s.state = 'active'`,
+        [season.id, ctx.guildId],
+      );
+      const durationMs = territoryRepairDurationMs(
+        current.kind,
+        current.level,
+        num(workshops.rows[0]?.total ?? 0),
+        this.config.constructionBaseSeconds,
+      );
+      const now = new Date();
+      if (
+        !(await this.constructionAllowedBeforeWar(client, num(season.id), cellId, now, durationMs))
+      ) {
+        return 'war_construction_locked';
+      }
+      const immediate = durationMs === 0;
+      const completesAt = immediate ? null : new Date(now.getTime() + durationMs);
+      await client.query(
+        `UPDATE territory_structures
+            SET target_level = NULL, state = $4, completes_at = $5, updated_at = now()
+          WHERE season_id = $1 AND cell_id = $2 AND slot = $3`,
+        [season.id, cellId, slot, immediate ? 'active' : 'repairing', completesAt],
+      );
+      return {
+        revision: 0,
+        structuresUpsert: [
+          this.structureView(
+            cellId,
+            slot,
+            current.kind,
+            current.level,
+            immediate ? 'active' : 'repairing',
+            completesAt,
+          ),
+        ],
+      };
+    });
   }
 
   declareWar(ctx: TerritoryMutationContext, cellId: number): Promise<TerritoryMutationResult> {
     return this.mutate(ctx, 'declare_war', cellId, async (client, season) => {
       if (!validRankForManage(ctx.rank)) return 'forbidden';
-      const target = await client.query<{ guild_id: number; guild_name: string }>(
+      const target = await client.query<{
+        guild_id: number;
+        guild_name: string;
+      }>(
         `SELECT c.guild_id, g.name AS guild_name FROM territory_cells c
            JOIN guilds g ON g.id = c.guild_id
           WHERE c.season_id = $1 AND c.cell_id = $2 FOR UPDATE OF c`,
@@ -1502,7 +1803,10 @@ export class TerritoryRepository {
             ? 'defender'
             : null;
       if (!side) return 'forbidden';
-      const existing = await client.query<{ seat_no: number; joined_at: Date | string }>(
+      const existing = await client.query<{
+        seat_no: number;
+        joined_at: Date | string;
+      }>(
         `SELECT seat_no, joined_at FROM territory_war_participants
           WHERE war_id = $1 AND character_id = $2
             AND left_at IS NULL AND seat_no IS NOT NULL`,
@@ -1569,7 +1873,10 @@ export class TerritoryRepository {
             ? 'defender'
             : null;
       if (!side) return 'forbidden';
-      const participant = await client.query<{ seat_no: number; joined_at: Date | string }>(
+      const participant = await client.query<{
+        seat_no: number;
+        joined_at: Date | string;
+      }>(
         `SELECT seat_no, joined_at FROM territory_war_participants
           WHERE war_id = $1 AND character_id = $2
             AND left_at IS NULL AND seat_no IS NOT NULL`,
@@ -1766,7 +2073,7 @@ export class TerritoryRepository {
     const observed = await this.activeSeason(this.pool);
     const hasDue = await this.pool.query(
       `SELECT 1 FROM territory_structures
-        WHERE season_id = $1 AND state = 'building' AND completes_at <= $2
+        WHERE season_id = $1 AND state IN ('building', 'repairing') AND completes_at <= $2
         LIMIT 1`,
       [observed.id, now],
     );
@@ -1787,7 +2094,8 @@ export class TerritoryRepository {
            SELECT s.season_id, s.cell_id, s.slot, c.guild_id
              FROM territory_structures s
              JOIN territory_cells c ON c.season_id = s.season_id AND c.cell_id = s.cell_id
-            WHERE s.season_id = $1 AND s.state = 'building' AND s.completes_at <= $2
+            WHERE s.season_id = $1 AND s.state IN ('building', 'repairing')
+              AND s.completes_at <= $2
             ORDER BY s.completes_at, s.cell_id, s.slot
             LIMIT $3
             FOR UPDATE OF s
@@ -1936,6 +2244,39 @@ export class TerritoryRepository {
         ORDER BY p.war_id, p.side, p.seat_no, p.character_id`,
       [warIds],
     );
+    const siegeStructures = await this.pool.query<{
+      war_id: string;
+      cell_id: number;
+      slot: TerritoryStructureSlot;
+      kind: TerritoryStructureKind;
+      level: number;
+      state: TerritoryStructureState;
+      completes_at: Date | string | null;
+    }>(
+      `SELECT w.id AS war_id, s.cell_id, s.slot, s.kind,
+              COALESCE(s.target_level, s.level)::int AS level, s.state, s.completes_at
+         FROM territory_wars w
+         JOIN territory_structures s
+           ON s.season_id = w.season_id AND s.cell_id = w.target_cell_id
+        WHERE w.id = ANY($1::uuid[])
+        ORDER BY w.id, s.slot`,
+      [warIds],
+    );
+    const structuresByWar = new Map<string, TerritoryStructureView[]>();
+    for (const structure of siegeStructures.rows) {
+      const list = structuresByWar.get(structure.war_id) ?? [];
+      list.push(
+        this.structureView(
+          structure.cell_id,
+          structure.slot,
+          structure.kind,
+          structure.level,
+          structure.state,
+          structure.completes_at,
+        ),
+      );
+      structuresByWar.set(structure.war_id, list);
+    }
     const byWar = new Map<string, TerritorySiegeRuntimeRecord['participants']>();
     for (const participant of participants.rows) {
       if (participant.seat_no === null) continue;
@@ -1960,6 +2301,7 @@ export class TerritoryRepository {
       endsAtMs: new Date(war.ends_at).getTime(),
       gateLevel: territoryCastleLevel(war.core_level),
       coreLevel: territoryCastleLevel(war.core_level),
+      structures: structuresByWar.get(war.id) ?? [],
       attackerHasSiegeWorkshop: war.attacker_has_siege_workshop,
       defenseTowerLevel: war.defense_tower_level,
       participants: byWar.get(war.id) ?? [],
@@ -2024,11 +2366,20 @@ export class TerritoryRepository {
         return null;
       }
       const cellsRemove: number[] = [];
-      const structuresRemove: Array<{ cellId: number; slot: TerritoryStructureSlot }> = [];
+      const structuresRemove: Array<{
+        cellId: number;
+        slot: TerritoryStructureSlot;
+      }> = [];
       const cellsUpsert: TerritoryOwnedCellView[] = [];
       const structuresUpsert: TerritoryStructureView[] = [];
       if (winner === 'attacker') {
-        const defenderCells = await client.query<{ cell_id: number; keep_root: boolean }>(
+        // Settle the defending city's last production slice before ownership
+        // changes. The cell balances then transfer untouched with the land.
+        await this.accrueLocked(client, num(lockedSeason.id), row.defender_guild_id, new Date());
+        const defenderCells = await client.query<{
+          cell_id: number;
+          keep_root: boolean;
+        }>(
           `SELECT cell_id, keep_root FROM territory_cells
             WHERE season_id = $1 AND guild_id = $2 ORDER BY cell_id`,
           [lockedSeason.id, row.defender_guild_id],
@@ -2071,17 +2422,19 @@ export class TerritoryRepository {
             WHERE season_id = $1 AND cell_id = $2`,
           [lockedSeason.id, row.target_cell_id, row.attacker_guild_id],
         );
-        const downgraded = await client.query<{
+        const transferred = await client.query<{
           cell_id: number;
           slot: TerritoryStructureSlot;
           kind: TerritoryStructureKind;
           level: number;
+          state: TerritoryStructureState;
         }>(
           `UPDATE territory_structures
-              SET level = GREATEST(1, level - 1), target_level = NULL, state = 'active',
+              SET target_level = NULL,
+                  state = CASE WHEN kind = 'keep' THEN 'active' ELSE 'damaged' END,
                   completes_at = NULL, updated_at = now()
              WHERE season_id = $1 AND cell_id = $2
-             RETURNING cell_id, slot, kind, level`,
+             RETURNING cell_id, slot, kind, level, state`,
           [lockedSeason.id, row.target_cell_id],
         );
         cellsUpsert.push(
@@ -2093,8 +2446,14 @@ export class TerritoryRepository {
           ),
         );
         structuresUpsert.push(
-          ...downgraded.rows.map((structure) =>
-            this.structureView(structure.cell_id, structure.slot, structure.kind, structure.level),
+          ...transferred.rows.map((structure) =>
+            this.structureView(
+              structure.cell_id,
+              structure.slot,
+              structure.kind,
+              structure.level,
+              structure.state,
+            ),
           ),
         );
       }
@@ -2134,7 +2493,13 @@ export class TerritoryRepository {
           lockedSeason.id,
           winnerGuildId,
           row.target_cell_id,
-          JSON.stringify({ warId, winner, reason, revision, cascade: cellsRemove.length }),
+          JSON.stringify({
+            warId,
+            winner,
+            reason,
+            revision,
+            cascade: cellsRemove.length,
+          }),
         ],
       );
       await client.query('COMMIT');

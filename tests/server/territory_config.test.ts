@@ -24,7 +24,7 @@ describe('territory config', () => {
     ).toBe(12);
     expect(
       territoryConfigFromEnv({ TERRITORY_CONSTRUCTION_BASE_SECONDS: '0' }).constructionBaseSeconds,
-    ).toBe(0);
+    ).toBe(300);
   });
 
   it('can restore progression requirements with configuration only', () => {

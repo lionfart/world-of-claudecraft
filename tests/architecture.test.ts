@@ -507,6 +507,7 @@ const UI_PURE_CORES = [
   'src/ui/continent_map_view.ts',
   'src/ui/territory_map_view.ts',
   'src/ui/territory_map_panel_view.ts',
+  'src/ui/territory_siege_objective_view.ts',
   'src/ui/territory_war_access_view.ts',
   'src/ui/guild_territory_view.ts',
   'src/ui/map_open_sea_edge_core.ts',

@@ -75,27 +75,43 @@ describeDb('territory persistence (real PostgreSQL)', () => {
 
     if (!placed?.ok || !placed.delta) throw new Error('place keep did not commit');
     const built = await repository.build(
-      { ...actor, commandId: randomUUID(), expectedRevision: placed.delta.revision },
+      {
+        ...actor,
+        commandId: randomUUID(),
+        expectedRevision: placed.delta.revision,
+      },
       starter.id,
       'granary',
       'granary',
     );
     if (!built.ok || !built.delta) throw new Error('granary build did not commit');
-    const before = await pool.query<{ wood: string; iron: string; grain: string; labor: string }>(
-      `SELECT wood, iron, grain, labor FROM territory_guild_state WHERE guild_id = $1`,
-      [actor.guildId],
-    );
+    const before = await pool.query<{
+      wood: string;
+      iron: string;
+      grain: string;
+      labor: string;
+    }>(`SELECT wood, iron, grain, labor FROM territory_guild_state WHERE guild_id = $1`, [
+      actor.guildId,
+    ]);
     const refused = await repository.build(
-      { ...actor, commandId: randomUUID(), expectedRevision: built.delta.revision },
+      {
+        ...actor,
+        commandId: randomUUID(),
+        expectedRevision: built.delta.revision,
+      },
       starter.id,
       'granary',
       'granary',
     );
     expect(refused).toEqual({ ok: false, error: 'occupied' });
-    const after = await pool.query<{ wood: string; iron: string; grain: string; labor: string }>(
-      `SELECT wood, iron, grain, labor FROM territory_guild_state WHERE guild_id = $1`,
-      [actor.guildId],
-    );
+    const after = await pool.query<{
+      wood: string;
+      iron: string;
+      grain: string;
+      labor: string;
+    }>(`SELECT wood, iron, grain, labor FROM territory_guild_state WHERE guild_id = $1`, [
+      actor.guildId,
+    ]);
     expect(after.rows[0]).toEqual(before.rows[0]);
     const season = await pool.query<{ revision: string }>(
       `SELECT revision FROM territory_seasons WHERE status = 'active'`,
@@ -146,8 +162,14 @@ describeDb('territory persistence (real PostgreSQL)', () => {
     );
 
     expect(joined).toEqual([
-      expect.objectContaining({ ok: true, seat: expect.objectContaining({ side: 'attacker' }) }),
-      expect.objectContaining({ ok: true, seat: expect.objectContaining({ side: 'attacker' }) }),
+      expect.objectContaining({
+        ok: true,
+        seat: expect.objectContaining({ side: 'attacker' }),
+      }),
+      expect.objectContaining({
+        ok: true,
+        seat: expect.objectContaining({ side: 'attacker' }),
+      }),
     ]);
     expect(
       new Set(joined.flatMap((result) => (result.ok && result.seat ? [result.seat.seatNo] : [])))
@@ -183,10 +205,18 @@ describeDb('territory persistence (real PostgreSQL)', () => {
       [season.rows[0].id, attackerCell, attacker.rows[0].id, target.id, defender.rows[0].id],
     );
     await pool.query(
+      `UPDATE territory_cells
+          SET wood = 321, iron = 22, grain = 17, labor = 9, accrued_at = now()
+        WHERE season_id = $1 AND cell_id = $2`,
+      [season.rows[0].id, target.id],
+    );
+    await pool.query(
       `INSERT INTO territory_structures(season_id, cell_id, slot, kind, level)
-       VALUES ($1, $2, 'keep_core', 'keep', 3)
+       VALUES ($1, $2, 'keep_core', 'keep', 3),
+              ($1, $2, 'stockpile', 'stockpile', 2),
+              ($1, $2, 'granary', 'granary', 3)
        ON CONFLICT (season_id, cell_id, slot) DO UPDATE
-       SET kind = EXCLUDED.kind, level = EXCLUDED.level`,
+       SET kind = EXCLUDED.kind, level = EXCLUDED.level, state = 'active'`,
       [season.rows[0].id, target.id],
     );
     const warId = randomUUID();
@@ -201,15 +231,37 @@ describeDb('territory persistence (real PostgreSQL)', () => {
     const second = await repository.resolveWar(warId, 'attacker', 1, 'core_destroyed');
     expect(first?.cellsUpsert?.[0]?.ownerGuildId).toBe(String(attacker.rows[0].id));
     expect(second).toBeNull();
-    const durable = await pool.query<{ guild_id: number; level: number; audits: string }>(
-      `SELECT c.guild_id, s.level,
+    const durable = await pool.query<{
+      guild_id: number;
+      wood: string;
+      iron: string;
+      grain: string;
+      labor: string;
+      structures: { slot: string; level: number; state: string }[];
+      audits: string;
+    }>(
+      `SELECT c.guild_id, c.wood, c.iron, c.grain, c.labor,
+              (SELECT json_agg(json_build_object('slot', s.slot, 'level', s.level, 'state', s.state)
+                               ORDER BY s.slot)
+                 FROM territory_structures s
+                WHERE s.season_id = c.season_id AND s.cell_id = c.cell_id) AS structures,
               (SELECT count(*) FROM territory_audit WHERE detail->>'warId' = $3) AS audits
          FROM territory_cells c
-         JOIN territory_structures s ON s.season_id = c.season_id AND s.cell_id = c.cell_id
-        WHERE c.season_id = $1 AND c.cell_id = $2 AND s.slot = 'keep_core'`,
+        WHERE c.season_id = $1 AND c.cell_id = $2`,
       [season.rows[0].id, target.id, warId],
     );
-    expect(durable.rows[0]).toMatchObject({ guild_id: attacker.rows[0].id, level: 2 });
+    expect(durable.rows[0]).toMatchObject({
+      guild_id: attacker.rows[0].id,
+      wood: '321',
+      iron: '22',
+      grain: '17',
+      labor: '9',
+    });
+    expect(durable.rows[0].structures).toEqual([
+      { slot: 'granary', level: 3, state: 'damaged' },
+      { slot: 'keep_core', level: 3, state: 'active' },
+      { slot: 'stockpile', level: 2, state: 'damaged' },
+    ]);
     expect(Number(durable.rows[0].audits)).toBe(1);
 
     const defenderCharacter = await pool.query<{ id: number }>(
@@ -280,15 +332,20 @@ describeDb('territory persistence (real PostgreSQL)', () => {
     await pool.query(TERRITORY_SCHEMA);
     await repository.ensureActiveSeason(new Date('2026-02-02T00:00:00.000Z'));
 
-    const oldSeason = await pool.query<{ status: string; reason: string; cells: string }>(
+    const oldSeason = await pool.query<{
+      status: string;
+      reason: string;
+      cells: string;
+    }>(
       `SELECT s.status, s.summary->>'reason' AS reason,
               (SELECT count(*) FROM territory_cells c WHERE c.season_id = s.id) AS cells
          FROM territory_seasons s WHERE s.id = $1`,
       [legacy.rows[0].id],
     );
-    const active = await pool.query<{ manifest_version: number; radius: number }>(
-      `SELECT manifest_version, radius FROM territory_seasons WHERE status = 'active'`,
-    );
+    const active = await pool.query<{
+      manifest_version: number;
+      radius: number;
+    }>(`SELECT manifest_version, radius FROM territory_seasons WHERE status = 'active'`);
     expect(oldSeason.rows[0]).toMatchObject({
       status: 'closed',
       reason: 'manifest_upgrade',

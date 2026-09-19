@@ -5114,11 +5114,23 @@ export const hudChromeStrings = {
     // and cross-posts to Discord (looking-for-group, trade, recruiting, events).
     relay: {
       tooFast: 'You are posting too fast. Wait a moment and try again.',
-      lfg: { label: 'Looking for Group', hint: 'Find players for a dungeon or quest' },
-      wts: { label: 'Want to Sell', hint: 'Advertise an item or service for sale' },
+      lfg: {
+        label: 'Looking for Group',
+        hint: 'Find players for a dungeon or quest',
+      },
+      wts: {
+        label: 'Want to Sell',
+        hint: 'Advertise an item or service for sale',
+      },
       wtb: { label: 'Want to Buy', hint: 'Request an item you want to buy' },
-      recruit: { label: 'Guild Recruiting', hint: 'Recruit players for your guild' },
-      event: { label: 'Event / Raid', hint: 'Announce a raid, meetup or event' },
+      recruit: {
+        label: 'Guild Recruiting',
+        hint: 'Recruit players for your guild',
+      },
+      event: {
+        label: 'Event / Raid',
+        hint: 'Announce a raid, meetup or event',
+      },
       help: { label: 'Need Help', hint: 'Ask the community for help' },
     },
   },
@@ -8260,6 +8272,7 @@ export const hudChromeStrings = {
     noticeHide: 'Hide',
     build: 'Build next slot',
     upgrade: 'Upgrade structure',
+    repair: 'Repair structure',
     structureSlots: 'Castle development',
     slotKeep: 'Castle level',
     slotWalls: 'Walls & gate',
@@ -8290,6 +8303,7 @@ export const hudChromeStrings = {
     stockpileWithdraw: 'Withdraw all to bags',
     stockpileWithdrawResource: 'Withdraw all {resource} to bags',
     stockpileOfficerOnly: 'Leader or officer required',
+    stockpileWarLocked: 'Locked during war',
     stockpileUpgrade: 'Upgrade stockpile to level {level}',
     stockpileNeedsCastle: 'Requires castle level {level}',
     stockpileMax: 'Stockpile · Level 3 · Max',
@@ -8310,6 +8324,8 @@ export const hudChromeStrings = {
     slotUnavailable: 'Select your keep',
     slotEmpty: 'Empty · Build',
     slotBuilding: 'Building · Level {level}',
+    slotRepairing: 'Repairing · Level {level}',
+    slotDamaged: 'Damaged · Level {level}',
     slotLevel: 'Level {level} · Upgrade',
     slotLevelReadOnly: 'Level {level}',
     slotCastleRequired: 'Requires castle level {level}',

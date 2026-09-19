@@ -5,6 +5,7 @@ import {
   territoryResourceProductionPerTick,
   territoryStockpileCapacity,
   territoryStructureCost,
+  territoryStructureRepairCost,
 } from '../src/sim/territory_economy';
 
 describe('territory structure costs', () => {
@@ -27,6 +28,17 @@ describe('territory structure costs', () => {
     expect(territoryStructureCost('keep', 4)).toEqual({
       copper: 5_000,
       resources: { wood: 240, iron: 200, grain: 100, labor: 160 },
+    });
+  });
+
+  it('prices capture repairs from the preserved building level', () => {
+    expect(territoryStructureRepairCost('granary', 1)).toEqual({
+      copper: 250,
+      resources: { wood: 12, iron: 10, grain: 6, labor: 8 },
+    });
+    expect(territoryStructureRepairCost('defense_tower', 3)).toEqual({
+      copper: 1_500,
+      resources: { wood: 72, iron: 60, grain: 36, labor: 48 },
     });
   });
 });
@@ -57,5 +69,10 @@ describe('territory hourly production', () => {
 
   it('does not produce without the matching resource building', () => {
     expect(territoryResourceProductionPerHour('wood', 3, { mine: 3 })).toBe(0);
+  });
+
+  it('keeps an active resource building productive without a natural deposit', () => {
+    expect(territoryResourceProductionPerHour('iron', 0, { mine: 2 })).toBe(2);
+    expect(territoryResourceProductionPerHour('grain', 0, { granary: 3 })).toBe(3);
   });
 });

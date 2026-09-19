@@ -755,7 +755,10 @@ import {
 import { buildTerrain, hasTerrainSplatAssets, type TerrainView } from './terrain';
 import { applyTerrainDetailShed } from './terrain_detail_shed_core';
 import { TerritorySiegeBand } from './territory_siege_band';
-import { territorySiegeRaisedGroundHeight } from './territory_siege_ground_reference';
+import {
+  territoryAwareGroundHeight,
+  territorySiegeRaisedGroundHeight,
+} from './territory_siege_ground_reference';
 import { refreshTextureAnisotropy } from './texture_anisotropy';
 import { runTexturePrepLane } from './texture_prep_lane';
 import { sweepMaterialTextures, sweepObjectTextures } from './texture_prewarm';
@@ -1952,7 +1955,8 @@ export class Renderer {
 
   // seed-bound ground sampler, built once so per-frame drape updates
   // allocate no closure.
-  private groundSample = (x: number, z: number): number => groundHeight(x, z, this.sim.cfg.seed);
+  private groundSample = (x: number, z: number, _feetY?: number): number =>
+    territoryAwareGroundHeight(this.sim.cfg.seed, this.sim.territoryMap?.siege?.castleLevel, x, z);
   /** Bound once: the puff runs per landing and must not allocate a closure. */
   private surfaceAtForPuff = (x: number, z: number, y: number) => this.surfaceAt(x, z, y);
   private selectionDrapeSupportY = 0;
@@ -2899,7 +2903,7 @@ export class Renderer {
     this.lightPulses = new LightPulses(this.scene);
     // Frostglobe: the roaming ice-sphere visual, animated locally from the one
     // 'orb' release event (see src/render/frozen_orb_fx.ts).
-    this.frozenOrbFx = new FrozenOrbFx(this.scene, (x, z) => groundHeight(x, z, this.sim.cfg.seed));
+    this.frozenOrbFx = new FrozenOrbFx(this.scene, this.groundSample);
     this.glacialFrontVisual = new GlacialFrontVisual(this.scene, (x, z) =>
       groundHeight(x, z, this.sim.cfg.seed),
     );
@@ -2917,7 +2921,7 @@ export class Renderer {
     // (meteor_landing_burst.ts: the spec painter in the cue's school, else fire).
     this.mageGroundFx = new MageGroundFx(
       this.scene,
-      (x, z) => groundHeight(x, z, this.sim.cfg.seed),
+      this.groundSample,
       (x, z, meteor) =>
         meteorLandingBurst(this.abilityVfx, this.vfx, this.sim.cfg.seed, x, z, meteor),
     );
@@ -3030,7 +3034,7 @@ export class Renderer {
       this.scene,
       this.camera,
       vfxAnchor,
-      (x, z) => groundHeight(x, z, this.sim.cfg.seed),
+      this.groundSample,
       // the DISPLAYED facing, not e.facing: the view group carries the smoothed
       // yaw actually on screen, so a stationary spirit lines up with the body it
       // is rising out of instead of with a pose one frame ahead of the draw
@@ -7557,7 +7561,7 @@ export class Renderer {
       case 'spellfxAt': {
         if (ev.fx === 'soulTravel') {
           if (ev.targetId !== undefined) {
-            const gy = groundHeight(ev.x, ev.z, this.sim.cfg.seed);
+            const gy = ev.y ?? this.groundSample(ev.x, ev.z);
             const targetId = ev.targetId;
             this.vfx.soulTravel(ev.x, gy + 0.8, ev.z, targetId, (position: THREE.Vector3) => {
               this.audioSink?.necromancy(
@@ -7632,7 +7636,7 @@ export class Renderer {
           // two casters both storming at once share one audio voice; a real
           // edge case, not a correctness issue.
           if (ev.ability === 'blizzard') {
-            const zoneY = groundHeight(ev.x, ev.z, this.sim.cfg.seed);
+            const zoneY = ev.y ?? this.groundSample(ev.x, ev.z);
             this.audioSink?.timedGroundLoop(
               `groundZone:${ev.ability}`,
               'blizzard',
@@ -7649,7 +7653,7 @@ export class Renderer {
         // spot. A 'nova' aim is the heavier detonation; 'burst' the lighter one.
         // A radius-carrying event also flashes the AoE ring so the blast AREA
         // reads, not just its center.
-        const gy = groundHeight(ev.x, ev.z, this.sim.cfg.seed);
+        const gy = ev.y ?? this.groundSample(ev.x, ev.z);
         const at = new THREE.Vector3(ev.x, gy + 0.4, ev.z);
         this.vfx.burst(at, ev.school, ev.fx === 'nova' ? 34 : 22, ev.fx === 'nova' ? 1.4 : 1);
         if (ev.radius) this.spawnAoeRing(ev.x, ev.z, ev.radius, ev.school);
@@ -12949,7 +12953,7 @@ export class Renderer {
     if (this.aoeRings.length === 0) return;
     const slot = this.aoeRings[this.aoeRingNext];
     this.aoeRingNext = (this.aoeRingNext + 1) % this.aoeRings.length;
-    const y = groundHeight(x, z, this.sim.cfg.seed) + 0.12; // lift to avoid z-fighting
+    const y = this.groundSample(x, z) + 0.12; // lift to avoid z-fighting
     slot.ring.position.set(x, y, z);
     slot.radius = radius;
     slot.elapsed = 0;

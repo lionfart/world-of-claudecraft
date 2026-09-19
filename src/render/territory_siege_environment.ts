@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import type { TerritorySiegeBiome } from '../sim/territory_siege_biome';
 import {
   TERRITORY_SIEGE_BUSHES,
-  TERRITORY_SIEGE_HOMES,
+  TERRITORY_SIEGE_CITADEL_OUTER_HOMES,
   TERRITORY_SIEGE_ROCKS,
   TERRITORY_SIEGE_TREES,
+  territorySiegeResourceBuildingPlacement,
 } from '../sim/territory_siege_environment';
 import {
   TERRITORY_SIEGE_CITADEL_INNER_BACK_Z,
@@ -14,12 +15,12 @@ import {
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH,
   TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
-  TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X,
+  TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z,
   TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT,
+  TERRITORY_SIEGE_CITADEL_WALL_WALKS,
   TERRITORY_SIEGE_FIELD_HALF_X,
   TERRITORY_SIEGE_FIELD_HALF_Z,
   TERRITORY_SIEGE_VISUAL_MARGIN,
@@ -27,11 +28,11 @@ import {
   territorySiegeTerrainLiftLocal,
 } from '../sim/territory_siege_ground';
 import {
-  TERRITORY_SIEGE_BACK_WALL_Z,
-  TERRITORY_SIEGE_GATE_Z,
-  TERRITORY_SIEGE_WALL_HALF_X,
   TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH,
+  territorySiegeCastleBounds,
+  territorySiegeSceneryIntersectsCastle,
 } from '../sim/territory_siege_layout';
+import type { TerritoryStructureSlot, TerritoryStructureView } from '../world_api';
 import { castlePavingMat, FLAGSTONE_TILE_YD, tileCastleUv } from './castle_stone';
 import { surfaceMat } from './gfx';
 import {
@@ -259,7 +260,10 @@ function buildLeafLitterClearings(biome: TerritorySiegeBiome): THREE.Mesh {
     { x: 65, z: -11, rx: 15, rz: 10, yaw: 0.2 },
     { x: -67, z: -57, rx: 17, rz: 11, yaw: -0.5 },
     { x: 65, z: -91, rx: 14, rz: 9, yaw: 0.65 },
-  ] as const;
+  ].filter(
+    (patch) =>
+      !territorySiegeSceneryIntersectsCastle(patch.x, patch.z, Math.max(patch.rx, patch.rz)),
+  );
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
@@ -336,23 +340,7 @@ function hash01(x: number, z: number): number {
   return value - Math.floor(value);
 }
 
-// Tuck each floor a little below the inner wall skin. The former 85x86 plane
-// stopped about a yard short on every side, exposing the biome terrain as the
-// dark moat-like strip visible in the report.
 const COURTYARD_SEAM_OVERLAP = 0.4;
-const COURTYARD_HALF_WIDTH =
-  TERRITORY_SIEGE_WALL_HALF_X - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH + COURTYARD_SEAM_OVERLAP;
-const COURTYARD_FRONT_Z =
-  TERRITORY_SIEGE_GATE_Z - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH + COURTYARD_SEAM_OVERLAP;
-const COURTYARD_BACK_Z =
-  TERRITORY_SIEGE_BACK_WALL_Z + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH - COURTYARD_SEAM_OVERLAP;
-const COURTYARD_WIDTH = COURTYARD_HALF_WIDTH * 2;
-const COURTYARD_DEPTH = COURTYARD_FRONT_Z - COURTYARD_BACK_Z;
-const COURTYARD_CENTER_Z = (COURTYARD_FRONT_Z + COURTYARD_BACK_Z) / 2;
-
-function insideCastleCourtyard(x: number, z: number): boolean {
-  return Math.abs(x) < COURTYARD_HALF_WIDTH && z > COURTYARD_BACK_Z && z < COURTYARD_FRONT_Z;
-}
 
 function siegeGrassCardGeometry(): THREE.BufferGeometry {
   const positions: number[] = [];
@@ -415,7 +403,7 @@ function grassMaterial(biome: TerritorySiegeBiome): THREE.MeshStandardMaterial {
 /** Lush crossed billboard clumps, patch-gated so the field reads naturally. */
 function buildBillboardGrass(biome: TerritorySiegeBiome): THREE.InstancedMesh {
   const placements = territorySiegeGrassPlacements(biome).filter(
-    (grass) => !insideCastleCourtyard(grass.x, grass.z),
+    (grass) => !territorySiegeSceneryIntersectsCastle(grass.x, grass.z, grass.scale * 0.72),
   );
   const mesh = new THREE.InstancedMesh(
     siegeGrassCardGeometry(),
@@ -466,11 +454,12 @@ function buildGroundStoneScatter(biome: TerritorySiegeBiome): THREE.InstancedMes
       const x = centerX + Math.cos(angle) * distance;
       const z = centerZ + Math.sin(angle) * distance;
       if (Math.abs(x) > TERRITORY_SIEGE_FIELD_HALF_X - 3) continue;
-      if (insideCastleCourtyard(x, z)) continue;
+      const scale = (0.32 + hash01(x, z) * 0.72) * style.stoneScale;
+      if (territorySiegeSceneryIntersectsCastle(x, z, scale * 0.7)) continue;
       placements.push({
         x,
         z,
-        scale: (0.32 + hash01(x, z) * 0.72) * style.stoneScale,
+        scale,
         yaw: hash01(z, x) * Math.PI,
         color: hash01(x + 4, z - 9) > 0.45 ? style.stoneColors[0] : style.stoneColors[1],
       });
@@ -521,7 +510,7 @@ function buildBiomeTrees(root: THREE.Object3D, biome: TerritorySiegeBiome): void
   const snowPines: readonly TerritorySiegeAssetKey[] = ['snowPineA', 'snowPineB', 'snowPineC'];
   for (let index = 0; index < TERRITORY_SIEGE_TREES.length; index += 1) {
     const tree = TERRITORY_SIEGE_TREES[index];
-    if (insideCastleCourtyard(tree.x, tree.z)) continue;
+    if (territorySiegeSceneryIntersectsCastle(tree.x, tree.z, tree.scale)) continue;
     const y = territorySiegeGroundLiftLocal(tree.x, tree.z);
     if (biome === 'desert') {
       placeAtHeight(root, 'desertTree', tree.x, y, tree.z, tree.scale * 0.92, tree.yaw);
@@ -550,7 +539,7 @@ function buildBiomeRocks(root: THREE.Object3D, biome: TerritorySiegeBiome): void
   const snowRocks: readonly TerritorySiegeAssetKey[] = ['snowRockA', 'snowRockB', 'snowRockC'];
   for (let index = 0; index < TERRITORY_SIEGE_ROCKS.length; index += 1) {
     const rock = TERRITORY_SIEGE_ROCKS[index];
-    if (insideCastleCourtyard(rock.x, rock.z)) continue;
+    if (territorySiegeSceneryIntersectsCastle(rock.x, rock.z, rock.scale)) continue;
     const y = territorySiegeGroundLiftLocal(rock.x, rock.z);
     if (biome === 'desert') {
       placeAtHeight(
@@ -592,7 +581,7 @@ function buildBiomeUndergrowth(root: THREE.Object3D, biome: TerritorySiegeBiome)
   if (biome === 'snow') return;
   for (let index = 0; index < TERRITORY_SIEGE_BUSHES.length; index += 1) {
     const bush = TERRITORY_SIEGE_BUSHES[index];
-    if (insideCastleCourtyard(bush.x, bush.z)) continue;
+    if (territorySiegeSceneryIntersectsCastle(bush.x, bush.z, bush.scale + 4.2)) continue;
     const y = territorySiegeGroundLiftLocal(bush.x, bush.z);
     if (biome === 'desert') {
       placeAtHeight(
@@ -656,19 +645,63 @@ export function buildTerritorySiegeNaturalField(
 
 export interface TerritorySiegeCastleSettlementView {
   setCastleLevel(level: number): void;
+  setStructures(structures: readonly TerritoryStructureView[], castleLevel: number): void;
+}
+
+const RESOURCE_BUILDING_SLOTS = new Set<TerritoryStructureSlot>([
+  'granary',
+  'forester',
+  'mine',
+  'house',
+]);
+
+/** Existing art ladder used by the durable city-building visual projection. */
+export function territorySiegeStructureAsset(
+  slot: TerritoryStructureSlot,
+  levelValue: number,
+): TerritorySiegeAssetKey | null {
+  if (!RESOURCE_BUILDING_SLOTS.has(slot)) return null;
+  const level = Math.max(1, Math.min(4, Math.floor(levelValue)));
+  if (level === 1) return 'frontierTent';
+  if (level === 2) {
+    if (slot === 'mine') return 'workshop';
+    return slot === 'forester' ? 'homeB' : 'homeA';
+  }
+  if (slot === 'granary') return 'drakelandsTownhall';
+  if (slot === 'forester') return 'drakelandsHomeA';
+  if (slot === 'mine') return 'drakelandsBlacksmith';
+  return 'drakelandsHomeB';
+}
+
+function resourceBuildingPlacement(
+  slot: TerritoryStructureSlot,
+  castleLevel: number,
+): { x: number; y: number; z: number; scale: number; yaw: number } {
+  return { ...territorySiegeResourceBuildingPlacement(slot, castleLevel), y: 0 };
 }
 
 function courtyardPlane(
   name: string,
   material: THREE.Material,
   tileStone: boolean,
+  castleLevel: number,
 ): THREE.Mesh<THREE.PlaneGeometry, THREE.Material> {
-  const geometry = new THREE.PlaneGeometry(COURTYARD_WIDTH, COURTYARD_DEPTH);
-  if (tileStone) tileCastleUv(geometry, COURTYARD_WIDTH, COURTYARD_DEPTH, FLAGSTONE_TILE_YD);
+  const bounds = territorySiegeCastleBounds(castleLevel);
+  // Tuck each tier's floor just beneath its own inner wall skin. This keeps
+  // levels one through three compact while the fourth-tier citadel alone uses
+  // the expanded bailey footprint.
+  const halfWidth =
+    bounds.wallHalfX - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH + COURTYARD_SEAM_OVERLAP;
+  const frontZ = bounds.gateZ - TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH + COURTYARD_SEAM_OVERLAP;
+  const backZ = bounds.backWallZ + TERRITORY_SIEGE_WALL_VISUAL_HALF_DEPTH - COURTYARD_SEAM_OVERLAP;
+  const width = halfWidth * 2;
+  const depth = frontZ - backZ;
+  const geometry = new THREE.PlaneGeometry(width, depth);
+  if (tileStone) tileCastleUv(geometry, width, depth, FLAGSTONE_TILE_YD);
   geometry.rotateX(-Math.PI / 2);
   const floor = new THREE.Mesh(geometry, material);
   floor.name = name;
-  floor.position.set(0, 0.055, COURTYARD_CENTER_Z);
+  floor.position.set(0, 0.055, (frontZ + backZ) / 2);
   floor.receiveShadow = true;
   return floor;
 }
@@ -684,18 +717,13 @@ export function buildTerritorySiegeCastleSettlement(
       'territory-siege-courtyard-dirt',
       texturedMaterial('dirt', 0xaa865a, 18, 20, false),
       false,
+      1,
     ),
   );
-  for (const home of TERRITORY_SIEGE_HOMES) {
-    place(dirt, 'frontierTent', home.x, 0, home.z, home.scale * 0.59, home.yaw);
-  }
   place(dirt, 'frontierWatchtower', 0, 0, -63, 5.8, Math.PI);
-  place(dirt, 'frontierTent', -35, 0, -52, 4.6, Math.PI / 5);
   place(dirt, 'well', 16, 0, -25, 5.4, 0.2);
   place(dirt, 'hay', -17, 0, -19, 3.2, 0.5);
   place(dirt, 'hay', -20, 0, -22, 2.8, 1.8);
-  place(dirt, 'flag', -7, 0, 13, 4.5, 0);
-  place(dirt, 'flag', 7, 0, 13, 4.5, 0);
   root.add(dirt);
 
   const current = new THREE.Group();
@@ -705,6 +733,7 @@ export function buildTerritorySiegeCastleSettlement(
       'territory-siege-courtyard-current-dirt',
       texturedMaterial('dirt', 0xaa865a, 18, 20, false),
       false,
+      2,
     ),
   );
   root.add(current);
@@ -723,15 +752,10 @@ export function buildTerritorySiegeCastleSettlement(
       Math.PI / 2,
     );
   }
-  for (const home of TERRITORY_SIEGE_HOMES)
-    place(current, home.kind, home.x, 0, home.z, home.scale, home.yaw);
   place(current, 'castle', 0, 0, -63, [5.3, 4.4, 5.3], Math.PI);
-  place(current, 'workshop', -35, 0, -52, [4.4, 4.4, 4.4], Math.PI / 5);
   place(current, 'well', 16, 0, -25, 7.2, 0.2);
   place(current, 'hay', -17, 0, -19, 3.2, 0.5);
   place(current, 'hay', -20, 0, -22, 2.8, 1.8);
-  place(current, 'flag', -7, 0, 13, 5.2, 0);
-  place(current, 'flag', 7, 0, 13, 5.2, 0);
 
   const drakelands = new THREE.Group();
   drakelands.name = 'territory-siege-courtyard-tier:3:drakelands';
@@ -740,20 +764,14 @@ export function buildTerritorySiegeCastleSettlement(
       'territory-siege-courtyard-drakelands-paving',
       castlePavingMat({ color: 0x77716b, roughness: 0.98 }),
       true,
+      3,
     ),
   );
   // Premium Drakelands bailey: the same red-roofed civic and military
   // buildings used inside the Last Keep, kept on the established gameplay
   // footprints so castle-level changes never move collision under a player.
-  place(drakelands, 'drakelandsHomeA', -27, 0, -5, 8.2, 0.35);
-  place(drakelands, 'drakelandsHomeB', 27, 0, -7, 7.2, -0.3);
-  place(drakelands, 'drakelandsBarracks', -27, 0, -37, 5.1, 0.15);
-  place(drakelands, 'drakelandsTownhall', 27, 0, -39, 5.1, -0.2);
   place(drakelands, 'drakelandsCastle', 0, 0, -63, 4.6, Math.PI);
-  place(drakelands, 'drakelandsBlacksmith', -35, 0, -52, 5.4, Math.PI / 5);
   place(drakelands, 'well', 16, 0, -25, 7.2, 0.2);
-  place(drakelands, 'flag', -7, 0, 13, 5.5, 0);
-  place(drakelands, 'flag', 7, 0, 13, 5.5, 0);
   root.add(drakelands);
 
   const citadel = new THREE.Group();
@@ -763,6 +781,7 @@ export function buildTerritorySiegeCastleSettlement(
       'territory-siege-courtyard-citadel-paving',
       castlePavingMat({ color: 0x5f5b58, roughness: 0.96 }),
       true,
+      4,
     ),
   );
   const citadelStone = surfaceMat({ color: 0x69635d, roughness: 0.98 });
@@ -792,12 +811,12 @@ export function buildTerritorySiegeCastleSettlement(
   innerWardTop.receiveShadow = true;
   citadel.add(innerWardTop);
 
-  // kcas_stairs_walled is authored as an exact 5 x 4 x 4 module. Its highest
-  // landing is at y=4 (the former y=3 divisor made the mesh overshoot the ward
-  // by 0.8 yd). The shared top-Z includes a small overlap into the raised ward
-  // so the landing and paving meet without a dark seam.
+  // kcas_stairs_walled is authored as an exact 5 x 4 x 4 module. The compact
+  // rear flight reaches the enlarged ward without consuming the rear bailey.
   const innerStairTreadHeight = 4;
-  const wallStairTreadHeight = 4;
+  // The wide stair is 5.1 units tall (not four); scaling from its measured
+  // source height makes its landing exactly flush with the wall walk.
+  const wallStairTreadHeight = 5.1;
   const innerRamp = place(
     citadel,
     'drakelandsStairsWalled',
@@ -807,29 +826,27 @@ export function buildTerritorySiegeCastleSettlement(
     [
       (TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH * 2) / 5,
       TERRITORY_SIEGE_CITADEL_INNER_HEIGHT / innerStairTreadHeight,
-      (TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z - TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z) /
-        4,
+      Math.abs(
+        TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z - TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z,
+      ) / 4,
     ],
-    0,
+    Math.PI,
   );
   innerRamp.name = 'territory-siege-citadel-inner-stairs';
 
   const walkThickness = 0.34;
-  const wallAccessWidth = TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH * 2;
-  const wallAccessDepth =
-    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z;
-  const wallAccessCenterZ =
-    (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z) / 2;
-  for (const x of [-TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X, TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X]) {
+  for (const wallWalk of TERRITORY_SIEGE_CITADEL_WALL_WALKS) {
+    const wallAccessWidth = wallWalk.halfX * 2;
+    const wallAccessDepth = wallWalk.halfZ * 2;
     const walk = new THREE.Mesh(
       new THREE.BoxGeometry(wallAccessWidth, walkThickness, wallAccessDepth),
       citadelStone,
     );
-    walk.name = 'territory-siege-citadel-outer-wall-walk';
+    walk.name = `territory-siege-citadel-outer-wall-walk:${wallWalk.id}`;
     walk.position.set(
-      x,
+      wallWalk.x,
       TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT - walkThickness / 2,
-      wallAccessCenterZ,
+      wallWalk.z,
     );
     walk.castShadow = true;
     walk.receiveShadow = true;
@@ -841,40 +858,91 @@ export function buildTerritorySiegeCastleSettlement(
       walkTopGeometry,
       castlePavingMat({ color: 0x77716b, roughness: 0.98 }),
     );
-    walkTop.name = 'territory-siege-citadel-outer-wall-walk-paving';
-    walkTop.position.set(x, TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT + 0.012, wallAccessCenterZ);
+    walkTop.name = `territory-siege-citadel-outer-wall-walk-paving:${wallWalk.id}`;
+    walkTop.position.set(wallWalk.x, TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT + 0.012, wallWalk.z);
     walkTop.receiveShadow = true;
     citadel.add(walkTop);
+  }
 
+  const wallStairWidth = TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH * 2;
+  for (const side of [-1, 1] as const) {
     const ramp = place(
       citadel,
       'drakelandsStairsWide',
-      x,
+      side * TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X,
       0,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
+      TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z,
       [
-        wallAccessWidth / 7,
+        wallStairWidth / 7,
         TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT / wallStairTreadHeight,
-        (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z) /
+        (TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X - TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X) /
           4,
       ],
-      0,
+      side > 0 ? -Math.PI / 2 : Math.PI / 2,
     );
-    ramp.name = 'territory-siege-citadel-wall-stairs';
+    ramp.name = `territory-siege-citadel-wall-stairs:${side < 0 ? 'left' : 'right'}`;
   }
   const innerY = TERRITORY_SIEGE_CITADEL_INNER_HEIGHT;
-  place(citadel, 'drakelandsCastle', 0, innerY, -56, 5.1, Math.PI);
-  place(citadel, 'drakelandsBarracks', -15, innerY, -39, 5.35, 0.12);
-  place(citadel, 'drakelandsTownhall', 15, innerY, -40, 5.35, -0.16);
-  place(citadel, 'drakelandsHomeA', -29, 0, -3, 7.8, 0.32);
-  place(citadel, 'drakelandsHomeB', 29, 0, -5, 7, -0.28);
-  place(citadel, 'drakelandsBlacksmith', -34, 0, -50, 5.2, Math.PI / 5);
-  place(citadel, 'well', 16, 0, -15, 7.2, 0.2);
-  for (const x of [-7, 7]) place(citadel, 'flag', x, 0, 13, 5.8, 0);
+  // The core owns the central negative space. Civic buildings frame it while
+  // the keep terminates the vista without intersecting the objective volume.
+  place(citadel, 'drakelandsCastle', 0, innerY, -76, 5.1, 0);
+  place(citadel, 'drakelandsBarracks', -24, innerY, -59, 5.35, 0.08);
+  place(citadel, 'drakelandsTownhall', 24, innerY, -59, 5.35, -0.08);
+  for (const home of TERRITORY_SIEGE_CITADEL_OUTER_HOMES) {
+    place(
+      citadel,
+      home.kind === 'homeA' ? 'drakelandsHomeA' : 'drakelandsHomeB',
+      home.x,
+      0,
+      home.z,
+      home.scale,
+      home.yaw,
+    );
+  }
   root.add(citadel);
+
+  const structureRoot = new THREE.Group();
+  structureRoot.name = 'territory-siege-durable-city-structures';
+  root.add(structureRoot);
+  let structureSignature = '';
+
+  const setStructures = (
+    structures: readonly TerritoryStructureView[],
+    castleLevel: number,
+  ): void => {
+    const relevant = structures
+      .filter((structure) => RESOURCE_BUILDING_SLOTS.has(structure.slot))
+      .sort((a, b) => a.slot.localeCompare(b.slot));
+    const signature = `${Math.floor(castleLevel)}:${relevant
+      .map((structure) => `${structure.slot}:${structure.level}:${structure.state}`)
+      .join('|')}`;
+    if (signature === structureSignature) return;
+    structureSignature = signature;
+    structureRoot.clear();
+    for (const structure of relevant) {
+      const asset = territorySiegeStructureAsset(structure.slot, structure.level);
+      if (!asset) continue;
+      const placement = resourceBuildingPlacement(structure.slot, castleLevel);
+      const model = place(
+        structureRoot,
+        asset,
+        placement.x,
+        placement.y,
+        placement.z,
+        placement.scale,
+        placement.yaw,
+      );
+      model.name = `territory-siege-structure:${structure.slot}:level:${structure.level}:${structure.state}`;
+      model.userData.territoryStructure = {
+        slot: structure.slot,
+        level: structure.level,
+        state: structure.state,
+      };
+    }
+  };
 
   const tiers = [dirt, current, drakelands, citadel] as const;
   const setCastleLevel = (level: number): void => showTerritoryCastleTier(tiers, level);
   setCastleLevel(2);
-  return { setCastleLevel };
+  return { setCastleLevel, setStructures };
 }

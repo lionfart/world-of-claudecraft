@@ -6,6 +6,7 @@ import {
   territoryDefenseTowerVisualStyle,
   territoryWoodTowerYaw,
 } from '../src/render/territory_siege_castle_visual';
+import { territorySiegeStructureAsset } from '../src/render/territory_siege_environment';
 
 describe('territory siege castle tiers', () => {
   it('maps four castle levels through the raised Drakelands citadel', () => {
@@ -68,5 +69,14 @@ describe('territory siege castle tiers', () => {
     expect(Math.sin(rightYaw)).toBeLessThan(0);
     expect(Math.cos(leftYaw)).toBeLessThan(0);
     expect(Math.cos(rightYaw)).toBeLessThan(0);
+  });
+
+  it('renders resource buildings from their own durable level instead of the castle tier', () => {
+    expect(territorySiegeStructureAsset('granary', 1)).toBe('frontierTent');
+    expect(territorySiegeStructureAsset('granary', 2)).toBe('homeA');
+    expect(territorySiegeStructureAsset('granary', 3)).toBe('drakelandsTownhall');
+    expect(territorySiegeStructureAsset('mine', 2)).toBe('workshop');
+    expect(territorySiegeStructureAsset('mine', 3)).toBe('drakelandsBlacksmith');
+    expect(territorySiegeStructureAsset('stockpile', 3)).toBeNull();
   });
 });

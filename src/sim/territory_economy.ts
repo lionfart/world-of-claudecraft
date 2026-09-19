@@ -16,8 +16,18 @@ export interface TerritoryStructureCost {
   copper: number;
 }
 
-export const TERRITORY_CLAIM_COST = { wood: 10, iron: 5, grain: 10, labor: 5 } as const;
-export const TERRITORY_WAR_COST = { wood: 50, iron: 75, grain: 50, labor: 50 } as const;
+export const TERRITORY_CLAIM_COST = {
+  wood: 10,
+  iron: 5,
+  grain: 10,
+  labor: 5,
+} as const;
+export const TERRITORY_WAR_COST = {
+  wood: 50,
+  iron: 75,
+  grain: 50,
+  labor: 50,
+} as const;
 
 /**
  * Territory production is credited in authoritative one-hour slices. Opening
@@ -72,6 +82,31 @@ export function territoryStructureCost(
   };
 }
 
+/** Captured buildings retain their level but cost roughly half a fresh build to restore. */
+export function territoryStructureRepairCost(
+  kind: TerritoryStructureKind,
+  levelValue: number,
+): TerritoryStructureCost {
+  const level = Math.max(1, Math.min(TERRITORY_CASTLE_MAX_LEVEL, Math.floor(levelValue)));
+  const weight =
+    kind === 'keep'
+      ? 5
+      : kind === 'gate' || kind === 'wall' || kind === 'walls'
+        ? 3
+        : kind === 'defense_tower' || kind === 'towers'
+          ? 4
+          : 2;
+  return {
+    resources: {
+      wood: weight * level * 6,
+      iron: weight * level * 5,
+      grain: weight * level * 3,
+      labor: weight * level * 4,
+    },
+    copper: weight * level * 125,
+  };
+}
+
 export const TERRITORY_RESOURCE_STRUCTURE = {
   wood: 'forester',
   iron: 'mine',
@@ -107,16 +142,16 @@ export function territoryResourceProductionMultiplier(
 }
 
 /**
- * Production for one claimed hex. A natural deposit supplies the hex yield
- * (x1-x3), and only the matching active building in that same city supplies
- * the level multiplier (x1-x4). An absent building therefore produces zero.
+ * Production for one claimed hex. Every matching active building supplies its
+ * level as base production. A natural deposit upgrades that base with its
+ * x1-x3 yield multiplier; an absent building still produces zero.
  */
 export function territoryResourceProductionPerTick(
   kind: TerritoryResourceKind,
   naturalYield: number,
   structureLevels: Readonly<Partial<Record<'granary' | 'forester' | 'mine' | 'house', number>>>,
 ): number {
-  const yieldMultiplier = Number.isFinite(naturalYield) ? Math.max(0, Math.floor(naturalYield)) : 0;
+  const yieldMultiplier = Number.isFinite(naturalYield) ? Math.max(1, Math.floor(naturalYield)) : 1;
   return yieldMultiplier * territoryResourceProductionMultiplier(kind, structureLevels);
 }
 

@@ -103,7 +103,11 @@ import type { IWorldTrade } from './world_api/trade';
 // Account flair is defined in the host-agnostic sim core (src/sim/account_flair.ts)
 // because the server, the client mirror, and the HUD must all agree on its shape;
 // it rides through this seam so render/ui never import a concrete world.
-export type { PlayerFlair, StreamerLinks, StreamerPlatform } from './sim/account_flair';
+export type {
+  PlayerFlair,
+  StreamerLinks,
+  StreamerPlatform,
+} from './sim/account_flair';
 export type {
   DeedsLeaderboardPage,
   DevLeaderboardPage,
@@ -255,7 +259,12 @@ export type {
   ActionBarSlotAction,
   StoredActionBarLayout,
 } from './world_api/action_bar';
-export type { BankBonusSource, BankInfo, VaultInfo, VaultSpecialRef } from './world_api/bank';
+export type {
+  BankBonusSource,
+  BankInfo,
+  VaultInfo,
+  VaultSpecialRef,
+} from './world_api/bank';
 export type {
   BgFlagInfo,
   BgInfo,
@@ -349,9 +358,16 @@ export type {
 } from './world_api/interaction';
 export type { MailInfo, MailKindView, MailMessageView } from './world_api/mail';
 export type { MarketInfo, MarketListingView } from './world_api/market';
-export { queryDiffersFromEcho, searchDiffersFromEcho } from './world_api/market';
+export {
+  queryDiffersFromEcho,
+  searchDiffersFromEcho,
+} from './world_api/market';
 export type { MountRaceView } from './world_api/mounts';
-export type { PartyInfo, PartyMemberAura, PartyMemberInfo } from './world_api/party';
+export type {
+  PartyInfo,
+  PartyMemberAura,
+  PartyMemberInfo,
+} from './world_api/party';
 export type {
   CraftingIdentityView,
   CraftResultView,
@@ -394,6 +410,7 @@ export type {
   TerritoryCaptureView,
   TerritoryCatapultShotKind,
   TerritoryCatapultShotView,
+  TerritoryCityStockpileView,
   TerritoryGuildRank,
   TerritoryGuildView,
   TerritoryMapState,
@@ -412,6 +429,7 @@ export type {
   TerritorySiegeWallRun,
   TerritoryStructureKind,
   TerritoryStructureSlot,
+  TerritoryStructureState,
   TerritoryStructureView,
   TerritoryTowerZoneView,
   TerritoryWarSide,

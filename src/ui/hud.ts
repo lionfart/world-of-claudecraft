@@ -904,6 +904,10 @@ import { targetPortraitSourceId, targetPortraitUrl } from './target_portrait_vie
 import { targetRankView, targetUsesEliteFrame } from './target_rank_view';
 import { TargetSwingTimerBars } from './target_swing_timer_bars';
 import { TerritoryMapController } from './territory_map_controller';
+import {
+  type TerritorySiegeObjectiveFrameView,
+  territorySiegeObjectiveFrameView,
+} from './territory_siege_objective_view';
 import type { PresetId, ThemeKnob, ThemeState } from './theme';
 import { toolEffectNameKey } from './tool_effect_name';
 import { toolEffectTooltipLines } from './tool_effect_tooltip';
@@ -6187,64 +6191,17 @@ export class Hud {
   }
 
   private territorySiegeObjectiveFrame(): {
-    current: number;
-    maximum: number;
+    current: TerritorySiegeObjectiveFrameView['current'];
+    maximum: TerritorySiegeObjectiveFrameView['maximum'];
+    level: TerritorySiegeObjectiveFrameView['level'];
     name: string;
-    key: string;
+    key: TerritorySiegeObjectiveFrameView['key'];
   } | null {
-    const target = this.territorySiegeObjectiveTarget;
-    const siege = this.sim.territoryMap?.siege;
-    if (!target || !siege || siege.state === 'ended') return null;
-    if (target.kind === 'gate') {
-      const maximum = siege.gateMaxHp ?? 100;
-      const current = siege.gateHp ?? Math.max(0, 1 - siege.gateProgress) * maximum;
-      return current > 0
-        ? { current, maximum, name: t('hudChrome.territoryMap.gateName'), key: 'gate' }
-        : null;
-    }
-    if (target.kind === 'wall') {
-      const health = siege.wallHealth?.find((entry) => entry.id === target.id);
-      return health && health.hp > 0
-        ? {
-            current: health.hp,
-            maximum: health.maxHp,
-            name: t('hudChrome.territoryMap.wallName'),
-            key: `wall:${target.id}`,
-          }
-        : null;
-    }
-    if (target.kind === 'tower') {
-      const health = siege.towerHealth?.find((entry) => entry.id === target.id);
-      return health && health.hp > 0
-        ? {
-            current: health.hp,
-            maximum: health.maxHp,
-            name: t('hudChrome.territoryMap.towerName'),
-            key: `tower:${target.id}`,
-          }
-        : null;
-    }
-    const weapon =
-      target.kind === 'ram'
-        ? siege.rams?.find((entry) => entry.id === target.id)
-        : target.kind === 'mortar'
-          ? siege.mortars.find((entry) => entry.id === target.id)
-          : siege.catapults?.find((entry) => entry.id === target.id);
-    const current = weapon?.hp ?? weapon?.maxHp ?? 1;
-    const maximum = weapon?.maxHp ?? Math.max(1, current);
-    if (!weapon || current <= 0) return null;
-    const name =
-      target.kind === 'ram'
-        ? t('hudChrome.territoryMap.ramName')
-        : target.kind === 'mortar'
-          ? t('hudChrome.territoryMap.mortarName')
-          : t('hudChrome.territoryMap.catapultName');
-    return {
-      current,
-      maximum,
-      name,
-      key: `${target.kind}:${target.id}`,
-    };
+    const view = territorySiegeObjectiveFrameView(
+      this.sim.territoryMap?.siege,
+      this.territorySiegeObjectiveTarget,
+    );
+    return view ? { ...view, name: t(view.labelKey) } : null;
   }
 
   setTerritorySiegeObjectiveTarget(target: TerritorySiegeObjectiveTarget | null): void {
@@ -6263,10 +6220,11 @@ export class Hud {
   private paintTerritorySiegeObjective(objective: {
     current: number;
     maximum: number;
+    level: number | null;
     name: string;
     key: string;
   }): void {
-    const { current, maximum, name, key } = objective;
+    const { current, maximum, level, name, key } = objective;
     this.lastTargetFrameId = null;
     this.targetPortraitSubject = null;
     const targetFrame = this.targetFrameDescriptor;
@@ -6277,7 +6235,7 @@ export class Hud {
     targetFrame.resourceKind = 'none';
     targetFrame.resFrac = 0;
     targetFrame.resText = '';
-    targetFrame.levelText = null;
+    targetFrame.levelText = level === null ? null : String(level);
     targetFrame.name = name;
     targetFrame.titlePre = '';
     targetFrame.titlePost = '';
@@ -15299,7 +15257,7 @@ export class Hud {
     const origin = territorySiegeOrigin(siegeSlot);
     const localX = this.sim.player.pos.x - origin.x;
     const localZ = this.sim.player.pos.z - origin.z;
-    if (!territorySiegeRamDeploymentAreaContains(localX, localZ)) {
+    if (!territorySiegeRamDeploymentAreaContains(localX, localZ, siege.castleLevel)) {
       this.showError(t('hudChrome.territoryMap.ramPlacement'));
       return true;
     }

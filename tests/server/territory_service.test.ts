@@ -78,6 +78,7 @@ function repositoryFake(snapshot: TerritoryMapState, dueSieges: unknown[] = []) 
     cancelWar: vi.fn(),
     build: vi.fn(),
     upgrade: vi.fn(),
+    repair: vi.fn(),
     harvest: vi.fn(),
     loadGuildView: vi.fn().mockResolvedValue(null),
   };
@@ -258,7 +259,10 @@ describe('territory service hot paths', () => {
         cellId: 9,
         resource: 'iron',
       }),
-    ).resolves.toMatchObject({ ok: true, harvest: { kind: 'iron', amount: 20 } });
+    ).resolves.toMatchObject({
+      ok: true,
+      harvest: { kind: 'iron', amount: 20 },
+    });
     expect(repository.harvest).toHaveBeenCalledWith(
       expect.objectContaining({ characterId: 11, rank: 'officer' }),
       9,
@@ -322,7 +326,11 @@ describe('territory service hot paths', () => {
     const first = await service.snapshotForCharacter(11);
     const second = await service.snapshotForCharacter(11);
 
-    expect(first.guild).toMatchObject({ id: '7', rank: 'officer', ownedCellCount: 4 });
+    expect(first.guild).toMatchObject({
+      id: '7',
+      rank: 'officer',
+      ownedCellCount: 4,
+    });
     expect(second.guild).toEqual(first.guild);
     expect(repository.loadPublicSnapshot).toHaveBeenCalledTimes(1);
     expect(repository.loadGuildViewsSnapshot).toHaveBeenCalledTimes(1);
@@ -388,7 +396,10 @@ describe('territory service hot paths', () => {
     const snapshot = await service.snapshotForCharacter(11);
     const notice = await service.warNoticeForCharacter(11);
 
-    expect(snapshot.wars[0]).toMatchObject({ mySide: 'attacker', registered: true });
+    expect(snapshot.wars[0]).toMatchObject({
+      mySide: 'attacker',
+      registered: true,
+    });
     expect(notice).toMatchObject({
       attackerCount: 6,
       defenderCount: 4,
@@ -540,8 +551,14 @@ describe('territory service hot paths', () => {
       warId: war.id,
     });
 
-    expect(left).toMatchObject({ ok: true, seat: { side: 'attacker', seatNo: 1 } });
-    expect(rejoined).toMatchObject({ ok: true, seat: { side: 'attacker', seatNo: 1 } });
+    expect(left).toMatchObject({
+      ok: true,
+      seat: { side: 'attacker', seatNo: 1 },
+    });
+    expect(rejoined).toMatchObject({
+      ok: true,
+      seat: { side: 'attacker', seatNo: 1 },
+    });
     expect(repository.joinWar).toHaveBeenCalledOnce();
   });
 

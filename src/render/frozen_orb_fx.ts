@@ -55,6 +55,7 @@ const MAX_POOL_SIZE = 32;
 export interface FrozenOrbSpawn {
   sourceId: number;
   x: number;
+  y?: number;
   z: number;
   dirX: number;
   dirZ: number;
@@ -76,6 +77,7 @@ interface OrbFx {
   trailAge: Float32Array;
   trailLife: Float32Array;
   x: number;
+  surfaceY: number;
   z: number;
   dirX: number;
   dirZ: number;
@@ -92,7 +94,7 @@ function easeOutCubic(t: number): number {
 
 export class FrozenOrbFx {
   private readonly scene: THREE.Scene;
-  private readonly groundY: (x: number, z: number) => number;
+  private readonly groundY: (x: number, z: number, feetY?: number) => number;
   private readonly orbs: OrbFx[] = [];
   // Shared geometry, built lazily on the first spawn and reused for every orb.
   private shellGeo: THREE.SphereGeometry | null = null;
@@ -105,7 +107,7 @@ export class FrozenOrbFx {
   private readonly shardPool: THREE.MeshStandardMaterial[] = [];
   private readonly trailPool: THREE.PointsMaterial[] = [];
 
-  constructor(scene: THREE.Scene, groundY: (x: number, z: number) => number) {
+  constructor(scene: THREE.Scene, groundY: (x: number, z: number, feetY?: number) => number) {
     this.scene = scene;
     this.groundY = groundY;
   }
@@ -144,7 +146,8 @@ export class FrozenOrbFx {
       shardRing.add(shard);
     }
     group.add(shardRing);
-    const y0 = this.groundY(opts.x, opts.z) + ORB_HOVER;
+    const surfaceY = opts.y ?? this.groundY(opts.x, opts.z, opts.y);
+    const y0 = surfaceY + ORB_HOVER;
     group.position.set(opts.x, y0, opts.z);
     group.scale.setScalar(0.01); // grows in over FADE_IN
     this.scene.add(group);
@@ -183,6 +186,7 @@ export class FrozenOrbFx {
       trailAge,
       trailLife,
       x: opts.x,
+      surfaceY,
       z: opts.z,
       dirX: opts.dirX,
       dirZ: opts.dirZ,
@@ -272,21 +276,23 @@ export class FrozenOrbFx {
   }
 
   /** The orb latched onto an enemy: freeze the drift at the server's real spot. */
-  halt(sourceId: number, x: number, z: number): void {
+  halt(sourceId: number, x: number, z: number, y?: number): void {
     const orb = this.orbs.find((o) => o.sourceId === sourceId);
     if (!orb) return; // released out of interest range: nothing to freeze
     orb.halted = true;
     orb.x = x;
     orb.z = z;
+    orb.surfaceY = y ?? this.groundY(x, z, orb.surfaceY);
   }
 
   /** Nothing lives in reach any more: resume the drift from the server's spot. */
-  resume(sourceId: number, x: number, z: number): void {
+  resume(sourceId: number, x: number, z: number, y?: number): void {
     const orb = this.orbs.find((o) => o.sourceId === sourceId);
     if (!orb) return;
     orb.halted = false;
     orb.x = x;
     orb.z = z;
+    orb.surfaceY = y ?? this.groundY(x, z, orb.surfaceY);
   }
 
   update(dt: number): void {
@@ -302,8 +308,9 @@ export class FrozenOrbFx {
         orb.x += orb.dirX * orb.speed * dt;
         orb.z += orb.dirZ * orb.speed * dt;
       }
+      orb.surfaceY = this.groundY(orb.x, orb.z, orb.surfaceY);
       const bob = Math.sin(t * BOB_SPEED) * BOB_HEIGHT;
-      const y = this.groundY(orb.x, orb.z) + ORB_HOVER + bob;
+      const y = orb.surfaceY + ORB_HOVER + bob;
       orb.group.position.set(orb.x, y, orb.z);
       const spinMult = orb.halted ? HALTED_SPIN_MULT : 1;
       orb.group.rotation.y += SPIN_SPEED * spinMult * dt;
@@ -390,6 +397,7 @@ export class FrozenOrbFx {
 export interface FrozenOrbSpellfxEvent {
   fx: Extract<SimEvent, { type: 'spellfxAt' }>['fx'];
   x: number;
+  y?: number;
   z: number;
   sourceId?: number;
   phase?: 'release' | 'halt' | 'resume';
@@ -410,12 +418,17 @@ export interface FrozenOrbSpellfxEvent {
 export function handleFrozenOrbSpellfxEvent(fx: FrozenOrbFx, ev: FrozenOrbSpellfxEvent): boolean {
   if (ev.fx !== 'orb') return false;
   const orbSource = ev.sourceId ?? -1;
-  if (ev.phase === 'halt') fx.halt(orbSource, ev.x, ev.z);
-  else if (ev.phase === 'resume') fx.resume(orbSource, ev.x, ev.z);
-  else
+  if (ev.phase === 'halt') {
+    if (ev.y === undefined) fx.halt(orbSource, ev.x, ev.z);
+    else fx.halt(orbSource, ev.x, ev.z, ev.y);
+  } else if (ev.phase === 'resume') {
+    if (ev.y === undefined) fx.resume(orbSource, ev.x, ev.z);
+    else fx.resume(orbSource, ev.x, ev.z, ev.y);
+  } else
     fx.spawn({
       sourceId: orbSource,
       x: ev.x,
+      ...(ev.y === undefined ? {} : { y: ev.y }),
       z: ev.z,
       dirX: ev.dirX ?? 0,
       dirZ: ev.dirZ ?? 1,

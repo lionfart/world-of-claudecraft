@@ -6,10 +6,10 @@ export const TERRITORY_SIEGE_STONE_LANE_HEIGHT = 0.072;
 export const TERRITORY_SIEGE_CITADEL_INNER_HEIGHT = 2.4;
 export const TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT = 5.45;
 /** Raised inner ward fitted just inside the level-four inner curtain. */
-export const TERRITORY_SIEGE_CITADEL_INNER_HALF_X = 27.1;
-export const TERRITORY_SIEGE_CITADEL_INNER_BACK_Z = -65.1;
-export const TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z = -22.9;
-/** The central stair is the only walkable transition onto the raised ward. */
+export const TERRITORY_SIEGE_CITADEL_INNER_HALF_X = 35.1;
+export const TERRITORY_SIEGE_CITADEL_INNER_BACK_Z = -91.1;
+export const TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z = -20.9;
+/** The rear stair is the only walkable transition onto the raised ward. */
 export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_HALF_WIDTH = 3.75;
 /**
  * The walled stair asset's parapets occupy the outer 1.5 yards on each side
@@ -20,15 +20,91 @@ export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_CLEAR_HALF_WIDTH = 2.25;
 /** A small physical overlap hides the join between the top landing and ward. */
 export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_JOIN_OVERLAP = 0.45;
 export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z =
-  TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z - TERRITORY_SIEGE_CITADEL_INNER_STAIR_JOIN_OVERLAP;
-export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z = -11.1;
-/** Wall walks overlap the outer curtain instead of floating beside it. */
-export const TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X = 39.7;
-export const TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH = 3.4;
-export const TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z = -71.1;
-export const TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z = -17.8;
-export const TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z = -1.8;
+  TERRITORY_SIEGE_CITADEL_INNER_BACK_Z +
+  TERRITORY_SIEGE_CITADEL_INNER_STAIR_JOIN_OVERLAP;
+export const TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z = -101.2;
+/** Narrow wall walks overlap the inner face of the expanded outer curtain. */
+export const TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH = 2.25;
+export const TERRITORY_SIEGE_CITADEL_WALL_WALK_X = 66.85;
+export const TERRITORY_SIEGE_CITADEL_WALL_WALK_BACK_Z = -131.1;
+export const TERRITORY_SIEGE_CITADEL_WALL_WALK_FRONT_Z = 23.1;
+/** Two perpendicular stairs join the side walks without running underneath them. */
+export const TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X = 64.85;
+export const TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X = 49.85;
+export const TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z = -4;
+export const TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH = 3;
 export const TERRITORY_SIEGE_CITADEL_MAX_UP_STEP = 0.42;
+
+export interface TerritorySiegeCitadelWallWalkRect {
+  id: 'left' | 'right' | 'back' | 'front_left' | 'front_right';
+  x: number;
+  z: number;
+  halfX: number;
+  halfZ: number;
+}
+
+const CITADEL_WALL_WALK_INNER_X =
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_X -
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH;
+const CITADEL_WALL_WALK_REAR_Z =
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_BACK_Z +
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH;
+const CITADEL_WALL_WALK_FRONT_CENTER_Z =
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_FRONT_Z -
+  TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH;
+const CITADEL_WALL_WALK_SIDE_CENTER_Z =
+  (TERRITORY_SIEGE_CITADEL_WALL_WALK_BACK_Z +
+    TERRITORY_SIEGE_CITADEL_WALL_WALK_FRONT_Z) /
+  2;
+const CITADEL_WALL_WALK_SIDE_HALF_Z =
+  (TERRITORY_SIEGE_CITADEL_WALL_WALK_FRONT_Z -
+    TERRITORY_SIEGE_CITADEL_WALL_WALK_BACK_Z) /
+  2;
+const CITADEL_FRONT_WALK_INNER_X = 10;
+const CITADEL_FRONT_WALK_HALF_X =
+  (CITADEL_WALL_WALK_INNER_X - CITADEL_FRONT_WALK_INNER_X) / 2;
+const CITADEL_FRONT_WALK_CENTER_X =
+  CITADEL_FRONT_WALK_INNER_X + CITADEL_FRONT_WALK_HALF_X;
+
+/** Five tightly butt-jointed decks cover every solid run of the outer curtain. */
+export const TERRITORY_SIEGE_CITADEL_WALL_WALKS: readonly TerritorySiegeCitadelWallWalkRect[] =
+  [
+    {
+      id: 'left',
+      x: -TERRITORY_SIEGE_CITADEL_WALL_WALK_X,
+      z: CITADEL_WALL_WALK_SIDE_CENTER_Z,
+      halfX: TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH,
+      halfZ: CITADEL_WALL_WALK_SIDE_HALF_Z,
+    },
+    {
+      id: 'right',
+      x: TERRITORY_SIEGE_CITADEL_WALL_WALK_X,
+      z: CITADEL_WALL_WALK_SIDE_CENTER_Z,
+      halfX: TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH,
+      halfZ: CITADEL_WALL_WALK_SIDE_HALF_Z,
+    },
+    {
+      id: 'back',
+      x: 0,
+      z: CITADEL_WALL_WALK_REAR_Z,
+      halfX: CITADEL_WALL_WALK_INNER_X,
+      halfZ: TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH,
+    },
+    {
+      id: 'front_left',
+      x: -CITADEL_FRONT_WALK_CENTER_X,
+      z: CITADEL_WALL_WALK_FRONT_CENTER_Z,
+      halfX: CITADEL_FRONT_WALK_HALF_X,
+      halfZ: TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH,
+    },
+    {
+      id: 'front_right',
+      x: CITADEL_FRONT_WALK_CENTER_X,
+      z: CITADEL_WALL_WALK_FRONT_CENTER_Z,
+      halfX: CITADEL_FRONT_WALK_HALF_X,
+      halfZ: TERRITORY_SIEGE_CITADEL_WALL_WALK_HALF_WIDTH,
+    },
+  ];
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
   if (edge0 === edge1) return value < edge0 ? 0 : 1;
@@ -50,8 +126,11 @@ export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
 
   const edgeFade = smoothstep(0, 12, edgeDistance);
   const assaultRoadFade = z > 14 ? smoothstep(8, 20, Math.abs(x)) : 1;
-  const castleX = 1 - smoothstep(42, 50, Math.abs(x));
-  const castleZ = smoothstep(-79, -71, z) * (1 - smoothstep(17, 25, z));
+  // Flatten the whole enlarged citadel footprint. The previous mask still
+  // described the 44x72-yard castle, so rolling terrain poked through the new
+  // courtyard plane as a large grass rectangle.
+  const castleX = 1 - smoothstep(70, 78, Math.abs(x));
+  const castleZ = smoothstep(-140, -132, z) * (1 - smoothstep(24, 32, z));
   const castleFade = 1 - castleX * castleZ;
   const mask = edgeFade * assaultRoadFade * castleFade;
 
@@ -59,9 +138,13 @@ export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
   const cross = Math.sin(z * 0.071 - x * 0.033 + 1.7) * 0.31;
   const ridge = Math.sin((x + z) * 0.039 - 0.8) * 0.2;
   const detail = Math.sin(x * 0.13 - z * 0.11 + 2.4) * 0.08;
-  const gentle = Math.max(-0.48, Math.min(1.18, (0.24 + broad + cross + ridge + detail) * mask));
+  const gentle = Math.max(
+    -0.48,
+    Math.min(1.18, (0.24 + broad + cross + ridge + detail) * mask),
+  );
   const ridgeInside = 1 - smoothstep(10, 38, edgeDistance);
-  const ridgeOutside = 1 - smoothstep(0, TERRITORY_SIEGE_VISUAL_MARGIN, -edgeDistance);
+  const ridgeOutside =
+    1 - smoothstep(0, TERRITORY_SIEGE_VISUAL_MARGIN, -edgeDistance);
   const boundaryMask = edgeDistance >= 0 ? ridgeInside : ridgeOutside;
   // One continuous heightfield ridge replaces the old row of enlarged rock
   // props. Broad frequencies shape long shoulders while the rectified crest
@@ -79,42 +162,44 @@ export function territorySiegeTerrainLiftLocal(x: number, z: number): number {
  * letting characters sink through its decorative mesh.
  */
 export function territorySiegeStoneLaneLiftLocal(x: number, z: number): number {
-  const vertical = z >= -69 && z <= 17 ? 1 - smoothstep(3.55, 4.05, Math.abs(x)) : 0;
-  const horizontal = x >= -38 && x <= 38 ? 1 - smoothstep(3.55, 4.05, Math.abs(z + 24)) : 0;
+  const vertical =
+    z >= -69 && z <= 17 ? 1 - smoothstep(3.55, 4.05, Math.abs(x)) : 0;
+  const horizontal =
+    x >= -38 && x <= 38 ? 1 - smoothstep(3.55, 4.05, Math.abs(z + 24)) : 0;
   return Math.max(vertical, horizontal) * TERRITORY_SIEGE_STONE_LANE_HEIGHT;
 }
 
 function insideRange(value: number, minimum: number, maximum: number): boolean {
-  return value >= minimum && value <= maximum;
+  return (
+    value >= Math.min(minimum, maximum) && value <= Math.max(minimum, maximum)
+  );
 }
 
-function territorySiegeCitadelWallWalkContainsLocal(x: number, z: number): boolean {
-  const absoluteX = Math.abs(x);
-  return (
-    insideRange(
-      absoluteX,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH,
-    ) &&
-    insideRange(
-      z,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BACK_Z,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
-    )
+function territorySiegeCitadelWallWalkContainsLocal(
+  x: number,
+  z: number,
+): boolean {
+  return TERRITORY_SIEGE_CITADEL_WALL_WALKS.some(
+    (walk) =>
+      Math.abs(x - walk.x) <= walk.halfX && Math.abs(z - walk.z) <= walk.halfZ,
   );
 }
 
 /**
  * Level-four traversal surface. The rear inner ward is a raised platform with
- * a broad central ramp. Two side ramps reach a continuous walk along the
- * inside edge of the outer side and rear curtains, clear of the destructible
- * wall footprints so the ordinary swept wall solver stays authoritative.
+ * a compact rear stair. Two perpendicular side stairs meet a continuous walk
+ * along the inside edge of the outer curtain only at their top landings, so
+ * the elevated deck can never hide the stair flights.
  */
 export function territorySiegeCitadelLiftLocal(x: number, z: number): number {
   let lift = 0;
   if (
     Math.abs(x) <= TERRITORY_SIEGE_CITADEL_INNER_HALF_X &&
-    insideRange(z, TERRITORY_SIEGE_CITADEL_INNER_BACK_Z, TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z)
+    insideRange(
+      z,
+      TERRITORY_SIEGE_CITADEL_INNER_BACK_Z,
+      TERRITORY_SIEGE_CITADEL_INNER_FRONT_Z,
+    )
   ) {
     lift = TERRITORY_SIEGE_CITADEL_INNER_HEIGHT;
   }
@@ -130,39 +215,36 @@ export function territorySiegeCitadelLiftLocal(x: number, z: number): number {
       0,
       Math.min(
         1,
-        (TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z - z) /
-          (TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z -
-            TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z),
+        (z - TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z) /
+          (TERRITORY_SIEGE_CITADEL_INNER_STAIR_TOP_Z -
+            TERRITORY_SIEGE_CITADEL_INNER_STAIR_BOTTOM_Z),
       ),
     );
     lift = Math.max(lift, progress * TERRITORY_SIEGE_CITADEL_INNER_HEIGHT);
   }
 
   const absoluteX = Math.abs(x);
-  const accessMinimumX =
-    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X - TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH;
-  const accessMaximumX =
-    TERRITORY_SIEGE_CITADEL_WALL_ACCESS_X + TERRITORY_SIEGE_CITADEL_WALL_ACCESS_HALF_WIDTH;
-  // The playable deck is broad enough for two characters to pass and remains
-  // between the inner curtain and the outer wall collider.
+  // The playable deck remains broad enough for a character to pass while
+  // reading as a wall walk instead of a second suspended courtyard.
   const onSideWalk = territorySiegeCitadelWallWalkContainsLocal(x, z);
   if (onSideWalk) lift = TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT;
 
   if (
-    insideRange(absoluteX, accessMinimumX, accessMaximumX) &&
     insideRange(
-      z,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z,
-      TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z,
-    )
+      absoluteX,
+      TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X,
+      TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X,
+    ) &&
+    Math.abs(z - TERRITORY_SIEGE_CITADEL_WALL_STAIR_Z) <=
+      TERRITORY_SIEGE_CITADEL_WALL_STAIR_HALF_WIDTH
   ) {
     const progress = Math.max(
       0,
       Math.min(
         1,
-        (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z - z) /
-          (TERRITORY_SIEGE_CITADEL_WALL_ACCESS_BOTTOM_Z -
-            TERRITORY_SIEGE_CITADEL_WALL_ACCESS_TOP_Z),
+        (absoluteX - TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X) /
+          (TERRITORY_SIEGE_CITADEL_WALL_STAIR_TOP_X -
+            TERRITORY_SIEGE_CITADEL_WALL_STAIR_BOTTOM_X),
       ),
     );
     lift = Math.max(lift, progress * TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT);
@@ -207,7 +289,10 @@ export function resolveTerritorySiegeCitadelElevationTransitionLocal(
       currentLift + TERRITORY_SIEGE_CITADEL_MAX_UP_STEP <
         TERRITORY_SIEGE_CITADEL_WALL_WALK_HEIGHT &&
       territorySiegeCitadelWallWalkContainsLocal(next.x, next.z);
-    if (nextLift - currentLift > TERRITORY_SIEGE_CITADEL_MAX_UP_STEP && !belowWallWalk)
+    if (
+      nextLift - currentLift > TERRITORY_SIEGE_CITADEL_MAX_UP_STEP &&
+      !belowWallWalk
+    )
       return current;
     current = next;
     if (!belowWallWalk) currentLift = nextLift;
@@ -225,15 +310,21 @@ export function territorySiegeGroundLiftForCastleLocal(
   const base = territorySiegeGroundLiftLocal(x, z);
   if (castleLevel < 4) return base;
   const citadel = territorySiegeCitadelLiftLocal(x, z);
-  if (feetY === undefined || !Number.isFinite(feetY)) return Math.max(base, citadel);
+  if (feetY === undefined || !Number.isFinite(feetY))
+    return Math.max(base, citadel);
   // Runtime movement may adopt a raised surface only when it is no more than
   // one authored stair step above the character's current feet. This preserves
   // gradual stair travel but makes the upper face of a ramp, wall walk or inner
   // ward invisible to support/landing while the character is underneath it.
-  return citadel <= feetY + TERRITORY_SIEGE_CITADEL_MAX_UP_STEP ? Math.max(base, citadel) : base;
+  return citadel <= feetY + TERRITORY_SIEGE_CITADEL_MAX_UP_STEP
+    ? Math.max(base, citadel)
+    : base;
 }
 
 /** Authoritative player surface, including the low castle paving. */
 export function territorySiegeGroundLiftLocal(x: number, z: number): number {
-  return Math.max(territorySiegeTerrainLiftLocal(x, z), territorySiegeStoneLaneLiftLocal(x, z));
+  return Math.max(
+    territorySiegeTerrainLiftLocal(x, z),
+    territorySiegeStoneLaneLiftLocal(x, z),
+  );
 }
