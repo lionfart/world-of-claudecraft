@@ -436,6 +436,24 @@
           <span class="ctm-arrow ctm-w"></span>
         </div>
         <div
+          id="talking-head"
+          class="talking-head ui-panel-strong"
+          hidden
+          role="status"
+          data-i18n-aria="hudChrome.talkingHead.label"
+          aria-label="Dialogue"
+        >
+          <div class="portrait-wrap ui-portrait-wrap th-portrait-wrap">
+            <div class="portrait ui-portrait">
+              <canvas class="th-portrait" width="54" height="54"></canvas>
+            </div>
+          </div>
+          <div class="th-body">
+            <div class="th-name ui-h"></div>
+            <div class="th-text"></div>
+          </div>
+        </div>
+        <div
           id="target-frame"
           class="unitframe"
           role="group"
@@ -457,6 +475,7 @@
               </svg>
             </span>
             <div class="level-chip" id="tf-level"></div>
+            <div class="uf-raid-marker" id="tf-raid-marker" aria-hidden="true"></div>
             <div id="tf-elite-tag" data-i18n="hud.core.elite">ELITE</div>
           </div>
           <div class="uf-bars">
@@ -739,6 +758,7 @@
           <div id="quest-tracker"><div id="qt-body"></div></div>
           <div id="deed-tracker"></div>
           <div id="reliquary-tracker"></div>
+          <div id="recipe-tracker"></div>
           <div id="delve-tracker"><div id="delve-body"></div></div>
           <div id="rift-tracker"><div id="rift-body"></div></div>
           <div id="practice-tracker"></div>
@@ -1303,6 +1323,16 @@
         <div id="town-focus-window" class="window panel"></div>
         <div id="crafting-window" class="window panel"></div>
         <div id="map-window" class="window panel">
+          <!-- The upstream atlas rail overlaps the custom Territory War map chrome.
+               Keep its DOM/runtime contract available without changing that map's
+               proven layout; it can be enabled after a dedicated combined layout. -->
+          <aside
+            id="map-sidebar"
+            class="map-atlas-sidebar ui-panel-strong"
+            data-territory-compat
+            hidden
+          ></aside>
+          <div class="map-atlas-stage" data-territory-compat hidden></div>
           <button
             type="button"
             class="x-btn"
@@ -2280,7 +2310,23 @@
 
         <div id="error-msg"></div>
         <div id="quest-banner" aria-hidden="true"></div>
+        <div id="raid-warning-banner" aria-live="assertive"></div>
         <div id="banner"></div>
+        <div id="ready-check-leader-window" class="ready-check-leader-window" hidden>
+          <div class="rck-header">
+            <span class="rck-title" data-i18n="hudChrome.readyCheck.title">Ready Check</span>
+            <button
+              type="button"
+              class="rck-close"
+              aria-label="Close"
+              data-i18n-aria="hudChrome.readyCheck.close"
+            >
+              ×
+            </button>
+          </div>
+          <div class="rck-roster"></div>
+          <div class="rck-status-line"></div>
+        </div>
         <div id="low-health-vignette"></div>
         <div id="subzone-banner"></div>
 

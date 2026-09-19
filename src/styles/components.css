@@ -13387,6 +13387,12 @@
   body:not(.mobile-touch) #map-window {
     height: 624px;
   }
+  /* Territory War keeps the pre-atlas map surface and its absolute overlays.
+     The hidden compatibility rail still satisfies the merged map controller,
+     but must not widen or reposition the battle-tested territory layout. */
+  body:not(.mobile-touch) #map-window:has(> .map-atlas-sidebar[data-territory-compat]) {
+    width: 596px;
+  }
   .map-atlas-sidebar {
     position: absolute;
     inset: var(--window-pad) auto var(--window-pad) var(--window-pad);
