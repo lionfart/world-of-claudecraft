@@ -180,8 +180,8 @@ describe('both tiles hydrate and stay under the rail height budget', () => {
   it('hydrateIcons materializes the painted launcher for each tile', () => {
     document.body.innerHTML =
       '<div id="side-buttons">' +
-      '<button type="button" class="micro-btn" id="mm-harvest-journal" data-icon="harvest-journal"><span class="keybind">s-k</span></button>' +
-      '<button type="button" class="micro-btn" id="mm-perfecting" data-icon="perfecting"><span class="keybind">s-t</span></button>' +
+      '<button type="button" class="micro-btn" id="mm-harvest-journal" data-icon="harvest-journal"><span class="keybind ui-keycap">s-k</span></button>' +
+      '<button type="button" class="micro-btn" id="mm-perfecting" data-icon="perfecting"><span class="keybind ui-keycap">s-t</span></button>' +
       '</div>';
     hydrateIcons(document.body);
     for (const [id, icon] of [
@@ -216,13 +216,15 @@ describe('both tiles hydrate and stay under the rail height budget', () => {
       'mm-loot-explorer',
       'mm-professions',
       'mm-harvest-journal',
-      'mm-map',
       'mm-bag',
       'mm-crafting',
       'mm-perfecting',
     ];
     for (const [name, html] of entries) {
-      const buttons = colA(html).match(/<button[^>]*class="micro-btn"[^>]*>/g) ?? [];
+      // The class ATTRIBUTE is a list on this branch (the rail tiles adopted the
+      // shared icon-button primitive beside their legacy class), so the tile is
+      // matched by carrying `micro-btn`, never by the attribute being it alone.
+      const buttons = colA(html).match(/<button[^>]*class="[^"]*\bmicro-btn\b[^"]*"[^>]*>/g) ?? [];
       const visible = buttons.filter(
         (b) => !/display:\s*none/.test(b) && !/\shidden(?=[\s>=])/.test(b),
       );

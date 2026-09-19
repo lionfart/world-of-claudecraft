@@ -66,7 +66,10 @@ describe('Deed Heraldry plaque surface family', () => {
       const html = read(rel).replace(/\s+/g, ' ');
       expect(html).toMatch(/class="uf-name-header deed-heraldry-plaque" id="pf-name-header"/);
       expect(html).toMatch(
-        /class="uf-name-header deed-heraldry-plaque deed-heraldry-plaque-mirror" id="tf-name-header"/,
+        /class="uf-name-header deed-heraldry-plaque ui-ribbon" id="pf-name-header"/,
+      );
+      expect(html).toMatch(
+        /class="uf-name-header deed-heraldry-plaque deed-heraldry-plaque-mirror ui-ribbon ui-ribbon--mirror" id="tf-name-header"/,
       );
     }
   });

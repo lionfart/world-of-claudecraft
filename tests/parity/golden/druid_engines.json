@@ -30,8 +30,8 @@
       "tick": 20,
       "time": 1,
       "nextId": 1010,
-      "state": "e2289093",
-      "events": "cd1043be",
+      "state": "41ce3a0a",
+      "events": "465c84ba",
       "rng": {
         "draws": 0,
         "digest": "811c9dc5"
@@ -41,7 +41,7 @@
       "tick": 40,
       "time": 2,
       "nextId": 1010,
-      "state": "8a28c837",
+      "state": "8136fcc4",
       "events": "855681a0",
       "rng": {
         "draws": 0,
@@ -52,8 +52,8 @@
       "tick": 60,
       "time": 3,
       "nextId": 1010,
-      "state": "d32d74e7",
-      "events": "741638a5",
+      "state": "8ea8fcef",
+      "events": "736013e1",
       "rng": {
         "draws": 147,
         "digest": "62888260"
@@ -63,7 +63,7 @@
       "tick": 80,
       "time": 4,
       "nextId": 1010,
-      "state": "d7a75911",
+      "state": "255958ba",
       "events": "96d74195",
       "rng": {
         "draws": 331,
@@ -74,7 +74,7 @@
       "tick": 100,
       "time": 5,
       "nextId": 1010,
-      "state": "02184c93",
+      "state": "5fdb4b75",
       "events": "855681a0",
       "rng": {
         "draws": 496,
@@ -85,7 +85,7 @@
       "tick": 120,
       "time": 6,
       "nextId": 1010,
-      "state": "98d7d1bd",
+      "state": "b9b10054",
       "events": "dfb400fc",
       "rng": {
         "draws": 703,
@@ -96,7 +96,7 @@
       "tick": 140,
       "time": 7,
       "nextId": 1010,
-      "state": "bbf30295",
+      "state": "4c5e8271",
       "events": "855681a0",
       "rng": {
         "draws": 930,
@@ -107,7 +107,7 @@
       "tick": 160,
       "time": 8,
       "nextId": 1010,
-      "state": "63977ee7",
+      "state": "502fdb74",
       "events": "741638a5",
       "rng": {
         "draws": 1174,
@@ -118,7 +118,7 @@
       "tick": 180,
       "time": 9,
       "nextId": 1010,
-      "state": "ee87f7b1",
+      "state": "268c7927",
       "events": "fdf7d495",
       "rng": {
         "draws": 1461,
@@ -623,6 +623,12 @@
             "z": -58
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {
+              "dru_loping_stride": 1.25
+            }
+          },
           "resource": 1146,
           "resourceType": "mana",
           "spawnPos": {
@@ -1572,6 +1578,10 @@
             "z": -58
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {}
+          },
           "resource": 1148,
           "resourceType": "mana",
           "spawnPos": {
@@ -1610,6 +1620,16 @@
               "school": "physical",
               "sourceId": 1007,
               "value": 0.65
+            },
+            {
+              "duration": 3,
+              "id": "loping_stride",
+              "kind": "buff_speed",
+              "name": "Loping Stride",
+              "remaining": 1,
+              "school": "nature",
+              "sourceId": 1007,
+              "value": 1.6
             }
           ],
           "combatTimer": 0.25,
@@ -1640,6 +1660,12 @@
             "z": -57
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {
+              "dru_loping_stride": 18
+            }
+          },
           "resource": 85,
           "resourceType": "rage",
           "savedMana": 1043,
@@ -2297,6 +2323,10 @@
             "z": -58
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {}
+          },
           "resource": 1148,
           "resourceType": "mana",
           "spawnPos": {
@@ -2363,6 +2393,12 @@
             "z": -57
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {
+              "dru_loping_stride": 7.5
+            }
+          },
           "resource": 79,
           "resourceType": "rage",
           "savedMana": 1043,
@@ -2911,6 +2947,10 @@
             "z": -58
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {}
+          },
           "resource": 1148,
           "resourceType": "mana",
           "spawnPos": {
@@ -2977,6 +3017,12 @@
             "z": -57
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {
+              "dru_loping_stride": 7.5
+            }
+          },
           "resource": 79,
           "resourceType": "rage",
           "savedMana": 1043,

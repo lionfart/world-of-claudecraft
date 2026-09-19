@@ -99,7 +99,14 @@ const MONOLITHS: MonolithRow[] = [
     // wiring, the wallet re-arm, and the scroll-after-focus ordering. The
     // review round (the hold's lazy first-render attach, the no-rung scroll
     // carve-out) fits inside the same count. Exact count, zero slack.
-    ceiling: 2475,
+    // Down 2475 -> 2419 at the Sales History tab: the browse detail pane
+    // (detailPaneHtml/bidFormHtml/confirmFieldsHtml) moved to
+    // src/ui/woc_market_detail_html.ts (the activity-html precedent), and the
+    // new tab's own table markup lives in src/ui/woc_market_sales_html.ts, so
+    // the fourth tab's window glue landed under the old ceiling (net of the
+    // v0.43.0 sync merge, which trimmed overlapping browse markup). Exact
+    // count, zero slack.
+    ceiling: 2419,
     seam: 'a pure view-core module beside it (src/ui/woc_market_view.ts) that this window renders from',
   },
   {
@@ -113,6 +120,11 @@ const MONOLITHS: MonolithRow[] = [
     // Re-pinned from 19177 after the v0.38.0 sync merge: the release's map
     // overhaul extracted marker interaction out of the coordinator, so the
     // merged file landed SMALLER and the ratchet follows it down.
+    // Re-pinned DOWN from 18472 by the aura watchlist change: standing the
+    // feature up inline would have added 14 lines here, so the controller
+    // build and the Options > Auras projection both moved out to
+    // src/ui/aura_overlay_wiring.ts. The coordinator ends 9 lines SMALLER
+    // than it started, and the pin follows it down. Extract, then lower.
     file: 'src/ui/hud.ts',
     // Lowered from 19600 at the Phase 07 review round (craft-denial key
     // ternary out to craft_denial_line_view), then from 19500 at the Phase 07
@@ -446,7 +458,15 @@ const MONOLITHS: MonolithRow[] = [
     // release-side import/export panel composed with the batch settings rows.
     // Measured with wc -l on the merged tree. Exact count, zero headroom.
     file: 'src/ui/options_window.ts',
-    ceiling: 2843,
+    // LOWERED 2955 -> 2840 on the redesign review: the Interface panel's three
+    // bespoke rows (the chat timestamp pair, the chat-window reset, the Unlock
+    // Interface action) moved to src/ui/options_interface_rows.ts. Exact count,
+    // zero slack.
+    // LOWERED 2840 -> 2831 when the main menu's button list (and the Unlock
+    // Interface entry that joined it) moved to
+    // src/ui/options_main_menu_controller.ts; the window keeps only the
+    // routing and the touch gate. Exact count, zero slack.
+    ceiling: 2831,
     seam: 'a pure view model (src/ui/options_view.ts) painted with the shared settings_controls.ts builders; sub-panels as sibling modules',
   },
   {
@@ -1635,7 +1655,11 @@ const MONOLITHS: MonolithRow[] = [
     // Re-pinned to the exact merged count of the OSSBrain v0.41.0 base
     // merge: both parents had already ratcheted for their own work, so
     // the composite is the honest size. Exact count, zero slack.
-    ceiling: 3945,
+    // Down 3945 -> 3943 at the Sales History tab: the sale/query/seller read
+    // types moved to woc_market_sale_types.ts (the economy-types leaf
+    // pattern), which more than paid for the realmSalesHistory read added
+    // here. Measured on the v0.43.0-rebased tree. Exact count, zero slack.
+    ceiling: 3943,
     seam: 'a woc_market_<thing>.ts sibling behind WocMarketDeps (the drift-warn split is the template)',
   },
   {
@@ -1751,7 +1775,10 @@ const MONOLITHS: MonolithRow[] = [
     // disagreement about TEXT; this gate is about SIZE). BOTH parent pins for
     // the record: ours 2804, the release 2433. Measured on the merged tree,
     // never reconciled by arithmetic. Exact merged count, zero slack.
-    ceiling: 2432,
+    // Lowered again after the dais foundation-block stacking (and its
+    // per-position hash) moved to src/render/dais_blocks_core.ts for the
+    // Nythraxis flanking platforms (v0.42.2). Exact count, zero slack.
+    ceiling: 2420,
     seam: 'a new src/render/<thing>.ts module (src/render/CLAUDE.md)',
   },
   {
@@ -1941,7 +1968,10 @@ const MONOLITHS: MonolithRow[] = [
     // another method cluster here.
     file: 'src/ui/hud/professions/professions_window.ts',
     // Harvest entry chrome and bindings now live in a sibling controller.
-    ceiling: 836,
+    // LOWERED 847 -> 824 on the redesign review: the craft row's role and
+    // ceiling chip labels and its next-unlock line moved to
+    // src/ui/hud/professions/craft_row_labels.ts. Exact count, zero slack.
+    ceiling: 824,
     seam: 'a pure view-core plus a thin painter sibling (src/ui/hud/CLAUDE.md)',
   },
   {
@@ -1954,7 +1984,10 @@ const MONOLITHS: MonolithRow[] = [
     // apex-channel-to-translation-key table moved to apex_recipe_view.ts.
     // Exact count, zero slack.
     file: 'src/ui/hud/professions/crafting_window.ts',
-    ceiling: 766,
+    // LOWERED 771 -> 747 on the redesign review: the difficulty label table and
+    // the cast-duration chip text moved to
+    // src/ui/hud/professions/craft_row_chip_text.ts. Exact count, zero slack.
+    ceiling: 747,
     seam: 'a pure view-core plus a thin painter sibling (src/ui/hud/CLAUDE.md)',
   },
 ];

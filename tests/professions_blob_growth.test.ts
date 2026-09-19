@@ -2169,11 +2169,16 @@ describe('the whole-character gear-heavy maximal blob (Phase 18 U-MEASURE)', () 
         fieldBytes(s2, key as keyof typeof fixtureBaseline) - value,
       ]),
     );
+    // Re-pinned 2026-09-11 with the stamina baseline model: a masterwork or
+    // Perfecting bake on a caster piece now carries its Stamina growth beside
+    // Intellect and Spirit (tierDeltaStats, item_budget.ts), so every baked
+    // copy in the maximal bags and bank is a few bytes longer and the
+    // equipped-instance delta shrinks by the same shape.
     expect(fixtureDelta).toEqual({
       equipment: 115,
-      equipmentInstance: -10,
-      inventory: 16320,
-      bank: 35904,
+      equipmentInstance: -17,
+      inventory: 16400,
+      bank: 36080,
       vendorBuyback: 756,
       knownRecipes: 62,
     });
@@ -2421,7 +2426,7 @@ describe('the whole-character gear-heavy maximal blob (Phase 18 U-MEASURE)', () 
         return [field, bytes - Buffer.byteLength(JSON.stringify(stripped), 'utf8')];
       }),
     );
-    expect(metadataDelta).toEqual({ perfectingBonus: 11880, perfectingBound: 5934 });
+    expect(metadataDelta).toEqual({ perfectingBonus: 11872, perfectingBound: 5934 });
     // Combined fixture (Crucible baseline + hammer recipe/proof content +
     // field_kit + the Bramblehide/Nythgap release content, commit
     // 0ca3d01a60), measured after this release merge's settle: 211,034

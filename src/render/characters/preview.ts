@@ -405,9 +405,17 @@ export class CharacterPreview {
       this.camera.aspect = width / height;
       this.camera.updateProjectionMatrix();
       if (this.gateAllowsDraw()) this.renderer.render(this.scene, this.camera);
+      this.wakeLoop();
     } else {
       this.standDownOpenGate();
     }
+  }
+
+  /** Requests the next animation frame unless one is already pending: the
+   *  parked loop's only way back (see animate). */
+  private wakeLoop(): void {
+    if (this.destroyed || this.animationFrameId !== null) return;
+    this.animationFrameId = requestAnimationFrame(this.animate);
   }
 
   /** Inject the world renderer's background GPU queue, the one arbiter that
@@ -702,16 +710,26 @@ export class CharacterPreview {
   }
 
   private animate = (): void => {
-    if (this.destroyed) return;
-    this.animationFrameId = requestAnimationFrame(this.animate);
+    this.animateFrame();
+  };
 
-    if (!characterPreviewFrameVisible(this.canvas.isConnected, this.renderActive)) {
+  /** One frame of the live loop; parks or re-requests itself as visibility changes. */
+  private animateFrame(): void {
+    if (this.destroyed) return;
+    this.animationFrameId = null;
+    if (
+      !characterPreviewFrameVisible(
+        this.canvas.isConnected,
+        this.container.clientWidth > 0 && this.container.clientHeight > 0,
+      )
+    ) {
       // Re-anchor the timer while hidden so reopening cannot produce a large
       // animation step.
       this.timer.reset();
       this.standDownOpenGate();
       return;
     }
+    this.wakeLoop();
 
     this.timer.update();
     const dt = Math.min(this.timer.getDelta(), 0.1); // cap dt to prevent huge jumps
@@ -729,7 +747,7 @@ export class CharacterPreview {
     }
 
     this.renderer.render(this.scene, this.camera);
-  };
+  }
 
   /**
    * Render a single crisp, deterministic close-up of the current character and

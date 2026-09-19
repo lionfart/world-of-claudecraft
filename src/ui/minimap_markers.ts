@@ -47,11 +47,8 @@ import {
 import { NODE_HARVEST_TABLE } from '../sim/professions/gathering';
 import { canGatherTier } from '../sim/professions/tools';
 import { isQuestGatedGroundObjectHidden } from '../sim/quest_gated_entity';
-import {
-  npcQuestMarkerKind,
-  type QuestMarkerKind,
-  strongerQuestMarker,
-} from '../sim/quests/quest_marker_kind';
+import { ambientNpcQuestMarkerKind } from '../sim/quests/ambient_quest_marker';
+import { type QuestMarkerKind, strongerQuestMarker } from '../sim/quests/quest_marker_kind';
 import {
   EASTBROOK_NOTICEBOARD_TEMPLATE_ID,
   type GatherNodeType,
@@ -436,7 +433,7 @@ export function createMinimapMarkers(): MinimapMarkers {
           for (const q of e.questIds) {
             const quest = QUESTS[q];
             if (!quest) continue;
-            const kind = npcQuestMarkerKind(
+            const kind = ambientNpcQuestMarkerKind(
               quest,
               e.templateId,
               world.questState(q),

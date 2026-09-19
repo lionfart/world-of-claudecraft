@@ -8,6 +8,7 @@ import {
   mapPinchZoomFactor,
   nextMapZoom,
   zoomOutExitsZoneLevel,
+  zoomOutLevelExit,
 } from '../src/ui/map_pinch_zoom_core';
 import { MAP_MAX_ZOOM } from '../src/ui/map_window_view';
 
@@ -61,8 +62,8 @@ describe('map pinch zoom core', () => {
     // The rule lives in Hud.zoomMap, which the minus button, the wheel and the
     // pinch gesture all funnel through, so all three inherit it from one place.
     // The guard is on the painted LEVEL, not the player's position: the zone map
-    // is now reachable from inside an instance (map_surface_core.ts) and zooms
-    // there too, while the instance plan itself stays inert.
+    // is reachable from inside an instance (map_surface_core.ts) and zooms there
+    // too, and the instance plan's only zoom is the zoom-out that leaves it.
     const hud = readFileSync(new URL('../src/ui/hud.ts', import.meta.url), 'utf8');
     expect(hud).toContain("$('#map-zoom-out')?.addEventListener('click', () => this.zoomMap(");
     expect(hud).toContain('onZoom: (factor) => this.zoomMap(factor)');
@@ -72,8 +73,10 @@ describe('map pinch zoom core', () => {
     expect(hud).toMatch(
       /if \(this\.mapLevel === 'territory'\) \{\s*this\.territoryMap\.zoomBy\(factor\);\s*return;/,
     );
-    expect(hud).toMatch(
-      /zoomOutExitsZoneLevel\(this\.mapZoom, factor\)\s*\) \{\s*this\.setMapLevel\('continent'\);/,
+    // The wheel handler no longer pre-filters on the zone level (that filter
+    // would have swallowed the instance zoom-out before zoomMap saw it).
+    expect(hud).not.toContain(
+      "if (this.mapLevel !== 'zone') return; // no per-zone zoom on the overview",
     );
   });
 

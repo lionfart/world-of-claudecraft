@@ -357,7 +357,7 @@ export type {
   WorldInteractionOutcome,
 } from './world_api/interaction';
 export type { MailInfo, MailKindView, MailMessageView } from './world_api/mail';
-export type { MarketInfo, MarketListingView } from './world_api/market';
+export type { MarketInfo, MarketListingView, MarketSweepQuote } from './world_api/market';
 export {
   queryDiffersFromEcho,
   searchDiffersFromEcho,
@@ -380,6 +380,8 @@ export type {
 } from './world_api/professions';
 export type {
   DevLeaderboardEntry,
+  GuildBoardCategory,
+  GuildBoardOfficer,
   GuildLeaderboardEntry,
   GuildRosterEntry,
   GuildRosterInfo,
@@ -404,6 +406,8 @@ export type {
   MyPledgeInfo,
   PresenceStatus,
   SocialInfo,
+  WhoRosterEntry,
+  WhoRosterInfo,
 } from './world_api/social_graph';
 export type {
   TerritoryCapturePhase,
@@ -613,6 +617,8 @@ export const COMMAND_NAMES = [
   'market_list',
   'market_list_instance',
   'market_buy',
+  'market_sweep_quote',
+  'market_sweep',
   'market_cancel',
   'market_collect',
   'dev_level',
@@ -876,6 +882,9 @@ export const COMMAND_NAMES = [
   'clear_gathering_goal',
   'swap_perfecting_ranks',
   'change_mount_skin',
+  // The Social window's Who tab: ask for the realm roster (answered by the
+  // `who` frame, mirrored as IWorldSocialGraph.whoInfo).
+  'who',
 ] as const;
 
 // The union both the send path (`online.ts`) and the dispatch switch
@@ -1123,6 +1132,7 @@ export const COMMAND_FACETS = {
   guild_event_remove: 'IWorldSocialGraph',
   guild_set_motd: 'IWorldSocialGraph',
   guild_buy_roster_page: 'IWorldSocialGraph',
+  who: 'IWorldSocialGraph',
   // IWorldMarket: World Market browse/list/buy/cancel/collect (snake_case wire
   // strings, by design). marketInfo is a snapshot read (no send, untagged).
   market_search: 'IWorldMarket',
@@ -1131,6 +1141,8 @@ export const COMMAND_FACETS = {
   market_list: 'IWorldMarket',
   market_list_instance: 'IWorldMarket',
   market_buy: 'IWorldMarket',
+  market_sweep_quote: 'IWorldMarket',
+  market_sweep: 'IWorldMarket',
   market_cancel: 'IWorldMarket',
   market_collect: 'IWorldMarket',
   // IWorldMail: Ravenpost letters (snake_case wire strings, by design). mailInfo /

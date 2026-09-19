@@ -1362,6 +1362,16 @@ const ACCEPTED_POLISH_V2_METADATA_PATH = path.join(REPO_ROOT, POLISH_SEAL_PATH);
 // v0.42.0 dependency-floor bump (sharp, js-yaml, vitest): the lockfile is a
 // fingerprint input, so every shipping GLB was size-preserving re-minted and this
 // seal follows the swept evidence. No capture was retaken.
+// Handoff experiment: canonical runtime-input reseal for the NPC layout and
+// renderer wiring. Historical pixels, performance values and capture identity stay frozen.
+// Re-minted for the CPU-hygiene lot (renderer.ts consumer edits and the
+// view-candidate scan extraction): the composite first, then this metadata
+// seal from the swept file. No capture was retaken.
+// Re-minted again for the lot's review round (the shared liveViewCandidate
+// check moved the renderer leaf once more). No capture was retaken.
+// Re-minted for reconciling the latest v0.43.0 base: the release-side
+// CPU-hygiene renderer leaf and the druid Cat Form renderer leaf compose in
+// one tree. No capture was retaken.
 const ACCEPTED_POLISH_V2_METADATA_SHA256 =
   '8f86d0fbd1da50806fb68674cb5fb86b6f00150a99434bb6fe2f179fcee80316';
 const ACCEPTED_POLISH_V2_COMPOSITE_PROVENANCE =

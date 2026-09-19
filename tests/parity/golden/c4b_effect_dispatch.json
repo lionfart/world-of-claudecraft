@@ -34,7 +34,7 @@
       "tick": 5,
       "time": 0.25,
       "nextId": 1013,
-      "state": "210024c3",
+      "state": "541315ea",
       "events": "891b4619",
       "rng": {
         "draws": 2,
@@ -45,7 +45,7 @@
       "tick": 10,
       "time": 0.5,
       "nextId": 1013,
-      "state": "29c0f874",
+      "state": "9876bb1f",
       "events": "741638a5",
       "rng": {
         "draws": 2,
@@ -56,7 +56,7 @@
       "tick": 15,
       "time": 0.75,
       "nextId": 1013,
-      "state": "bfc2b722",
+      "state": "d23ab7ad",
       "events": "741638a5",
       "rng": {
         "draws": 2,
@@ -67,7 +67,7 @@
       "tick": 20,
       "time": 1,
       "nextId": 1013,
-      "state": "09c524b7",
+      "state": "0a953c4e",
       "events": "36cf65da",
       "rng": {
         "draws": 2,
@@ -78,7 +78,7 @@
       "tick": 25,
       "time": 1.25,
       "nextId": 1013,
-      "state": "d4a5f51b",
+      "state": "05388208",
       "events": "741638a5",
       "rng": {
         "draws": 2,
@@ -832,7 +832,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -891,7 +891,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "templateId": "rogue",
@@ -1052,7 +1052,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,
@@ -2096,7 +2096,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -2155,7 +2155,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "templateId": "rogue",
@@ -2316,7 +2316,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,
@@ -3129,7 +3129,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -3188,7 +3188,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "templateId": "rogue",
@@ -3349,7 +3349,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,
@@ -4202,13 +4202,13 @@
           "fallStartY": -2.994172,
           "gcdRemaining": 1.5,
           "healPower": 41,
-          "hp": 418,
+          "hp": 665,
           "id": 1007,
           "inCombat": true,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
-          "maxHp": 418,
+          "maxHp": 665,
           "maxResource": 1581,
           "moveSpeed": 7,
           "onGround": true,
@@ -4233,7 +4233,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -4292,7 +4292,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "templateId": "rogue",
@@ -4453,7 +4453,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,
@@ -5418,13 +5418,13 @@
           "fallStartY": -2.994172,
           "gcdRemaining": 1.5,
           "healPower": 41,
-          "hp": 418,
+          "hp": 665,
           "id": 1007,
           "inCombat": true,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
-          "maxHp": 418,
+          "maxHp": 665,
           "maxResource": 1581,
           "moveSpeed": 7,
           "onGround": true,
@@ -5449,7 +5449,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -5515,7 +5515,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "targetId": 1017,
@@ -5677,7 +5677,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,
@@ -6711,13 +6711,13 @@
           "fallStartY": -2.994172,
           "gcdRemaining": 1.5,
           "healPower": 41,
-          "hp": 418,
+          "hp": 665,
           "id": 1007,
           "inCombat": true,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
-          "maxHp": 418,
+          "maxHp": 665,
           "maxResource": 1581,
           "moveSpeed": 7,
           "onGround": true,
@@ -6742,7 +6742,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -6808,7 +6808,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "targetId": 1017,
@@ -7003,7 +7003,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,
@@ -8092,13 +8092,13 @@
           "fallStartY": -2.994172,
           "gcdRemaining": 1.5,
           "healPower": 41,
-          "hp": 418,
+          "hp": 665,
           "id": 1007,
           "inCombat": true,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
-          "maxHp": 418,
+          "maxHp": 665,
           "maxResource": 1581,
           "moveSpeed": 7,
           "onGround": true,
@@ -8123,7 +8123,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -8189,7 +8189,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "targetId": 1017,
@@ -8295,10 +8295,20 @@
           "attackPower": 116,
           "auras": [
             {
+              "duration": 3,
+              "id": "loping_stride",
+              "kind": "buff_speed",
+              "name": "Loping Stride",
+              "remaining": 3,
+              "school": "nature",
+              "sourceId": 1010,
+              "value": 1.6
+            },
+            {
               "duration": 3600,
               "id": "cat_form",
               "kind": "form_cat",
-              "name": "Wolf Form",
+              "name": "Cat Form",
               "remaining": 3600,
               "school": "physical",
               "sourceId": 1010,
@@ -8330,6 +8340,12 @@
             "z": -45
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {
+              "dru_loping_stride": 20
+            }
+          },
           "resource": 100,
           "resourceType": "energy",
           "savedMana": 1043,
@@ -8398,7 +8414,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,
@@ -9555,13 +9571,13 @@
           "fallStartY": -2.994172,
           "gcdRemaining": 1.5,
           "healPower": 41,
-          "hp": 418,
+          "hp": 665,
           "id": 1007,
           "inCombat": true,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
-          "maxHp": 418,
+          "maxHp": 665,
           "maxResource": 1581,
           "moveSpeed": 7,
           "onGround": true,
@@ -9586,7 +9602,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -9652,7 +9668,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "targetId": 1017,
@@ -9758,6 +9774,16 @@
           "attackPower": 68,
           "auras": [
             {
+              "duration": 3,
+              "id": "loping_stride",
+              "kind": "buff_speed",
+              "name": "Loping Stride",
+              "remaining": 3,
+              "school": "nature",
+              "sourceId": 1010,
+              "value": 1.6
+            },
+            {
               "duration": 12,
               "id": "rejuvenation",
               "kind": "hot",
@@ -9795,6 +9821,12 @@
             "z": -45
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {
+              "dru_loping_stride": 20
+            }
+          },
           "resource": 963,
           "resourceType": "mana",
           "savedMana": 1043,
@@ -9863,7 +9895,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,
@@ -11020,13 +11052,13 @@
           "fallStartY": -2.994172,
           "gcdRemaining": 1.5,
           "healPower": 41,
-          "hp": 418,
+          "hp": 665,
           "id": 1007,
           "inCombat": true,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
-          "maxHp": 418,
+          "maxHp": 665,
           "maxResource": 1581,
           "moveSpeed": 7,
           "onGround": true,
@@ -11051,7 +11083,7 @@
             "armor": 133,
             "int": 82,
             "spi": 60,
-            "sta": 33,
+            "sta": 52,
             "str": 10
           },
           "templateId": "mage",
@@ -11117,7 +11149,7 @@
             "armor": 370,
             "int": 11,
             "spi": 12,
-            "sta": 36,
+            "sta": 55,
             "str": 36
           },
           "targetId": 1017,
@@ -11223,6 +11255,16 @@
           "attackPower": 68,
           "auras": [
             {
+              "duration": 3,
+              "id": "loping_stride",
+              "kind": "buff_speed",
+              "name": "Loping Stride",
+              "remaining": 3,
+              "school": "nature",
+              "sourceId": 1010,
+              "value": 1.6
+            },
+            {
               "duration": 12,
               "id": "rejuvenation",
               "kind": "hot",
@@ -11260,6 +11302,12 @@
             "z": -45
           },
           "potionCooldownUntil": -1,
+          "procState": {
+            "counters": {},
+            "icds": {
+              "dru_loping_stride": 20
+            }
+          },
           "resource": 963,
           "resourceType": "mana",
           "savedMana": 1043,
@@ -11328,7 +11376,7 @@
             "armor": 130,
             "int": 79,
             "spi": 59,
-            "sta": 34,
+            "sta": 53,
             "str": 11
           },
           "targetId": 1012,

@@ -157,6 +157,10 @@ describe('healthTextForMode', () => {
 // passes after it.
 describe('hud.ts unit-frame text sites route through unitFrameCurrentMaxText', () => {
   const src = readFileSync(new URL('../src/ui/hud.ts', import.meta.url), 'utf8');
+  const targetDescriptor = readFileSync(
+    new URL('../src/ui/target_frame_descriptor.ts', import.meta.url),
+    'utf8',
+  );
 
   it("imports the formatters from './hud_frames'", () => {
     expect(src).toContain(
