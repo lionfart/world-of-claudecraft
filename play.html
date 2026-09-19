@@ -867,25 +867,25 @@
               >
                 <button
                   type="button"
-                  class="action-btn territory-ram-skill normal"
+                  class="action-btn ui-socket territory-ram-skill normal"
                   id="territory-ram-strike"
                 >
-                  <span class="icon-label" aria-hidden="true"></span
-                  ><span class="keybind">1</span
+                  <span class="icon-label ui-socket-art" aria-hidden="true"></span
+                  ><span class="keybind ui-socket-key">1</span
                   ><span
-                    class="cdtext"
+                    class="cdtext ui-socket-cd-text"
                     id="territory-ram-strike-cooldown"
                   ></span>
                 </button>
                 <button
                   type="button"
-                  class="action-btn territory-ram-skill power"
+                  class="action-btn ui-socket territory-ram-skill power"
                   id="territory-ram-power-strike"
                 >
-                  <span class="icon-label" aria-hidden="true"></span
-                  ><span class="keybind">2</span
+                  <span class="icon-label ui-socket-art" aria-hidden="true"></span
+                  ><span class="keybind ui-socket-key">2</span
                   ><span
-                    class="cdtext"
+                    class="cdtext ui-socket-cd-text"
                     id="territory-ram-power-strike-cooldown"
                   ></span>
                 </button>
@@ -897,37 +897,37 @@
               >
                 <button
                   type="button"
-                  class="action-btn territory-mortar-skill normal"
+                  class="action-btn ui-socket territory-mortar-skill normal"
                   id="territory-mortar-fire"
                 >
-                  <span class="icon-label" aria-hidden="true"></span
-                  ><span class="keybind">1</span
+                  <span class="icon-label ui-socket-art" aria-hidden="true"></span
+                  ><span class="keybind ui-socket-key">1</span
                   ><span
-                    class="cdtext"
+                    class="cdtext ui-socket-cd-text"
                     id="territory-mortar-fire-cooldown"
                   ></span>
                 </button>
                 <button
                   type="button"
-                  class="action-btn territory-mortar-skill frost"
+                  class="action-btn ui-socket territory-mortar-skill frost"
                   id="territory-mortar-frost"
                 >
-                  <span class="icon-label" aria-hidden="true"></span
-                  ><span class="keybind">2</span
+                  <span class="icon-label ui-socket-art" aria-hidden="true"></span
+                  ><span class="keybind ui-socket-key">2</span
                   ><span
-                    class="cdtext"
+                    class="cdtext ui-socket-cd-text"
                     id="territory-mortar-frost-cooldown"
                   ></span>
                 </button>
                 <button
                   type="button"
-                  class="action-btn territory-mortar-skill venom"
+                  class="action-btn ui-socket territory-mortar-skill venom"
                   id="territory-mortar-venom"
                 >
-                  <span class="icon-label" aria-hidden="true"></span
-                  ><span class="keybind">3</span
+                  <span class="icon-label ui-socket-art" aria-hidden="true"></span
+                  ><span class="keybind ui-socket-key">3</span
                   ><span
-                    class="cdtext"
+                    class="cdtext ui-socket-cd-text"
                     id="territory-mortar-venom-cooldown"
                   ></span>
                 </button>
@@ -939,25 +939,25 @@
               >
                 <button
                   type="button"
-                  class="action-btn territory-catapult-skill normal"
+                  class="action-btn ui-socket territory-catapult-skill normal"
                   id="territory-catapult-fire"
                 >
-                  <span class="icon-label" aria-hidden="true"></span
-                  ><span class="keybind">1</span
+                  <span class="icon-label ui-socket-art" aria-hidden="true"></span
+                  ><span class="keybind ui-socket-key">1</span
                   ><span
-                    class="cdtext"
+                    class="cdtext ui-socket-cd-text"
                     id="territory-catapult-fire-cooldown"
                   ></span>
                 </button>
                 <button
                   type="button"
-                  class="action-btn territory-catapult-skill cluster"
+                  class="action-btn ui-socket territory-catapult-skill cluster"
                   id="territory-catapult-cluster"
                 >
-                  <span class="icon-label" aria-hidden="true"></span
-                  ><span class="keybind">2</span
+                  <span class="icon-label ui-socket-art" aria-hidden="true"></span
+                  ><span class="keybind ui-socket-key">2</span
                   ><span
-                    class="cdtext"
+                    class="cdtext ui-socket-cd-text"
                     id="territory-catapult-cluster-cooldown"
                   ></span>
                 </button>
@@ -1269,6 +1269,7 @@
           ></button>
           <button
             type="button"
+            class="ui-btn"
             id="map-level-toggle"
             data-i18n="hudChrome.continentMap.toWorld"
             data-i18n-title="hudChrome.territoryMap.toggleAria"
@@ -1280,7 +1281,7 @@
           </button>
           <div id="map-zoom">
             <button
-              class="map-zoom-btn"
+              class="map-zoom-btn ui-disc"
               id="map-zoom-in"
               data-i18n-title="hud.core.zoomIn"
               data-i18n-aria="hud.core.zoomIn"
@@ -1290,7 +1291,7 @@
               +
             </button>
             <button
-              class="map-zoom-btn"
+              class="map-zoom-btn ui-disc"
               id="map-zoom-out"
               data-i18n-title="hud.core.zoomOut"
               data-i18n-aria="hud.core.zoomOut"
@@ -1901,7 +1902,7 @@
         <div id="side-buttons">
           <div id="side-buttons-col-a" class="side-buttons-col">
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-char"
               data-i18n-title="hud.keybinds.actions.char"
               data-i18n-aria="hud.keybinds.actions.char"
@@ -1912,7 +1913,7 @@
               <span class="keybind">c</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-spell"
               data-i18n-title="abilityUi.spellbook.title"
               data-i18n-aria="abilityUi.spellbook.title"
@@ -1923,7 +1924,7 @@
               <span class="keybind">p</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-talents"
               data-i18n-title="game.talents.title"
               data-i18n-aria="game.talents.title"
@@ -1934,7 +1935,7 @@
               <span class="keybind">n</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-town-focus"
               style="display: none"
               data-i18n-title="hudChrome.townFocus.title"
@@ -1944,7 +1945,7 @@
               data-icon="map"
             ></button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-quest"
               data-i18n-title="questUi.log.title"
               data-i18n-aria="questUi.log.title"
@@ -1955,7 +1956,7 @@
               <span class="keybind">l</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-deeds"
               data-i18n-title="hudChrome.deeds.title"
               data-i18n-aria="hudChrome.deeds.title"
@@ -1967,7 +1968,7 @@
             </button>
             <button
               type="button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-reliquary"
               data-i18n-title="hudChrome.reliquary.title"
               data-i18n-aria="hudChrome.reliquary.title"
@@ -1979,7 +1980,7 @@
             </button>
             <button
               type="button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-loot-explorer"
               data-i18n-title="hudChrome.lootExplorer.title"
               data-i18n-aria="hudChrome.lootExplorer.title"
@@ -1991,7 +1992,7 @@
             </button>
             <button
               type="button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-professions"
               data-i18n-title="hudChrome.professions.title"
               data-i18n-aria="hudChrome.professions.title"
@@ -2003,7 +2004,7 @@
             </button>
             <button
               type="button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-harvest-journal"
               data-i18n-title="hudChrome.harvestJournal.title"
               data-i18n-aria="hudChrome.harvestJournal.title"
@@ -2014,7 +2015,7 @@
               <span class="keybind">s-k</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-map"
               data-i18n-title="hud.keybinds.actions.map"
               data-i18n-aria="hud.keybinds.actions.map"
@@ -2025,7 +2026,7 @@
               <span class="keybind">m</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-bag"
               data-i18n-title="itemUi.bags.title"
               data-i18n-aria="itemUi.bags.title"
@@ -2036,7 +2037,7 @@
               <span class="keybind">b</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-crafting"
               data-i18n-title="hudChrome.crafting.title"
               data-i18n-aria="hudChrome.crafting.title"
@@ -2048,7 +2049,7 @@
             </button>
             <button
               type="button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-perfecting"
               data-i18n-title="hudChrome.perfecting.title"
               data-i18n-aria="hudChrome.perfecting.title"
@@ -2062,7 +2063,7 @@
           <div id="side-buttons-col-b" class="side-buttons-col">
             <button
               id="daily-rewards-button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               type="button"
               data-i18n-title="hudChrome.wocStore.title"
               data-i18n-aria="hudChrome.wocStore.title"
@@ -2071,7 +2072,7 @@
             ></button>
             <button
               type="button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-cosmetics"
               data-i18n-title="hudChrome.cosmetics.title"
               data-i18n-aria="hudChrome.cosmetics.title"
@@ -2082,7 +2083,7 @@
               <span class="keybind">s-y</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-arena"
               data-i18n-title="hudChrome.pvp.launcherTitle"
               data-i18n-aria="hudChrome.pvp.launcherTitle"
@@ -2093,7 +2094,7 @@
               <span class="keybind">g</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-dfinder"
               data-i18n-title="hudChrome.finder.title"
               data-i18n-aria="hudChrome.finder.title"
@@ -2104,7 +2105,7 @@
               <span class="keybind">Shift+I</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-cardduel"
               data-i18n-title="cardDuel.title"
               data-i18n-aria="cardDuel.title"
@@ -2113,7 +2114,7 @@
               data-icon="cards"
             ></button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-leaderboard"
               data-i18n-title="game.leaderboard.title"
               data-i18n-aria="game.leaderboard.title"
@@ -2124,7 +2125,7 @@
               <span class="keybind">k</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-wocmarket"
               hidden
               data-i18n-title="hudChrome.wocMarket.launcherLabel"
@@ -2134,7 +2135,7 @@
               data-icon="market"
             ></button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-emote"
               data-i18n-aria="hudChrome.emoteWheel.label"
               aria-label="Emotes"
@@ -2144,7 +2145,7 @@
             </button>
             <button
               type="button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-music"
               data-i18n-title="hud.options.music"
               data-i18n-aria="hud.options.music"
@@ -2154,7 +2155,7 @@
             ></button>
             <button
               type="button"
-              class="micro-btn territory-war-launcher"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro territory-war-launcher"
               id="mm-territory"
               data-i18n-title="hudChrome.territoryMap.title"
               data-i18n-aria="hudChrome.territoryMap.title"
@@ -2165,7 +2166,7 @@
               data-icon="territory"
             ></button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-social"
               data-i18n-title="hud.keybinds.actions.social"
               data-i18n-aria="hud.keybinds.actions.social"
@@ -2177,7 +2178,7 @@
             </button>
             <button
               type="button"
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-discord"
               hidden
               data-i18n-title="hudChrome.discord.title"
@@ -2189,7 +2190,7 @@
               <span class="keybind">u</span>
             </button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-wiki"
               data-i18n-title="nav.wiki"
               data-i18n-aria="nav.wiki"
@@ -2198,7 +2199,7 @@
               data-icon="wiki"
             ></button>
             <button
-              class="micro-btn"
+              class="micro-btn ui-icon-btn ui-icon-btn--micro"
               id="mm-options"
               data-i18n-title="hud.options.gameMenu"
               data-i18n-aria="hud.options.gameMenu"
