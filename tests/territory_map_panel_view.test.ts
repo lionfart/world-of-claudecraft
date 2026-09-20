@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { TranslationKey } from '../src/ui/i18n.catalog';
+import { hudChromeStrings } from '../src/ui/i18n.catalog/hud_chrome';
+import { tr_TR } from '../src/ui/i18n.locales/tr_TR';
 import {
   territoryCellPanelMode,
   territorySiegeMapLabelKey,
@@ -79,6 +82,14 @@ function state(rank: 'member' | 'officer' | 'leader' = 'leader'): TerritoryMapSt
 }
 
 describe('territory structure slot cards', () => {
+  it('keeps every Territory War label translated for Turkish release entry', () => {
+    const missing = Object.keys(hudChromeStrings.territoryMap)
+      .map((leaf) => `hudChrome.territoryMap.${leaf}` as TranslationKey)
+      .filter((key) => typeof tr_TR[key] !== 'string');
+
+    expect(missing).toEqual([]);
+  });
+
   it('labels every biome with its actual siege map set', () => {
     expect(territorySiegeMapLabelKey('temperate')).toBe('siegeBiomeTemperate');
     expect(territorySiegeMapLabelKey('rocky')).toBe('siegeBiomeRocky');
