@@ -643,30 +643,30 @@ describe('casting_lifecycle: interrupt (cancelCast)', () => {
   });
 });
 
-// A press already moving used to start the cast anyway, arming the GCD, only for
-// player_motion's own move-to-cancel check to kill it on the very next tick (the same
-// held movement keys never went away): a full GCD spent for a cast that never had a
-// chance to complete. These pin the fix: the press is denied outright while movement
-// input is held, before the GCD or any cost/proc is touched.
-describe('casting_lifecycle: a movement-sensitive press denies outright while already moving', () => {
-  it('denies a normal timed cast press and never arms the GCD', () => {
+// Cast start and move-to-cancel must use the same GW2-style policy: ordinary hard
+// casts and short channels stay mobile, while the authored long-channel exception
+// set remains stationary unless an explicit/talent/temporary mobility override applies.
+describe('casting_lifecycle: GW2 movement policy applies at cast start', () => {
+  it('starts an ordinary timed cast while moving and keeps it active', () => {
     const { sim, p, meta } = makeSim('mage', 12);
     spawnTarget(sim, p);
     meta.moveInput.forward = true;
     sim.drainEvents();
     castAbility(sim.ctx, 'fireball', p.id);
-    expect(p.castingAbility).toBeNull();
-    expect(p.gcdRemaining).toBe(0);
+    expect(p.castingAbility).toBe('fireball');
+    expect(p.gcdRemaining).toBeGreaterThan(0);
+    sim.tick();
+    expect(p.castingAbility).toBe('fireball');
     const events = sim.drainEvents();
     expect(
       events.some(
         (e: any) =>
           e.type === 'error' && e.pid === p.id && e.text === "You can't cast while moving.",
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('denies a channel press and never arms the GCD', () => {
+  it('denies a selected long-channel press while moving and never arms the GCD', () => {
     const { sim, p, meta } = makeSim('mage', 12);
     expect(sim.setSpec('arcane')).toBe(true);
     spawnTarget(sim, p);
@@ -677,20 +677,22 @@ describe('casting_lifecycle: a movement-sensitive press denies outright while al
     expect(p.gcdRemaining).toBe(0);
   });
 
-  it('starts the cast normally once movement input is released', () => {
+  it('starts a selected long channel once movement input is released', () => {
     const { sim, p, meta } = makeSim('mage', 12);
+    expect(sim.setSpec('arcane')).toBe(true);
     spawnTarget(sim, p);
     meta.moveInput.forward = true;
-    castAbility(sim.ctx, 'fireball', p.id);
+    castAbility(sim.ctx, 'arcane_missiles', p.id);
     expect(p.castingAbility).toBeNull(); // denied while moving
     meta.moveInput.forward = false;
-    castAbility(sim.ctx, 'fireball', p.id);
-    expect(p.castingAbility).toBe('fireball');
+    castAbility(sim.ctx, 'arcane_missiles', p.id);
+    expect(p.castingAbility).toBe('arcane_missiles');
     expect(p.gcdRemaining).toBeGreaterThan(0);
   });
 
-  it('starts a normal timed cast while rooted even if movement input is held', () => {
+  it('starts a selected long channel while rooted even if movement input is held', () => {
     const { sim, p, meta } = makeSim('mage', 12);
+    expect(sim.setSpec('arcane')).toBe(true);
     spawnTarget(sim, p);
     p.auras.push({
       id: 'test_root',
@@ -705,9 +707,9 @@ describe('casting_lifecycle: a movement-sensitive press denies outright while al
     meta.moveInput.forward = true;
     sim.drainEvents();
 
-    castAbility(sim.ctx, 'fireball', p.id);
+    castAbility(sim.ctx, 'arcane_missiles', p.id);
 
-    expect(p.castingAbility).toBe('fireball');
+    expect(p.castingAbility).toBe('arcane_missiles');
     expect(p.gcdRemaining).toBeGreaterThan(0);
     expect(
       sim
@@ -719,21 +721,22 @@ describe('casting_lifecycle: a movement-sensitive press denies outright while al
     ).toBe(false);
   });
 
-  it('still starts a def-level castWhileMoving ability while moving (mobility is unaffected)', () => {
-    ABILITIES.fireball.castWhileMoving = true;
+  it('still starts a def-level mobile long channel while moving', () => {
+    ABILITIES.arcane_missiles.castWhileMoving = true;
     try {
       const { sim, p, meta } = makeSim('mage', 12);
+      expect(sim.setSpec('arcane')).toBe(true);
       spawnTarget(sim, p);
       meta.moveInput.forward = true;
-      castAbility(sim.ctx, 'fireball', p.id);
-      expect(p.castingAbility).toBe('fireball');
+      castAbility(sim.ctx, 'arcane_missiles', p.id);
+      expect(p.castingAbility).toBe('arcane_missiles');
       expect(p.gcdRemaining).toBeGreaterThan(0);
     } finally {
-      delete ABILITIES.fireball.castWhileMoving;
+      delete ABILITIES.arcane_missiles.castWhileMoving;
     }
   });
 
-  it('a press while stationary that only starts moving mid-cast still costs the GCD (unchanged)', () => {
+  it('keeps an ordinary timed cast active when movement starts mid-cast', () => {
     const { sim, p, meta } = makeSim('mage', 12);
     spawnTarget(sim, p);
     castAbility(sim.ctx, 'fireball', p.id);
@@ -742,12 +745,13 @@ describe('casting_lifecycle: a movement-sensitive press denies outright while al
     expect(gcdAtCastStart).toBeGreaterThan(0);
     meta.moveInput.forward = true;
     sim.tick();
-    expect(p.castingAbility).toBeNull(); // interrupted by movement
-    expect(p.gcdRemaining).toBeGreaterThan(0); // still costs the GCD it already armed
+    expect(p.castingAbility).toBe('fireball');
+    expect(p.gcdRemaining).toBeGreaterThan(0);
   });
 
-  it('denies before standing, drawing, breaking travel form, or clearing a mount channel', () => {
-    const { sim, p, meta } = makeSim('shaman', 12);
+  it('denies a moving long channel before changing the caster body state', () => {
+    const { sim, p, meta } = makeSim('mage', 12);
+    expect(sim.setSpec('arcane')).toBe(true);
     spawnTarget(sim, p);
     p.sitting = true;
     p.weaponStowed = true;
@@ -766,7 +770,7 @@ describe('casting_lifecycle: a movement-sensitive press denies outright while al
     });
     meta.moveInput.forward = true;
 
-    castAbility(sim.ctx, 'lightning_bolt', p.id);
+    castAbility(sim.ctx, 'arcane_missiles', p.id);
 
     expect(p.castingAbility).toBeNull();
     expect(p.gcdRemaining).toBe(0);

@@ -1,13 +1,11 @@
-// The ONE predicate for "does a cast/channel of `abilityId` survive `p` moving": both
-// castAbility's deny-at-press guard (casting_lifecycle.ts, refuses the press outright
-// before it ever arms the GCD) and player_motion's move-to-cancel check (interrupts an
-// in-progress cast) read it, so the two can never disagree. Before this module existed
-// they were two independent copies of the same expression: a press while already moving
-// would pass the (stale) deny-at-press copy, start the cast and arm the GCD, then get
-// killed by the move-to-cancel copy on the very next tick, wasting a full GCD on a cast
-// that never had a chance to complete. A def-level castWhileMoving flag, a talent-resolved
-// override, Ice Floes, Affliction's Drain Life under Evil Eye Possession, and the
-// Processional Grace aura all grant mobility.
+// The cast-start adapter for the ONE shared movement policy in cast_movement.ts.
+// castAbility's deny-at-press guard resolves player-specific mobility here, while
+// player_motion's move-to-cancel check resolves the same temporary effects beside its
+// current cast and calls castSurvivesMovement directly. Both paths therefore agree that
+// ordinary casts and short channels are mobile, selected long channels are stationary,
+// and authored/talent/temporary mobility overrides protect either kind. Keeping the
+// press gate aligned prevents both false denials and the opposite failure: arming a GCD
+// for a cast the movement tick immediately cancels.
 //
 // `src/sim`-pure: no SimContext, no rng, no clock. Reused by src/render/self_motion.ts
 // through player_motion.ts, so it must stay host-agnostic.
@@ -18,6 +16,7 @@ import { rideHeight, rideSteepnessAt } from '../ride_height';
 import type { Entity, MoveInput } from '../types';
 import { groundHeight, terrainDownhill, terrainHeight, waterLevelAt } from '../world';
 import { afflictionCanCastWhileMoving } from './affliction';
+import { castSurvivesMovement } from './cast_movement';
 import { isRooted } from './cc';
 import { iceFloesAuraForAbility } from './empower_next';
 
@@ -31,14 +30,18 @@ function swimsAt(y: number, ground: number, level: number): boolean {
 export function abilityCastSurvivesMovement(
   p: Entity,
   abilityId: string,
-  resolved: { def: { castWhileMoving?: boolean }; castWhileMoving?: boolean },
+  resolved: {
+    def: { castWhileMoving?: boolean; channel?: { duration: number } };
+    castWhileMoving?: boolean;
+  },
 ): boolean {
-  return Boolean(
-    resolved.def.castWhileMoving ||
-      resolved.castWhileMoving ||
+  return castSurvivesMovement(
+    resolved,
+    Boolean(
       iceFloesAuraForAbility(p, abilityId) !== undefined ||
-      afflictionCanCastWhileMoving(p, abilityId) ||
-      p.auras.some((a) => a.kind === 'processional_grace'),
+        afflictionCanCastWhileMoving(p, abilityId) ||
+        p.auras.some((a) => a.kind === 'processional_grace'),
+    ),
   );
 }
 

@@ -2749,6 +2749,9 @@
   .hp {
     --bar-color: var(--color-hp);
   }
+  .mana {
+    --bar-color: var(--color-mana);
+  }
   .bar-text {
     position: absolute;
     inset: 0;
