@@ -2,7 +2,7 @@
 //   - `en`     the eager default + universal synchronous fallback (always resident),
 //   - `en_XA`  the dev-only pseudo-locale (referenced solely inside the
 //              !import.meta.env.PROD branch in tableFor, so a prod build tree-shakes it),
-//   - `pending` feeds the release-gate hard-fail in t(),
+//   - `pending` feeds release diagnostics in t(),
 //   - `LOCALE_LOADERS` + `SUPPORTED_LANGUAGES` drive lazy per-locale loading.
 // The 21 non-en dense slices are NO LONGER static-imported for use - each loads lazily via
 // LOCALE_LOADERS[lang]()'s dynamic import() as its own content-hashed chunk, so a
@@ -289,13 +289,11 @@ function interpolate(template: string, values?: InterpolationValues): string {
 
 // --- release detection + the t() miss / pending policy -----------------
 //
-// A non-release build (dev / pre-release / vitest) MAY render English for a key the
-// active locale has not translated yet (a registry-`pending` key): the dense table
-// carries that English fill, so it renders with no special-casing. A RELEASE build
-// must NEVER do that - the release CI gate asserts the pending set is empty, and
-// t() additionally hard-fails on any pending key as a never-fires backstop, so
-// English can never be silently shipped to a translated player. CONSEQUENCE: a
-// non-release build that still carries pending keys MUST NOT be deployed.
+// Every build renders the generated English fill for a key the active locale has
+// not translated yet (a registry-`pending` key). The release CI gate still asserts
+// that the pending set is empty, but a deployed client must not strand a player if
+// an incomplete locale escapes that gate. Release runtime fallback is therefore
+// explicit and reports one diagnostic per affected locale instead of throwing.
 //
 // Release detection: Vite statically replaces `import.meta.env.PROD` (true for
 // `vite build`, false for the dev server and vitest). Tests and the release build
@@ -325,6 +323,20 @@ let PENDING_TOTAL = 0;
 for (const [lang, keys] of Object.entries(pending)) {
   PENDING_SETS[lang as SupportedLanguage] = new Set(keys);
   PENDING_TOTAL += keys.length;
+}
+
+// A production page can resolve hundreds of static HUD labels during one entry.
+// Report the first pending fallback for each locale and keep the rest quiet so the
+// console remains useful while the player continues into the world.
+const REPORTED_PENDING_FALLBACK_LOCALES = new Set<SupportedLanguage>();
+
+function reportPendingFallback(key: string): void {
+  if (REPORTED_PENDING_FALLBACK_LOCALES.has(currentLanguage)) return;
+  REPORTED_PENDING_FALLBACK_LOCALES.add(currentLanguage);
+  const count = PENDING_SETS[currentLanguage]?.size ?? 0;
+  console.warn(
+    `[i18n] locale "${currentLanguage}" has ${count} pending translation(s); using English fallback (first key: "${key}")`,
+  );
 }
 
 // A key absent from the dense table is absent from `en` itself, so it is untracked
@@ -369,7 +381,8 @@ function tableFor(lang: SupportedLanguage): EnTranslations {
 // Misses cache as null: a miss is stable for a revision, and the per-call
 // onUntrackedKey policy (dev throw / release raw-key degrade) stays live
 // because it runs on every call, cached or not. The release-build pending
-// hard-fail likewise runs per call in t(), never from the cache.
+// diagnostic likewise runs per call in t(), never from the cache, and
+// deduplicates by locale.
 // No eviction within a revision on purpose: misses cache as null, so the memo
 // stays bounded by the shipped catalog plus any unknown wire ids, the same
 // growth class as entity_i18n's fallbackLog.
@@ -406,17 +419,15 @@ export function t(key: TranslationKey, values?: InterpolationValues): string {
   const entry = resolvedEntry(key);
   if (entry === null) return onUntrackedKey(key);
   if (PENDING_TOTAL > 0 && PENDING_SETS[currentLanguage]?.has(key) && isReleaseBuild()) {
-    throw new Error(
-      `i18n: key "${key}" is untranslated (pending) for locale "${currentLanguage}" on a release build; English must never ship to a translated player`,
-    );
+    reportPendingFallback(key);
   }
   if (!values) return entry.template;
   return interpolateWithMemo(entry, values);
 }
 
 /** Whether `lang` has NOT translated `key` yet, i.e. the dense table carries the
- *  English fill for it (a registry-`pending` row). t() owns the release-build
- *  hard-fail above; this is the read a caller needs when it has a BETTER answer
+ *  English fill for it (a registry-`pending` row). This is the read a caller needs
+ *  when it has a BETTER answer
  *  than the English fill, and would otherwise splice one English sentence into an
  *  otherwise localized string (tEntityOptional and its base-field fallback). Cheap
  *  when nothing is pending: PENDING_TOTAL short-circuits the membership test. */
