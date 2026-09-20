@@ -435,9 +435,12 @@ export function desiredBaseState(
   }
   if (s.airborne) return s.falling ? 'fall' : 'jump';
   if (s.spinning) return 'spin';
-  if (s.casting) return 'cast';
   if (s.sitting) return 'sit';
   if (s.moving) {
+    // Mobile combat must keep the feet readable. A full-body cast clip while
+    // the authoritative body travels makes the character skate across the
+    // ground; use the matching locomotion cycle until the body stops, then
+    // the same active cast naturally returns to its authored cast pose.
     // Shallow water is still walking, just against resistance: one cycle covers
     // both gaits, because nobody sprints through knee-deep water.
     if (s.wading && hasWadeClip) return 'wade';
@@ -445,6 +448,7 @@ export function desiredBaseState(
     if (s.backwards && hasWalkBackClip && !s.reverseBackpedal) return 'walkBack';
     return s.running ? 'run' : 'walk';
   }
+  if (s.casting) return 'cast';
   // Standing still. A body that is currently fighting someone holds its braced
   // guard instead of dropping to the relaxed idle: between swings a warlord
   // stays set, weight low and weapon up, and only stands down once the fight

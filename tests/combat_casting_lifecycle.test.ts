@@ -666,6 +666,34 @@ describe('casting_lifecycle: GW2 movement policy applies at cast start', () => {
     ).toBe(false);
   });
 
+  it('starts targetless Winterlash while movement input is already held', () => {
+    const { sim, p, meta } = makeSim('mage', 12);
+    expect(sim.setSpec('frost')).toBe(true);
+    meta.moveInput.forward = true;
+    meta.combatAimAngle = 0;
+    meta.combatAimPitch = 0;
+    sim.drainEvents();
+
+    castAbility(sim.ctx, 'flurry', p.id, {
+      x: p.pos.x,
+      z: p.pos.z + 30,
+      pitch: 0,
+    });
+
+    expect(p.targetId).toBeNull();
+    expect(p.castingAbility).toBe('flurry');
+    expect(p.gcdRemaining).toBeGreaterThan(0);
+    sim.tick();
+    expect(p.castingAbility).toBe('flurry');
+    expect(
+      sim
+        .drainEvents()
+        .some(
+          (event: any) => event.type === 'error' && event.text === "You can't cast while moving.",
+        ),
+    ).toBe(false);
+  });
+
   it('denies a selected long-channel press while moving and never arms the GCD', () => {
     const { sim, p, meta } = makeSim('mage', 12);
     expect(sim.setSpec('arcane')).toBe(true);

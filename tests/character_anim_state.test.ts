@@ -243,7 +243,7 @@ describe('desiredBaseState', () => {
     ).toBe('walk');
   });
 
-  it('keeps the documented precedence over locomotion', () => {
+  it('keeps physical motion readable while a mobile cast is active', () => {
     const moving = { moving: true, backwards: true };
     expect(desiredBaseState(anim({ ...moving, swimming: true }), true)).toBe('swimSurface');
     expect(desiredBaseState(anim({ ...moving, swimming: true, submerged: true }), true)).toBe(
@@ -251,7 +251,11 @@ describe('desiredBaseState', () => {
     );
     expect(desiredBaseState(anim({ ...moving, airborne: true }), true)).toBe('jump');
     expect(desiredBaseState(anim({ ...moving, spinning: true }), true)).toBe('spin');
-    expect(desiredBaseState(anim({ ...moving, casting: true }), true)).toBe('cast');
+    expect(desiredBaseState(anim({ ...moving, casting: true }), true)).toBe('walkBack');
+    expect(desiredBaseState(anim({ moving: true, casting: true, running: true }), true)).toBe(
+      'run',
+    );
+    expect(desiredBaseState(anim({ casting: true }), true)).toBe('cast');
     expect(desiredBaseState(anim({ ...moving, sitting: true }), true)).toBe('sit');
     expect(desiredBaseState(anim(), true)).toBe('idle');
   });
