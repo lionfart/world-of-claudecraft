@@ -285,15 +285,18 @@ describe('Thundercall v0.44 Magma Burst and Magma Surge', () => {
     expect(thundercallPayoffGlowActive(shaman.auras, 'lava_burst')).toBe(true);
     expect(thundercallPayoffGlowActive(shaman.auras, 'lightning_bolt')).toBe(false);
 
-    // The surged cast completes the moment it is pressed (no cast bar), then
-    // the bolt travels and lands.
+    // The surged cast completes the moment it is pressed (no cast bar),
+    // producing exactly one hit across the command and subsequent ticks.
     shaman.gcdRemaining = 0;
     shaman.resource = shaman.maxResource;
     sim.castAbility('lava_burst', shaman.id);
-    sim.tick();
+    // An instant surge may resolve on the input command rather than the next
+    // sim tick in the fork's directional-combat path. Both retain one hit.
+    const onPress = sim.drainEvents();
+    const firstTick = sim.tick();
     expect(shaman.auras.some((aura) => aura.id === MAGMA_SURGE_ID)).toBe(false);
     expect(shaman.cooldowns.get('lava_burst')).toBeGreaterThan(7);
-    expect(hits(run(sim, 40), 'Magma Burst')).toHaveLength(1);
+    expect(hits([...onPress, ...firstTick, ...run(sim, 40)], 'Magma Burst')).toHaveLength(1);
   });
 
   it('only a Thundercall’s own Cinder Jolt draws a surge roll', () => {
