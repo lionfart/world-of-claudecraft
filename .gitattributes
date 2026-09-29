@@ -15,3 +15,9 @@ src/ui/i18n.catalog/translation_keys.generated.ts linguist-generated
 # Radiance HDR files start with a text header but contain binary pixel data.
 # Treating them as text corrupts their payload on Windows with core.autocrlf=true.
 *.hdr -text
+# Host diagnostic (electron/host_diag/): the shipped single-file script is pinned by
+# the SHA-256 in dist/manifest.json, so git must never rewrite its bytes. Its sources
+# are byte-faithful copies of the tool's upstream sandbox (mixed LF/CRLF) that the
+# bundler normalizes at build time; exempt them too so a checkout cannot change them.
+electron/host_diag/dist/HostDiag.ps1 -text
+electron/host_diag/win/** -text

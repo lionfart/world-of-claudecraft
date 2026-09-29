@@ -12,6 +12,7 @@ import { ALL_RECIPES as ALL_RECIPES_VIA_DATA } from '../src/sim/data';
 import { craftIdsForMaterialItem } from '../src/sim/material_profession_affinity';
 import { MATERIAL_ITEM_IDS } from '../src/sim/material_taxonomy';
 import { baseMaterialFor, MATERIAL_GRADES } from '../src/sim/professions/material_grades';
+import { TERRITORY_RESOURCE_ITEM_IDS } from '../src/sim/territory_resources';
 
 // The ONE sanctioned exception to the no-orphan-reagents census below:
 // farming's materials, exempt STRUCTURALLY rather than by an enumerated
@@ -40,6 +41,11 @@ import { baseMaterialFor, MATERIAL_GRADES } from '../src/sim/professions/materia
 // starts passing the census on its own terms and the exemption stays true
 // (the watch fee still consumes produce).
 const COMMAND_CONSUMED_FARM_MATERIALS: ReadonlySet<string> = new Set(FARM_MATERIAL_ITEM_IDS);
+// Territory stockpiles spend these in the server's claim/war/build/siege
+// commands, not in the profession recipe or enchant catalog.
+const COMMAND_CONSUMED_TERRITORY_MATERIALS: ReadonlySet<string> = new Set(
+  Object.values(TERRITORY_RESOURCE_ITEM_IDS),
+);
 
 describe('craftIdsForMaterialItem', () => {
   it('names the crafts that consume Rough Hide (the player-facing exemplar)', () => {
@@ -256,11 +262,29 @@ describe('craftIdsForMaterialItem', () => {
   it('a fine grade inherits its base consumers and keeps fine-only crafts', () => {
     // fine_iron_ore is a tool-recipe reagent (engineering) and stands in for
     // iron_ore (jewelcrafting + weaponcrafting + armorcrafting since the
-    // Masterwrought phase 05 catalog's rung-25 recipes).
+    // Masterwrought phase 05 catalog's rung-25 recipes). Since the
+    // 2026-09-28 release/v0.44.0 merge into feature/buried-hoards, iron_ore
+    // also feeds three FACTION_REWARD_RECIPES rows: engineering
+    // (schematic_clockwork_shock_bomb), leatherworking
+    // (pattern_reinforced_armor_kit) and weaponcrafting
+    // (plans_dense_sharpening_stone), so the base gains engineering and
+    // leatherworking and the fine grade gains leatherworking.
     const fine = craftIdsForMaterialItem('fine_iron_ore');
     const base = craftIdsForMaterialItem('iron_ore');
-    expect(base).toEqual(['jewelcrafting', 'weaponcrafting', 'armorcrafting']);
-    expect(fine).toEqual(['engineering', 'jewelcrafting', 'weaponcrafting', 'armorcrafting']);
+    expect(base).toEqual([
+      'engineering',
+      'leatherworking',
+      'jewelcrafting',
+      'weaponcrafting',
+      'armorcrafting',
+    ]);
+    expect(fine).toEqual([
+      'engineering',
+      'leatherworking',
+      'jewelcrafting',
+      'weaponcrafting',
+      'armorcrafting',
+    ]);
     for (const craftId of base) {
       expect(fine, `fine inherits ${craftId}`).toContain(craftId);
     }
@@ -311,6 +335,10 @@ describe('craftIdsForMaterialItem', () => {
         exempted++;
         continue;
       }
+      if (COMMAND_CONSUMED_TERRITORY_MATERIALS.has(itemId)) {
+        exempted++;
+        continue;
+      }
       expect(
         craftIdsForMaterialItem(itemId).length,
         `${itemId} must have a craft consumer`,
@@ -319,7 +347,9 @@ describe('craftIdsForMaterialItem', () => {
     // Anti-vacuous in both directions: the exemption really fired (farming's
     // family is in the material set), and it did not swallow the census (the
     // non-exempt majority was genuinely walked).
-    expect(exempted).toBe(COMMAND_CONSUMED_FARM_MATERIALS.size);
+    expect(exempted).toBe(
+      COMMAND_CONSUMED_FARM_MATERIALS.size + COMMAND_CONSUMED_TERRITORY_MATERIALS.size,
+    );
     expect(MATERIAL_ITEM_IDS.size - exempted - pending.size).toBeGreaterThan(40);
   });
 

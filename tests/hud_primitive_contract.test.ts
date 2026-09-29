@@ -107,22 +107,11 @@ describe.each(ENTRY_FILES)('%s HUD primitive contracts', (entry) => {
   it('keeps the experience rail and representative windows themed', () => {
     const xp = elementBlockForId(html, 'xpbar');
     expect(openingTagForId(html, 'xpbar')).toContain('ui-rail');
-    for (const childClass of [
-      'ui-rail-fill',
-      'ui-rail-rested',
-      'ui-rail-ticks',
-      'ui-rail-label',
-    ]) {
+    for (const childClass of ['ui-rail-fill', 'ui-rail-rested', 'ui-rail-ticks', 'ui-rail-label']) {
       expect(xp).toContain(childClass);
     }
 
-    for (const id of [
-      'map-window',
-      'char-window',
-      'spellbook',
-      'warfare-window',
-      'options-menu',
-    ]) {
+    for (const id of ['map-window', 'char-window', 'spellbook', 'warfare-window', 'options-menu']) {
       expect(openingTagForId(html, id)).toContain('ui-window');
     }
   });

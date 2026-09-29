@@ -15,6 +15,7 @@ import { delves } from './delves';
 import { dungeons } from './dungeons';
 import { economy } from './economy';
 import { editor } from './editor';
+import { factions } from './factions';
 import { faq } from './faq';
 import { gear } from './gear';
 import { glossary } from './glossary';
@@ -37,6 +38,7 @@ import { thornhollowFields } from './thornhollow_fields';
 import type { GuidePage, PageContext } from './types';
 import { wishIKnew } from './wish_i_knew';
 import { world } from './world';
+import { worldPvp } from './world_pvp';
 
 export type { GuidePage, PageContext } from './types';
 
@@ -53,6 +55,7 @@ const PAGES: Record<string, GuidePage> = {
   professions,
   economy,
   quests,
+  factions,
   dungeons,
   delves,
   rifts,
@@ -60,6 +63,7 @@ const PAGES: Record<string, GuidePage> = {
   arena,
   'territory-war': territoryWar,
   'thornhollow-fields': thornhollowFields,
+  'world-pvp': worldPvp,
   deeds,
   reliquary,
   combat,

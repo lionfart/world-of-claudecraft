@@ -6,6 +6,7 @@
 
 import { sanitizeMoveFacing, sanitizeMoveInput } from '../sim/move_input';
 import type { MoveInput } from '../sim/types';
+import { focusTargetAction } from '../ui/focus_targets_core';
 import { detectBrowserEngine } from './browser_env';
 import { clickClaimedModalFocus } from './click_claimed_focus';
 import { cursorForHover, type HoverCursorKind } from './cursors';
@@ -15,6 +16,7 @@ import {
   dodgeDirectionForAction,
   heldDodgeDirection,
 } from './dodge_input';
+import { clampGliderCameraPitch, gliderPitchFromCamera } from './glider_pitch_input';
 import {
   comboCode,
   isModifierCode,
@@ -88,6 +90,7 @@ export interface InputCallbacks {
   // A party target hotkey (F1..F10 by default): slot 0 is yourself, 1..9 the
   // party frame rows top to bottom (src/ui/party_target_hotkeys_core.ts).
   onTargetParty(slot: number): void;
+  onFocusTarget?(slot: number, assign: boolean): void;
   onAbility(slot: number): void;
   // Action-bar slot key DOWN / UP, so a slot can HOLD to charge (the Vale Cup
   // shoot) and release to fire. A tap is a down immediately followed by an up.
@@ -139,6 +142,10 @@ export interface InputCallbacks {
    *  grab must not spin the camera or retarget instead. Wheel zoom and keyboard
    *  movement stay live; only the mouse-on-canvas gestures are claimed. */
   isCameraLocked?: () => boolean;
+  /** Vehicle view: freeze orbit controls, but preserve ground-aim clicks. */
+  isCameraMotionLocked?: () => boolean;
+  /** Flight owns vertical intent; camera pitch must not activate swim steering. */
+  isGliderActive?: () => boolean;
   onInputIntent?(kind: 'move' | 'look' | 'zoom'): void;
   onBasicAttackStart?(): void;
   onBasicAttackStop?(): void;
@@ -258,6 +265,7 @@ export class Input {
   hoverActive = false;
   private hoverKind: HoverCursorKind = 'default';
   private mouseCameraEnabled = false;
+  private gliderLookSuspended = false;
   // "Lock cursor while rotating" (settings: lockCursorOnRotate, default on).
   // When on, an active camera drag pointer-locks the canvas so the OS cursor
   // cannot reach the screen edge (camera freeze) or slip to a second monitor.
@@ -328,6 +336,8 @@ export class Input {
   // Swim-down held by an on-screen/controller control (the keyboard path is the
   // 'dive' held action). Not latched like the jump tap: descending is a hold.
   private touchDive = false;
+  // Flight bar Climb/Dive hold (+1 / -1); 0 hands pitch back to the camera.
+  private gliderPitchHold: -1 | 0 | 1 = 0;
   // Latched sides of the camera-steer bands (see readSwimSteer): which one the
   // view is currently inside, so the threshold can hysteresis rather than
   // chatter when the camera rests on it.
@@ -502,6 +512,7 @@ export class Input {
 
   /** Move the camera in/out, clamped to the zoom limits. */
   zoomBy(delta: number): void {
+    if (this.cb.isCameraMotionLocked?.()) return;
     const next = Math.min(22, Math.max(3, this.camDist + delta));
     if (next === this.camDist) return;
     this.camDist = next;
@@ -664,6 +675,7 @@ export class Input {
    * intent can resume when the transition curtain comes down.
    */
   resetForClientTransition(): void {
+    this.gliderLookSuspended = true;
     const emoteWheelWasOpen = this.emoteWheelHeldCodes.size > 0;
     this.keys.clear();
     this.keyJumpUntil = 0;
@@ -753,6 +765,12 @@ export class Input {
     this.touchDive = on;
   }
 
+  /** Flight bar Climb (+1) / Dive (-1) hold; 0 releases. Read only while gliding. */
+  setGliderPitchHold(value: -1 | 0 | 1): void {
+    if (this.gliderPitchHold !== value) this.noteMovementIntent();
+    this.gliderPitchHold = value;
+  }
+
   // Touch-reachable autorun toggle (the keyboard path is the 'autorun' edge action).
   // Returns the new state so the on-screen button can reflect it.
   toggleAutorun(): boolean {
@@ -798,11 +816,12 @@ export class Input {
   }
 
   applyTouchLookDelta(dx: number, dy: number): void {
+    if (this.cb.isCameraMotionLocked?.()) return;
     const dragSens = this.lookSensitivity * TOUCH_DRAG_SENS_MULT * this.touchLookSpeed;
     this.camYaw -= dx * dragSens;
-    this.camPitch = Math.min(
-      1.35,
-      Math.max(-0.4, this.camPitch + this.touchPitchSign * dy * dragSens),
+    this.camPitch = clampGliderCameraPitch(
+      this.camPitch + this.touchPitchSign * dy * dragSens,
+      this.cb.isGliderActive?.() === true,
     );
     this.swimAimPitch = this.camPitch;
     if (dx !== 0 || dy !== 0) this.noteIntent('look');
@@ -845,9 +864,13 @@ export class Input {
   // Apply the right-stick camera deltas (already in radians, computed by the
   // pure stickToLook core). Clamps pitch to the same range as touch/mouse look.
   applyGamepadLook(yawDelta: number, pitchDelta: number): void {
+    if (this.cb.isCameraMotionLocked?.()) return;
     if (yawDelta === 0 && pitchDelta === 0) return;
     this.camYaw += yawDelta;
-    this.camPitch = Math.min(1.35, Math.max(-0.4, this.camPitch + pitchDelta));
+    this.camPitch = clampGliderCameraPitch(
+      this.camPitch + pitchDelta,
+      this.cb.isGliderActive?.() === true,
+    );
     this.swimAimPitch = this.camPitch;
     this.noteIntent('look');
   }
@@ -861,25 +884,24 @@ export class Input {
   }
 
   updateTouchLook(dt: number): void {
+    if (this.cb.isCameraMotionLocked?.()) return;
     if (!this.touchLookActive) return;
     this.camYaw -= this.touchLookVector.x * TOUCH_LOOK_YAW_RATE * this.touchLookSpeed * dt;
-    this.camPitch = Math.min(
-      1.35,
-      Math.max(
-        -0.4,
-        this.camPitch +
-          this.touchPitchSign *
-            this.touchLookVector.y *
-            TOUCH_LOOK_PITCH_RATE *
-            this.touchLookSpeed *
-            dt,
-      ),
+    this.camPitch = clampGliderCameraPitch(
+      this.camPitch +
+        this.touchPitchSign *
+          this.touchLookVector.y *
+          TOUCH_LOOK_PITCH_RATE *
+          this.touchLookSpeed *
+          dt,
+      this.cb.isGliderActive?.() === true,
     );
     this.swimAimPitch = this.camPitch;
   }
 
   /** Snap the orbit camera back behind the character (mobile recenter gesture). */
   recenterCameraBehind(facing: number): void {
+    if (this.cb.isCameraMotionLocked?.()) return;
     if (Number.isFinite(facing)) this.camYaw = facing;
     this.camPitch = 0.32;
     this.swimAimPitch = 0.32;
@@ -975,6 +997,7 @@ export class Input {
   }
 
   private releaseCapture(reason: string): void {
+    if (reason !== 'pointerlock') this.gliderLookSuspended = true;
     const hadInput = this.keys.size > 0 || this.leftDown || this.rightDown;
     // Always drop the mouse-drag state so a button can't stick "held".
     this.leftDown = false;
@@ -1254,6 +1277,11 @@ export class Input {
   }
 
   private dispatchEdge(action: string): void {
+    const focus = focusTargetAction(action);
+    if (focus) {
+      this.cb.onFocusTarget?.(focus.slot, focus.assign);
+      return;
+    }
     if (action.startsWith('slot')) {
       this.cb.onAbility(Number(action.slice(4)));
       return;
@@ -1462,6 +1490,7 @@ export class Input {
     // click from a drag until it has already moved.
     this.pointerLockRequestedForDrag = false;
     if (
+      !this.cb.isCameraMotionLocked?.() &&
       shouldEngagePointerLockOnMouseDown({
         button: e.button,
         clickMoveButton: this.clickMoveMouseButton,
@@ -1698,6 +1727,7 @@ export class Input {
       this.hoverY = e.clientY;
       this.hoverActive = true;
     }
+    if (this.cb.isCameraMotionLocked?.()) return;
     const actionCameraLook = this.isActionCameraLocked();
     if (!this.leftDown && !this.rightDown && !actionCameraLook) return;
     // Normalize the raw movement delta to Chromium's physical-pixel unit so
@@ -1741,9 +1771,9 @@ export class Input {
     // player kept holding a drag button.
     this.maybeEngageDragPointerLock();
     this.camYaw -= mx * this.lookSensitivity;
-    this.camPitch = Math.min(
-      1.35,
-      Math.max(-0.4, this.camPitch + my * this.lookSensitivity * this.lookPitchSign),
+    this.camPitch = clampGliderCameraPitch(
+      this.camPitch + my * this.lookSensitivity * this.lookPitchSign,
+      this.cb.isGliderActive?.() === true,
     );
     if (this.rightDown || this.mouseCameraEnabled || actionCameraLook)
       this.swimAimPitch = this.camPitch;
@@ -1751,6 +1781,7 @@ export class Input {
   }
 
   private noteIntent(kind: 'move' | 'look' | 'zoom'): void {
+    if (kind === 'look') this.gliderLookSuspended = false;
     this.cb.onInputIntent?.(kind);
   }
 
@@ -1823,6 +1854,7 @@ export class Input {
   /** Any horizontal movement input held, from any device — the gate the swim
    *  camera bands ride (readSwimSteer). Mirrors the readMoveInput sources. */
   private anyMoveHeld(): boolean {
+    if (this.cb?.isGliderActive?.()) return false;
     return (
       this.heldAction('forward') ||
       this.heldAction('back') ||
@@ -1885,7 +1917,21 @@ export class Input {
     // never moves the body (the WoW rule). Every flag here is only ever read
     // while swimming, so aiming the camera around on land is inert. See
     // SWIM_LOOK_* for the bands and swimSteer for the graded rate.
-    const { dive, surface, swimSteer } = this.readSwimSteer(this.anyMoveHeld());
+    const flying = this.cb?.isGliderActive?.() === true;
+    this.camPitch = clampGliderCameraPitch(this.camPitch, flying);
+    const { dive, surface, swimSteer } = flying
+      ? { dive: this.heldAction('dive') || this.touchDive, surface: false, swimSteer: 0 }
+      : this.readSwimSteer(this.anyMoveHeld());
+    // A held Climb/Dive slot on the flight bar (mouse or touch) overrides the
+    // camera-derived pitch for as long as it is held; released, the camera rules.
+    const gliderPitch =
+      flying && this.gliderPitchHold !== 0
+        ? this.gliderPitchHold
+        : gliderPitchFromCamera(
+            this.camPitch,
+            flying,
+            !this.gliderLookSuspended && (this.isMouselookActive() || this.mouseCameraEnabled),
+          );
 
     if (this.mouseCameraEnabled) {
       return {
@@ -1895,6 +1941,7 @@ export class Input {
         dive,
         surface,
         swimSteer,
+        gliderPitch,
         turnLeft: false,
         turnRight: false,
         strafeLeft:
@@ -1920,6 +1967,7 @@ export class Input {
       dive,
       surface,
       swimSteer,
+      gliderPitch,
       strafeLeft:
         held('strafeLeft') ||
         (mouselook && aHeld) ||

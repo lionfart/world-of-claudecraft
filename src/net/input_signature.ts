@@ -20,6 +20,7 @@ export function inputSignature(
     mi.dive ? 1 : 0,
     mi.surface ? 1 : 0,
     mi.swimSteer ?? 1,
+    mi.gliderPitch ?? '',
     facing,
     aim,
     pitch,

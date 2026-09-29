@@ -279,9 +279,112 @@ describe('ci_shard_partition (D11 path-matrix)', () => {
     // churn. A full CI harvest refreshes the table wholesale; the carried-row
     // contract below covers locally measured rows between harvests.
     const covered = items.filter((i) => MEASURED_WEIGHTS[i.key.slice(1)] !== undefined).length;
-    // The downstream Territory and directional-combat suites landed after the
-    // upstream all-green duration harvest. Their unknown rows deliberately use
-    // the measured median until this merged tree produces its first clean harvest.
-    expect(covered / items.length).toBeGreaterThanOrEqual(0.92);
+    expect(covered / items.length).toBeGreaterThanOrEqual(0.915);
+  });
+});
+
+const committedTable = JSON.parse(
+  readFileSync(join(root, 'scripts/ci_shard_weights.generated.json'), 'utf8'),
+) as Record<string, unknown>;
+
+// A complete CI refresh replaces every local carry with a harvested weight.
+// Exercise the same committed-table assertions in both states: the production
+// harvester's empty-map output must remain accepted after a future refresh.
+const fullyHarvestedTable: Record<string, unknown> = {
+  ...committedTable,
+  __provenance: {
+    ...(committedTable.__provenance as Record<string, unknown>),
+    harvestedFiles: tableRows(committedTable).length,
+    carried: {},
+  },
+};
+
+describe.each([
+  { kind: 'committed', table: committedTable },
+  { kind: 'fully harvested', table: fullyHarvestedTable },
+])('$kind weight table attributes every row it did not harvest', ({ table }) => {
+  // Before the carried map, nothing machine-checked that a CARRIED weight was
+  // a real measurement. The
+  // coverage floor above only asks whether a row EXISTS, so N rows appended at
+  // MEASURED_FALLBACK_MS would raise coverage, leave the balance bar
+  // byte-identical (the bar already scores an unknown file at the fallback),
+  // and pass every other pin in this file. This arm reads the table's own
+  // __provenance and refuses anything the contract in
+  // scripts/lib/ci_shard_weight_carry.mjs calls a defect: a row with neither a
+  // harvest nor an attribution, an attribution whose ms disagrees with its row,
+  // a local-median whose ms is not the median of its runs, an undated one, and
+  // the fabrication shape itself (the fallback as a modal carried value).
+  it('passes carriedDefects with the map REQUIRED, not merely consistent when present', () => {
+    expect(carriedDefects(table, { fallbackMs: MEASURED_FALLBACK_MS, requireMap: true })).toEqual(
+      [],
+    );
+  });
+
+  it('retains the measured population and attributes every row, including a complete harvest', () => {
+    const { harvestedFiles } = (table.__provenance ?? {}) as { harvestedFiles?: number };
+    const carried = carriedRows(table);
+    const rows = tableRows(table);
+    // Retain the table and harvested-population floors. Carried rows are
+    // optional: a complete refresh measures every row in CI.
+    expect(rows.length).toBeGreaterThan(3000);
+    expect(harvestedFiles).toBeGreaterThan(2000);
+    // The `?? 0` can never fire: the line above already refused a missing count.
+    expect((harvestedFiles ?? 0) + Object.keys(carried).length).toBe(rows.length);
+    for (const [file, entry] of Object.entries(carried)) {
+      expect(table[file], `${file} is carried but is not a row`).toBe(entry.ms);
+    }
+  });
+
+  it('an undeclared row, a mis-stated ms, and a fabricated fallback block each RED it', () => {
+    // Append a known, valid carry so the negative controls run even after a
+    // complete harvest. None may depend on a carried row existing on disk.
+    const undeclared = { ...table, 'tests/__fabricated_row.test.ts': MEASURED_FALLBACK_MS };
+    expect(
+      carriedDefects(undeclared, { fallbackMs: MEASURED_FALLBACK_MS, requireMap: true }).join(' '),
+    ).toMatch(/harvestedFiles .* != .* rows/);
+
+    const someCarried = 'tests/__synthetic_carried_row.test.ts';
+    const carriedMs = MEASURED_FALLBACK_MS + 1;
+    const withCarry = applyLocalCarry(table, [{ file: someCarried, runs: [carriedMs] }], {
+      measured: '2026-09-04',
+      reason: 'synthetic attribution regression fixture',
+    });
+    expect(
+      carriedDefects(withCarry, { fallbackMs: MEASURED_FALLBACK_MS, requireMap: true }),
+    ).toEqual([]);
+    const prov = withCarry.__provenance;
+    const carriedMap = carriedRows(withCarry);
+    const misStated = { ...withCarry, [someCarried]: 1 };
+    expect(
+      carriedDefects(misStated, { fallbackMs: MEASURED_FALLBACK_MS, requireMap: true }),
+    ).toEqual([`${someCarried}: row 1 != carried ms ${carriedMs}`]);
+
+    // Every carried row filled at the fallback: the identity still holds and
+    // each entry is well formed, so ONLY the modal check can catch it.
+    const fabricated: Record<string, unknown> = {
+      ...withCarry,
+      __provenance: {
+        ...prov,
+        carried: Object.fromEntries(
+          Object.keys(carriedMap).map((k) => [
+            k,
+            {
+              ms: MEASURED_FALLBACK_MS,
+              method: 'local-median',
+              measured: '2026-09-04',
+              reason: 'synthetic fallback fabrication',
+              runs: [MEASURED_FALLBACK_MS],
+            },
+          ]),
+        ),
+      },
+    };
+    for (const k of Object.keys(carriedMap)) fabricated[k] = MEASURED_FALLBACK_MS;
+    const defects = carriedDefects(fabricated, {
+      fallbackMs: MEASURED_FALLBACK_MS,
+      requireMap: true,
+    });
+    expect(defects).toHaveLength(1);
+    expect(defects[0]).toMatch(/is a modal value among the \d+ carried rows/);
   });
 });

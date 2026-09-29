@@ -51,6 +51,7 @@ import { routes as territoryRoutes } from '../territory_routes';
 import { routes as userAssetsRoutes } from '../user_assets_routes';
 import { routes as walletRoutes } from '../wallet';
 import { routes as wocMarketRoutes } from '../woc_market_routes';
+import { routes as worldQuestLeaderboardRoutes } from '../world_quest_leaderboard';
 // new:endpoint imports appear above this line (npm run new:endpoint)
 import { type CompiledPattern, compilePattern } from './path_pattern';
 import { createRouter, type MatchResult } from './router';
@@ -162,6 +163,7 @@ export const apiRoutes: readonly RouteDef[] = [
   ...wocMarketRoutes,
   ...guildRosterRoutes,
   ...territoryRoutes,
+  ...worldQuestLeaderboardRoutes,
   // new:endpoint spreads appear above this line (npm run new:endpoint)
 ];
 

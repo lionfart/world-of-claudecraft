@@ -18,6 +18,7 @@ import {
   writeNeedleReleasePlan,
   writeNeedleWindupPlan,
 } from './needle_of_fate_vfx_core';
+import { tagVfxSubtree } from './renderer_diagnostics';
 
 const POOL_SIZE = 8;
 const TRAIL_POINTS = 18;
@@ -208,7 +209,6 @@ export class NeedleOfFateVfx {
     private readonly onImpact?: (targetId: number) => void,
   ) {
     this.group.name = 'needle-of-fate-vfx';
-    this.group.userData.renderCategory = 'vfx';
     scene.add(this.group);
 
     const glowTexture = softDiscTexture();
@@ -244,6 +244,7 @@ export class NeedleOfFateVfx {
         ),
       );
     }
+    tagVfxSubtree(this.group);
   }
 
   private buildWindup(

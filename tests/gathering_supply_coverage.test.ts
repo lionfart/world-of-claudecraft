@@ -167,6 +167,13 @@ import {
 import { baseMaterialFor, MATERIAL_GRADES } from '../src/sim/professions/material_grades';
 import { gatherToolTier } from '../src/sim/professions/tools';
 import { TIER_SKILL_STEP, tierForSkill } from '../src/sim/professions/wheel';
+import {
+  TERRITORY_CLAIM_COST,
+  TERRITORY_SIEGE_RECIPES,
+  TERRITORY_WAR_COST,
+  territoryStructureCost,
+} from '../src/sim/territory_economy';
+import { territoryResourceCostEntries } from '../src/sim/territory_resources';
 
 // THE SUPPLY DERIVATION MOVED OUT AT masterwrought Phase 11k, and the move is
 // why this file no longer carries it. The provisioning wiki page became a
@@ -377,6 +384,7 @@ const WIDE_DEMAND_MECHANISMS = [
   'enchant reagents (ENCHANTS)',
   'quest collect objectives (QUESTS, type collect)',
   'farming verbs (plantCrop: seed, compost knob, tonic knob, watch fee produce; convertHusks: husks)',
+  'territory verbs (claim, declare war, structure upgrade, craft siege; server/territory_service.ts)',
   'downward grade substitution (consumptionIdsFor)',
 ] as const;
 
@@ -405,6 +413,16 @@ function wideDemandIndex(): Map<string, { consumers: string[] }> {
     }
   }
   note(FARM_WITHERED_HUSK_ITEM_ID, 'farming:convertHusks');
+  for (const [source, cost] of [
+    ['territory:claim', TERRITORY_CLAIM_COST],
+    ['territory:declare_war', TERRITORY_WAR_COST],
+    ['territory:upgrade_keep', territoryStructureCost('keep', 2).resources],
+    ...Object.entries(TERRITORY_SIEGE_RECIPES).map(
+      ([kind, recipe]) => [`territory:craft_siege:${kind}`, recipe.resources] as const,
+    ),
+  ] as const) {
+    for (const [itemId] of territoryResourceCostEntries(cost)) note(itemId, source);
+  }
   return demand;
 }
 

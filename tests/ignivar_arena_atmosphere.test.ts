@@ -254,7 +254,10 @@ describe('Ignivar arena atmosphere', () => {
     expect(source).toContain(
       "const desired = inTerritorySiege ? 'battleground' : fogScene.desired;",
     );
-    expect(source).toContain('applyFogScenePreset(desired, fog, () => this.outdoorFogPreset());');
+    expect(source).toContain("const desired = valley ? 'hoardValley' : fogScene.desired;");
+    expect(source).toContain(
+      'applyFogScenePreset(desired, fog, () => valley?.fog ?? this.outdoorFogPreset());',
+    );
     expect(fogScene).toContain('ignivarRaidFogStateForInterior(interior ?? null)');
     expect(fogScene).toMatch(
       /desired === 'ignivarApproach' \|\| desired === 'ignivar' \|\| desired === 'varkhul'[\s\S]{0,320}?applyIgnivarRaidFog\(desired, fog\);/,

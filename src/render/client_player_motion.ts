@@ -1,5 +1,11 @@
 import { moverHeight, resolveMovement } from '../sim/colliders';
 import { DUNGEON_FLOOR_Y, isTerritorySiegePos, territorySiegeOriginAt } from '../sim/data';
+import {
+  clampDelveDoorSolids,
+  clampDelveModuleBounds,
+  type DelveDoorClampSolid,
+  type DelveModuleBoundsRun,
+} from '../sim/delves/geometry';
 import { moveSpeedMult, type PlayerMotionDeps } from '../sim/player_motion';
 import { resolveTerritorySiegeTeamMovement, type TerritorySimTeam } from '../sim/territory_local';
 import { territorySiegeGroundLiftForCastleLocal } from '../sim/territory_siege_ground';
@@ -49,11 +55,23 @@ function territoryTeamForPrediction(
   };
 }
 
+/** The mirrored delve state the predictor's resolveMove needs to reproduce
+ *  the server's clampDelveModuleBounds + clampDelveDoors chain: the module
+ *  shell/bounds view (matches either host's DelveRun/DelveRunInfo shape) plus
+ *  this frame's door/prop solids, derived from the mirrored entity roster
+ *  (delveDoorClampSolidsFromEntities, src/sim/delves/geometry.ts). Null
+ *  outside a delve, so every other position keeps resolving exactly as before. */
+export interface ClientDelveMotionState {
+  run: DelveModuleBoundsRun;
+  solids: readonly DelveDoorClampSolid[];
+}
+
 export function createClientPlayerMotionDeps(
   seed: number,
   speedMult: (entity: Entity) => number = (entity) => moveSpeedMult(entity, 0),
   riftCollisionToken = 0,
   territoryState: () => TerritoryMapState | null = () => null,
+  delveState: () => ClientDelveMotionState | null = () => null,
 ): PlayerMotionDeps {
   return {
     seed,
@@ -75,6 +93,7 @@ export function createClientPlayerMotionDeps(
     },
     moveSpeedMult: speedMult,
     resolveMove: (fromX, fromZ, nx, nz, radius, entity, ignoreFences) => {
+      const delve = delveState();
       const resolved = resolveMovement(
         seed,
         fromX,
@@ -83,22 +102,32 @@ export function createClientPlayerMotionDeps(
         nz,
         radius,
         ignoreFences,
-        undefined,
+        delve?.run.modules,
         moverHeight(entity),
         riftCollisionToken,
       );
-      if (!isTerritorySiegePos(fromX) && !isTerritorySiegePos(resolved.x)) return resolved;
-      const team = territoryTeamForPrediction(territoryState(), fromZ);
-      return team
-        ? resolveTerritorySiegeTeamMovement(
-            team,
-            fromX,
-            fromZ,
-            resolved,
-            radius,
-            entity.pos.y - DUNGEON_FLOOR_Y,
-          )
-        : resolved;
+      let territoryResolved = resolved;
+      if (isTerritorySiegePos(fromX) || isTerritorySiegePos(resolved.x)) {
+        const team = territoryTeamForPrediction(territoryState(), fromZ);
+        territoryResolved = team
+          ? resolveTerritorySiegeTeamMovement(
+              team,
+              fromX,
+              fromZ,
+              resolved,
+              radius,
+              entity.pos.y - DUNGEON_FLOOR_Y,
+            )
+          : resolved;
+      }
+      if (!delve) return territoryResolved;
+      const bounded = clampDelveModuleBounds(
+        delve.run,
+        territoryResolved.x,
+        territoryResolved.z,
+        radius,
+      );
+      return clampDelveDoorSolids(delve.solids, bounded.x, bounded.z, radius);
     },
     resolvedAbility: () => null,
     cancelCast: () => {},

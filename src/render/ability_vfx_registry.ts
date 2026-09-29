@@ -48,6 +48,7 @@ import {
   SOUL_LANCE_VFX_SPEC,
 } from './necromancy_vfx_specs';
 import { HAMMER_OF_GRACE_VFX_FULL_SPEC, HAMMER_OF_GRACE_VFX_SPEC } from './paladin_vfx_specs';
+import { TRINKET_VFX_FULL_SPECS, TRINKET_VFX_SPECS } from './trinket_vfx_specs';
 import {
   EMBERKIN_FELBOLT_VFX_FULL_SPEC,
   EMBERKIN_FELBOLT_VFX_SPEC,
@@ -55,11 +56,14 @@ import {
   GLOOMSHADE_ABYSSAL_CHAIN_VFX_SPEC,
 } from './warlock_pet_vfx_specs';
 import { ABYSSAL_RIFT_VFX_FULL_SPEC, ABYSSAL_RIFT_VFX_SPEC } from './warlock_vfx_specs';
+import { WARRIOR_VFX_FULL_SPECS, WARRIOR_VFX_SPECS } from './warrior_vfx_specs';
 
 // Generated gallery projections remain untouched. Class-owned bespoke
 // identities resolve through this narrow runtime seam instead.
 export function abilityVfxSpec(abilityId: string): AbilityVfxSpec | undefined {
   if (abilityId === 'hammer_of_grace') return HAMMER_OF_GRACE_VFX_SPEC;
+  if (Object.hasOwn(WARRIOR_VFX_SPECS, abilityId)) return WARRIOR_VFX_SPECS[abilityId];
+  if (Object.hasOwn(TRINKET_VFX_SPECS, abilityId)) return TRINKET_VFX_SPECS[abilityId];
   if (abilityId === 'emberkin_felbolt') return EMBERKIN_FELBOLT_VFX_SPEC;
   if (abilityId === 'gloomshade_abyssal_chain') return GLOOMSHADE_ABYSSAL_CHAIN_VFX_SPEC;
   if (abilityId === 'bone_mage_shadow_bolt') return BONE_MAGE_SHADOW_BOLT_VFX_SPEC;
@@ -88,6 +92,8 @@ export function abilityVfxSpec(abilityId: string): AbilityVfxSpec | undefined {
 
 export function abilityVfxFullSpec(abilityId: string): AbilityVfxFullSpec | undefined {
   if (abilityId === 'hammer_of_grace') return HAMMER_OF_GRACE_VFX_FULL_SPEC;
+  if (Object.hasOwn(WARRIOR_VFX_FULL_SPECS, abilityId)) return WARRIOR_VFX_FULL_SPECS[abilityId];
+  if (Object.hasOwn(TRINKET_VFX_FULL_SPECS, abilityId)) return TRINKET_VFX_FULL_SPECS[abilityId];
   if (abilityId === 'emberkin_felbolt') return EMBERKIN_FELBOLT_VFX_FULL_SPEC;
   if (abilityId === 'gloomshade_abyssal_chain') return GLOOMSHADE_ABYSSAL_CHAIN_VFX_FULL_SPEC;
   if (abilityId === 'bone_mage_shadow_bolt') return BONE_MAGE_SHADOW_BOLT_VFX_FULL_SPEC;

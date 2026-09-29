@@ -11,13 +11,13 @@
     "Spiritmend Tidecall deposit and Cascading Mend consumption",
     "Shaman spec state in deterministic headless snapshots"
   ],
-  "draws": 2556,
-  "drawDigest": "01f1ceba",
+  "draws": 2573,
+  "drawDigest": "22b62fe0",
   "frames": [
     {
       "tick": 0,
       "time": 0,
-      "nextId": 1006,
+      "nextId": 1010,
       "state": "5bc471b0",
       "events": "741638a5",
       "rng": {
@@ -31,9 +31,9 @@
     {
       "tick": 20,
       "time": 1,
-      "nextId": 1011,
-      "state": "e34337b2",
-      "events": "f26a320d",
+      "nextId": 1015,
+      "state": "884fe125",
+      "events": "dca267fc",
       "rng": {
         "draws": 0,
         "digest": "811c9dc5"
@@ -42,56 +42,56 @@
     {
       "tick": 40,
       "time": 2,
-      "nextId": 1011,
-      "state": "4054f574",
-      "events": "741638a5",
+      "nextId": 1015,
+      "state": "1f130637",
+      "events": "704382e7",
       "rng": {
-        "draws": 0,
-        "digest": "811c9dc5"
+        "draws": 4,
+        "digest": "608bf915"
       }
     },
     {
       "tick": 60,
       "time": 3,
-      "nextId": 1011,
-      "state": "af949c16",
-      "events": "c1d990ce",
+      "nextId": 1015,
+      "state": "6a07fc77",
+      "events": "741638a5",
       "rng": {
-        "draws": 154,
-        "digest": "63603153"
+        "draws": 155,
+        "digest": "bea68f72"
       }
     },
     {
       "tick": 80,
       "time": 4,
-      "nextId": 1011,
-      "state": "ada42ac1",
+      "nextId": 1015,
+      "state": "9e69e904",
       "events": "741638a5",
       "rng": {
-        "draws": 328,
-        "digest": "40f16490"
+        "draws": 325,
+        "digest": "d391f643"
       }
     },
     {
       "tick": 100,
       "time": 5,
-      "nextId": 1011,
-      "state": "a4d1f429",
-      "events": "55ab6d33",
+      "nextId": 1015,
+      "state": "fd9f7107",
+      "events": "546846b7",
       "rng": {
-        "draws": 507,
-        "digest": "135e5bb6"
+        "draws": 506,
+        "digest": "fb97c1cb"
       }
     },
     {
       "tick": 100,
       "time": 5,
-      "nextId": 1011,
-      "state": "a4d1f429",
+      "nextId": 1015,
+      "state": "fd9f7107",
       "events": "741638a5",
       "rng": {
-        "draws": 507,
-        "digest": "135e5bb6"
+        "draws": 506,
+        "digest": "fb97c1cb"
       },
       "label": "thundercall-vent",
       "players": [
@@ -118,13 +118,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 251
+            "damageDealt": 139
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 251
+              "dummyDamage": 139
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -169,13 +169,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1006,
+          "entityId": 1010,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -207,6 +210,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -279,13 +284,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1007,
+          "entityId": 1011,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -317,6 +325,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -389,13 +399,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1008,
+          "entityId": 1012,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -427,6 +440,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -495,14 +510,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1009,
+          "entityId": 1013,
           "equipment": {
             "chest": "recruit_tunic",
             "mainhand": "worn_sword",
             "offhand": "eastbrook_buckler"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -529,6 +547,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         }
       ],
@@ -544,12 +564,12 @@
               "name": "Thunder Charges",
               "remaining": 86400,
               "school": "nature",
-              "sourceId": 1006,
+              "sourceId": 1010,
               "stacks": 1
             }
           ],
-          "castTotal": 2.181818,
-          "combatTimer": 1,
+          "castTotal": 1.818182,
+          "combatTimer": 0.9,
           "comboUntil": -1,
           "cooldowns": [
             [
@@ -573,7 +593,7 @@
           "gcdRemaining": 0.363636,
           "healPower": 32,
           "hp": 733,
-          "id": 1006,
+          "id": 1010,
           "inCombat": true,
           "kind": "player",
           "level": 20,
@@ -607,7 +627,7 @@
             "sta": 58,
             "str": 37
           },
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -627,7 +647,7 @@
           "fiveSecondRule": 104,
           "healPower": 29,
           "hp": 733,
-          "id": 1007,
+          "id": 1011,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -660,7 +680,7 @@
             "sta": 58,
             "str": 37
           },
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -680,7 +700,7 @@
           "fiveSecondRule": 104,
           "healPower": 31,
           "hp": 733,
-          "id": 1008,
+          "id": 1012,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -730,7 +750,7 @@
               "name": "Battle Stance",
               "remaining": 3595,
               "school": "physical",
-              "sourceId": 1009
+              "sourceId": 1013
             }
           ],
           "blockChance": 0.05,
@@ -744,7 +764,7 @@
           "fiveSecondRule": 104,
           "healPower": 5,
           "hp": 822,
-          "id": 1009,
+          "id": 1013,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -785,7 +805,7 @@
         },
         {
           "aiState": "idle",
-          "combatTimer": 1,
+          "combatTimer": 0.9,
           "comboUntil": -1,
           "critChance": 0.05,
           "detonateTimer": "Infinity",
@@ -793,8 +813,8 @@
           "fallStartY": -2,
           "fiveSecondRule": 99,
           "hostile": true,
-          "hp": 999749,
-          "id": 1010,
+          "hp": 999861,
+          "id": 1014,
           "inCombat": true,
           "kind": "mob",
           "leashAnchor": {
@@ -820,12 +840,12 @@
             "z": -50
           },
           "stats": {},
-          "tappedById": 1006,
+          "tappedById": 1010,
           "templateId": "training_dummy",
           "threat": [
             [
-              1006,
-              251
+              1010,
+              139
             ]
           ],
           "weapon": {
@@ -837,56 +857,56 @@
     {
       "tick": 120,
       "time": 6,
-      "nextId": 1011,
-      "state": "74d2f96b",
-      "events": "2fe0e40c",
+      "nextId": 1015,
+      "state": "4050cb2f",
+      "events": "d1b1934a",
       "rng": {
-        "draws": 698,
-        "digest": "b51fcd16"
+        "draws": 697,
+        "digest": "0f424c0b"
       }
     },
     {
       "tick": 140,
       "time": 7,
-      "nextId": 1011,
-      "state": "a1188376",
+      "nextId": 1015,
+      "state": "425ece10",
       "events": "741638a5",
       "rng": {
-        "draws": 917,
-        "digest": "90bb7e1d"
+        "draws": 918,
+        "digest": "a485d48c"
       }
     },
     {
       "tick": 160,
       "time": 8,
-      "nextId": 1011,
-      "state": "95792e81",
-      "events": "d8f7f30f",
+      "nextId": 1015,
+      "state": "7a4c1c11",
+      "events": "e63ad5da",
       "rng": {
-        "draws": 1163,
-        "digest": "688c04e3"
+        "draws": 1144,
+        "digest": "6d517e55"
       }
     },
     {
       "tick": 180,
       "time": 9,
-      "nextId": 1011,
-      "state": "d0034e87",
+      "nextId": 1015,
+      "state": "8bb385b5",
       "events": "741638a5",
       "rng": {
-        "draws": 1411,
-        "digest": "0712d071"
+        "draws": 1406,
+        "digest": "d6a94d43"
       }
     },
     {
       "tick": 182,
       "time": 9.1,
-      "nextId": 1011,
-      "state": "a7cc8a97",
+      "nextId": 1015,
+      "state": "f07019cd",
       "events": "741638a5",
       "rng": {
-        "draws": 1436,
-        "digest": "4ef49ca2"
+        "draws": 1435,
+        "digest": "afe616d6"
       },
       "label": "warspirit-cadence",
       "players": [
@@ -913,13 +933,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 251
+            "damageDealt": 139
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 251
+              "dummyDamage": 139
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -964,13 +984,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1006,
+          "entityId": 1010,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -1002,6 +1025,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -1027,13 +1052,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 134
+            "damageDealt": 105
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 134
+              "dummyDamage": 105
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -1078,14 +1103,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1007,
+          "entityId": 1011,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace",
             "offhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -1117,6 +1145,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -1189,13 +1219,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1008,
+          "entityId": 1012,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -1227,6 +1260,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -1295,14 +1330,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1009,
+          "entityId": 1013,
           "equipment": {
             "chest": "recruit_tunic",
             "mainhand": "worn_sword",
             "offhand": "eastbrook_buckler"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -1329,6 +1367,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         }
       ],
@@ -1344,12 +1384,12 @@
               "name": "Thunder Charges",
               "remaining": 86400,
               "school": "nature",
-              "sourceId": 1006,
+              "sourceId": 1010,
               "stacks": 1
             }
           ],
-          "castTotal": 2.181818,
-          "combatTimer": 5.1,
+          "castTotal": 1.818182,
+          "combatTimer": 5,
           "comboUntil": -1,
           "cooldowns": [
             [
@@ -1372,7 +1412,8 @@
           "fiveSecondRule": 5.1,
           "healPower": 32,
           "hp": 733,
-          "id": 1006,
+          "id": 1010,
+          "inCombat": true,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -1405,7 +1446,7 @@
             "sta": 58,
             "str": 37
           },
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -1424,7 +1465,7 @@
               "name": "Galeheart Weapon",
               "remaining": 1795.9,
               "school": "nature",
-              "sourceId": 1007
+              "sourceId": 1011
             },
             {
               "duration": 12,
@@ -1440,7 +1481,7 @@
               "name": "Stormcast",
               "remaining": 10.4,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 1
             },
             {
@@ -1457,7 +1498,7 @@
               "name": "Stormcast",
               "remaining": 10.4,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 0.5
             },
             {
@@ -1467,7 +1508,7 @@
               "name": "Warspirit Cadence",
               "remaining": 86400,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "stacks": 1
             }
           ],
@@ -1482,7 +1523,7 @@
           "fiveSecondRule": 4.1,
           "healPower": 29,
           "hp": 733,
-          "id": 1007,
+          "id": 1011,
           "inCombat": true,
           "kind": "player",
           "level": 20,
@@ -1524,7 +1565,7 @@
             "str": 37
           },
           "swingTimer": 0.813636,
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -1544,7 +1585,7 @@
           "fiveSecondRule": 108.1,
           "healPower": 31,
           "hp": 733,
-          "id": 1008,
+          "id": 1012,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -1594,7 +1635,7 @@
               "name": "Battle Stance",
               "remaining": 3590.9,
               "school": "physical",
-              "sourceId": 1009
+              "sourceId": 1013
             }
           ],
           "blockChance": 0.05,
@@ -1608,7 +1649,7 @@
           "fiveSecondRule": 108.1,
           "healPower": 5,
           "hp": 822,
-          "id": 1009,
+          "id": 1013,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -1657,8 +1698,8 @@
           "fallStartY": -2,
           "fiveSecondRule": 99,
           "hostile": true,
-          "hp": 999615,
-          "id": 1010,
+          "hp": 999756,
+          "id": 1014,
           "inCombat": true,
           "kind": "mob",
           "leashAnchor": {
@@ -1684,16 +1725,16 @@
             "z": -50
           },
           "stats": {},
-          "tappedById": 1006,
+          "tappedById": 1010,
           "templateId": "training_dummy",
           "threat": [
             [
-              1006,
-              251
+              1010,
+              139
             ],
             [
-              1007,
-              134
+              1011,
+              105
             ]
           ],
           "weapon": {
@@ -1705,34 +1746,34 @@
     {
       "tick": 200,
       "time": 10,
-      "nextId": 1011,
-      "state": "9ebbe1c7",
-      "events": "2c89c893",
+      "nextId": 1015,
+      "state": "5716d216",
+      "events": "e3fc51f7",
       "rng": {
-        "draws": 1708,
-        "digest": "243add50"
+        "draws": 1697,
+        "digest": "70de2ad4"
       }
     },
     {
       "tick": 220,
       "time": 11,
-      "nextId": 1011,
-      "state": "598e2693",
+      "nextId": 1015,
+      "state": "7e7b8159",
       "events": "741638a5",
       "rng": {
-        "draws": 1859,
-        "digest": "f3de7323"
+        "draws": 1856,
+        "digest": "16933b03"
       }
     },
     {
       "tick": 224,
       "time": 11.2,
-      "nextId": 1011,
-      "state": "03d2ff49",
+      "nextId": 1015,
+      "state": "f7e07af8",
       "events": "741638a5",
       "rng": {
-        "draws": 1895,
-        "digest": "1a9db4ba"
+        "draws": 1891,
+        "digest": "e538c416"
       },
       "label": "stonebound-posture",
       "players": [
@@ -1759,13 +1800,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 251
+            "damageDealt": 139
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 251
+              "dummyDamage": 139
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -1810,13 +1851,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1006,
+          "entityId": 1010,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -1848,6 +1892,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -1873,13 +1919,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 250
+            "damageDealt": 265
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 250
+              "dummyDamage": 265
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -1924,14 +1970,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1007,
+          "entityId": 1011,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace",
             "offhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -1963,6 +2012,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -2035,13 +2086,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1008,
+          "entityId": 1012,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -2073,6 +2127,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -2141,14 +2197,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1009,
+          "entityId": 1013,
           "equipment": {
             "chest": "recruit_tunic",
             "mainhand": "worn_sword",
             "offhand": "eastbrook_buckler"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -2175,6 +2234,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         }
       ],
@@ -2190,12 +2251,12 @@
               "name": "Thunder Charges",
               "remaining": 86400,
               "school": "nature",
-              "sourceId": 1006,
+              "sourceId": 1010,
               "stacks": 1
             }
           ],
-          "castTotal": 2.181818,
-          "combatTimer": 7.2,
+          "castTotal": 1.818182,
+          "combatTimer": 7.1,
           "comboUntil": -1,
           "critChance": 0.0675,
           "detonateTimer": "Infinity",
@@ -2204,7 +2265,7 @@
           "fiveSecondRule": 7.2,
           "healPower": 32,
           "hp": 733,
-          "id": 1006,
+          "id": 1010,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -2237,7 +2298,7 @@
             "sta": 58,
             "str": 37
           },
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -2250,6 +2311,46 @@
           "attackPower": 113,
           "auras": [
             {
+              "duration": 1800,
+              "id": "rockbiter_weapon",
+              "kind": "imbue",
+              "name": "Stonebound Weapon",
+              "remaining": 1797.9,
+              "school": "nature",
+              "sourceId": 1011,
+              "value": 20
+            },
+            {
+              "duration": 1800,
+              "id": "shaman_stonebound_armor",
+              "kind": "buff_armor_pct",
+              "name": "Stonebound Armor",
+              "remaining": 1797.9,
+              "school": "nature",
+              "sourceId": 1011,
+              "value": 40
+            },
+            {
+              "duration": 1800,
+              "id": "shaman_stonebound_dr",
+              "kind": "buff_dr",
+              "name": "Stonebound Guard",
+              "remaining": 1797.9,
+              "school": "nature",
+              "sourceId": 1011,
+              "value": 0.15
+            },
+            {
+              "duration": 1800,
+              "id": "shaman_stonebound_stamina",
+              "kind": "buff_sta_pct",
+              "name": "Stonebound Vigor",
+              "remaining": 1797.9,
+              "school": "nature",
+              "sourceId": 1011,
+              "value": 20
+            },
+            {
               "duration": 12,
               "empowerAbilities": [
                 "lightning_bolt",
@@ -2261,60 +2362,27 @@
               "id": "shaman_stormcast",
               "kind": "next_cast_instant",
               "name": "Stormcast",
-              "remaining": 8.3,
+              "remaining": 10.7,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 1
             },
             {
-              "duration": 86400,
-              "id": "shaman_warspirit_cadence",
-              "kind": "internal_cd",
-              "name": "Warspirit Cadence",
-              "remaining": 86400,
+              "duration": 12,
+              "empowerAbilities": [
+                "lightning_bolt",
+                "earth_shock",
+                "flame_shock",
+                "frost_shock",
+                "healing_wave"
+              ],
+              "id": "shaman_stormcast_cheap",
+              "kind": "next_cast_cheap",
+              "name": "Stormcast",
+              "remaining": 10.7,
               "school": "nature",
-              "sourceId": 1007,
-              "stacks": 2
-            },
-            {
-              "duration": 1800,
-              "id": "rockbiter_weapon",
-              "kind": "imbue",
-              "name": "Stonebound Weapon",
-              "remaining": 1797.9,
-              "school": "nature",
-              "sourceId": 1007,
-              "value": 20
-            },
-            {
-              "duration": 1800,
-              "id": "shaman_stonebound_armor",
-              "kind": "buff_armor_pct",
-              "name": "Stonebound Armor",
-              "remaining": 1797.9,
-              "school": "nature",
-              "sourceId": 1007,
-              "value": 40
-            },
-            {
-              "duration": 1800,
-              "id": "shaman_stonebound_dr",
-              "kind": "buff_dr",
-              "name": "Stonebound Guard",
-              "remaining": 1797.9,
-              "school": "nature",
-              "sourceId": 1007,
-              "value": 0.15
-            },
-            {
-              "duration": 1800,
-              "id": "shaman_stonebound_stamina",
-              "kind": "buff_sta_pct",
-              "name": "Stonebound Vigor",
-              "remaining": 1797.9,
-              "school": "nature",
-              "sourceId": 1007,
-              "value": 20
+              "sourceId": 1011,
+              "value": 0.5
             }
           ],
           "autoAttack": true,
@@ -2342,7 +2410,7 @@
           "fiveSecondRule": 2,
           "healPower": 29,
           "hp": 853,
-          "id": 1007,
+          "id": 1011,
           "inCombat": true,
           "kind": "player",
           "level": 20,
@@ -2359,7 +2427,7 @@
             "speed": 2.6
           },
           "onGround": true,
-          "overpowerUntil": 14.95,
+          "overpowerUntil": -1,
           "petMode": "defensive",
           "pos": {
             "x": -94,
@@ -2384,7 +2452,7 @@
             "str": 37
           },
           "swingTimer": 1.113636,
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -2404,7 +2472,7 @@
           "fiveSecondRule": 110.2,
           "healPower": 31,
           "hp": 733,
-          "id": 1008,
+          "id": 1012,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -2454,7 +2522,7 @@
               "name": "Battle Stance",
               "remaining": 3588.8,
               "school": "physical",
-              "sourceId": 1009
+              "sourceId": 1013
             }
           ],
           "blockChance": 0.05,
@@ -2468,7 +2536,7 @@
           "fiveSecondRule": 110.2,
           "healPower": 5,
           "hp": 822,
-          "id": 1009,
+          "id": 1013,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -2517,8 +2585,8 @@
           "fallStartY": -2,
           "fiveSecondRule": 99,
           "hostile": true,
-          "hp": 999499,
-          "id": 1010,
+          "hp": 999596,
+          "id": 1014,
           "inCombat": true,
           "kind": "mob",
           "leashAnchor": {
@@ -2544,16 +2612,16 @@
             "z": -50
           },
           "stats": {},
-          "tappedById": 1006,
+          "tappedById": 1010,
           "templateId": "training_dummy",
           "threat": [
             [
-              1006,
-              251
+              1010,
+              139
             ],
             [
-              1007,
-              453
+              1011,
+              545
             ]
           ],
           "weapon": {
@@ -2565,56 +2633,56 @@
     {
       "tick": 240,
       "time": 12,
-      "nextId": 1011,
-      "state": "cb1436f3",
-      "events": "4576021c",
+      "nextId": 1015,
+      "state": "cfc03d6f",
+      "events": "372486ae",
       "rng": {
-        "draws": 2008,
-        "digest": "4e1be6e9"
+        "draws": 2007,
+        "digest": "94fb126f"
       }
     },
     {
       "tick": 260,
       "time": 13,
-      "nextId": 1011,
-      "state": "3d72cf1b",
-      "events": "010e39a4",
+      "nextId": 1015,
+      "state": "f623077f",
+      "events": "d46b925c",
       "rng": {
-        "draws": 2158,
-        "digest": "4d8c3d8f"
+        "draws": 2151,
+        "digest": "70f581f7"
       }
     },
     {
       "tick": 280,
       "time": 14,
-      "nextId": 1011,
-      "state": "b8c3e836",
-      "events": "92dee8c5",
+      "nextId": 1015,
+      "state": "18b97bdc",
+      "events": "77e2b39e",
       "rng": {
-        "draws": 2312,
-        "digest": "770023e0"
+        "draws": 2323,
+        "digest": "289af628"
       }
     },
     {
       "tick": 300,
       "time": 15,
-      "nextId": 1011,
-      "state": "8d7bacbf",
-      "events": "f9924f75",
+      "nextId": 1015,
+      "state": "ec831275",
+      "events": "fc7cc123",
       "rng": {
-        "draws": 2507,
-        "digest": "a5c6fb23"
+        "draws": 2524,
+        "digest": "8395c270"
       }
     },
     {
       "tick": 306,
       "time": 15.3,
-      "nextId": 1011,
-      "state": "cfc98581",
+      "nextId": 1015,
+      "state": "342ab97e",
       "events": "741638a5",
       "rng": {
-        "draws": 2556,
-        "digest": "01f1ceba"
+        "draws": 2573,
+        "digest": "22b62fe0"
       },
       "label": "spiritmend-consume",
       "players": [
@@ -2641,13 +2709,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 251
+            "damageDealt": 139
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 251
+              "dummyDamage": 139
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -2692,13 +2760,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1006,
+          "entityId": 1010,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -2730,6 +2801,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -2755,13 +2828,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 468
+            "damageDealt": 394
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 468
+              "dummyDamage": 394
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -2806,14 +2879,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1007,
+          "entityId": 1011,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace",
             "offhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -2845,6 +2921,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -2917,13 +2995,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1008,
+          "entityId": 1012,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -2955,6 +3036,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -3023,14 +3106,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1009,
+          "entityId": 1013,
           "equipment": {
             "chest": "recruit_tunic",
             "mainhand": "worn_sword",
             "offhand": "eastbrook_buckler"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -3057,6 +3143,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         }
       ],
@@ -3072,12 +3160,12 @@
               "name": "Thunder Charges",
               "remaining": 86400,
               "school": "nature",
-              "sourceId": 1006,
+              "sourceId": 1010,
               "stacks": 1
             }
           ],
-          "castTotal": 2.181818,
-          "combatTimer": 11.3,
+          "castTotal": 1.818182,
+          "combatTimer": 11.2,
           "comboUntil": -1,
           "critChance": 0.0675,
           "detonateTimer": "Infinity",
@@ -3086,7 +3174,7 @@
           "fiveSecondRule": 11.3,
           "healPower": 32,
           "hp": 733,
-          "id": 1006,
+          "id": 1010,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -3119,7 +3207,7 @@
             "sta": 58,
             "str": 37
           },
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -3138,7 +3226,7 @@
               "name": "Stonebound Weapon",
               "remaining": 1793.8,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 20
             },
             {
@@ -3148,7 +3236,7 @@
               "name": "Stonebound Armor",
               "remaining": 1793.8,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 40
             },
             {
@@ -3158,7 +3246,7 @@
               "name": "Stonebound Guard",
               "remaining": 1793.8,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 0.15
             },
             {
@@ -3168,7 +3256,7 @@
               "name": "Stonebound Vigor",
               "remaining": 1793.8,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 20
             },
             {
@@ -3185,7 +3273,7 @@
               "name": "Stormcast",
               "remaining": 11.4,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 1
             },
             {
@@ -3202,7 +3290,7 @@
               "name": "Stormcast",
               "remaining": 11.4,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 0.5
             }
           ],
@@ -3217,7 +3305,7 @@
           "fiveSecondRule": 6.1,
           "healPower": 29,
           "hp": 853,
-          "id": 1007,
+          "id": 1011,
           "inCombat": true,
           "kind": "player",
           "level": 20,
@@ -3234,7 +3322,7 @@
             "speed": 2.6
           },
           "onGround": true,
-          "overpowerUntil": 14.95,
+          "overpowerUntil": 17.35,
           "petMode": "defensive",
           "pos": {
             "x": -94,
@@ -3259,7 +3347,7 @@
             "str": 37
           },
           "swingTimer": 1.813636,
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -3291,7 +3379,7 @@
           "fiveSecondRule": 1.55,
           "healPower": 31,
           "hp": 733,
-          "id": 1008,
+          "id": 1012,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -3323,7 +3411,7 @@
             "sta": 58,
             "str": 37
           },
-          "targetId": 1009,
+          "targetId": 1013,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -3342,7 +3430,7 @@
               "name": "Battle Stance",
               "remaining": 3584.7,
               "school": "physical",
-              "sourceId": 1009
+              "sourceId": 1013
             }
           ],
           "blockChance": 0.05,
@@ -3355,8 +3443,8 @@
           "fallStartY": -2,
           "fiveSecondRule": 114.3,
           "healPower": 5,
-          "hp": 762,
-          "id": 1009,
+          "hp": 770,
+          "id": 1013,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -3405,8 +3493,8 @@
           "fallStartY": -2,
           "fiveSecondRule": 99,
           "hostile": true,
-          "hp": 999281,
-          "id": 1010,
+          "hp": 999467,
+          "id": 1014,
           "inCombat": true,
           "kind": "mob",
           "leashAnchor": {
@@ -3432,16 +3520,16 @@
             "z": -50
           },
           "stats": {},
-          "tappedById": 1006,
+          "tappedById": 1010,
           "templateId": "training_dummy",
           "threat": [
             [
-              1006,
-              251
+              1010,
+              139
             ],
             [
-              1007,
-              1052.5
+              1011,
+              899.75
             ]
           ],
           "weapon": {
@@ -3453,12 +3541,12 @@
     {
       "tick": 306,
       "time": 15.3,
-      "nextId": 1011,
-      "state": "cfc98581",
+      "nextId": 1015,
+      "state": "342ab97e",
       "events": "741638a5",
       "rng": {
-        "draws": 2556,
-        "digest": "01f1ceba"
+        "draws": 2573,
+        "digest": "22b62fe0"
       },
       "label": "final",
       "players": [
@@ -3485,13 +3573,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 251
+            "damageDealt": 139
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 251
+              "dummyDamage": 139
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -3536,13 +3624,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1006,
+          "entityId": 1010,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -3574,6 +3665,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -3599,13 +3692,13 @@
           "cls": "shaman",
           "companionUpgrades": {},
           "counters": {
-            "damageDealt": 468
+            "damageDealt": 394
           },
           "craftDaily": {},
           "craftSkills": {},
           "deedStats": {
             "counters": {
-              "dummyDamage": 468
+              "dummyDamage": 394
             },
             "dungeonClears": {},
             "itemsDiscovered": [
@@ -3650,14 +3743,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1007,
+          "entityId": 1011,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace",
             "offhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -3689,6 +3785,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -3761,13 +3859,16 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1008,
+          "entityId": 1012,
           "equipment": {
             "chest": "footpad_jerkin",
             "mainhand": "training_mace"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -3799,6 +3900,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         },
         {
@@ -3867,14 +3970,17 @@
           ],
           "delveClears": {},
           "delveDaily": {},
-          "entityId": 1009,
+          "entityId": 1013,
           "equipment": {
             "chest": "recruit_tunic",
             "mainhand": "worn_sword",
             "offhand": "eastbrook_buckler"
           },
           "equipmentInstance": {},
+          "factionCurrencies": {},
+          "factions": {},
           "gatheringProficiency": {},
+          "gliderRecords": {},
           "harvestPreference": {
             "kind": "all"
           },
@@ -3901,6 +4007,8 @@
           "vault": {
             "stock": {}
           },
+          "vaultAttemptDurable": true,
+          "worldQuestReplacements": {},
           "wyrmfallDaily": {}
         }
       ],
@@ -3916,12 +4024,12 @@
               "name": "Thunder Charges",
               "remaining": 86400,
               "school": "nature",
-              "sourceId": 1006,
+              "sourceId": 1010,
               "stacks": 1
             }
           ],
-          "castTotal": 2.181818,
-          "combatTimer": 11.3,
+          "castTotal": 1.818182,
+          "combatTimer": 11.2,
           "comboUntil": -1,
           "critChance": 0.0675,
           "detonateTimer": "Infinity",
@@ -3930,7 +4038,7 @@
           "fiveSecondRule": 11.3,
           "healPower": 32,
           "hp": 733,
-          "id": 1006,
+          "id": 1010,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -3963,7 +4071,7 @@
             "sta": 58,
             "str": 37
           },
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -3982,7 +4090,7 @@
               "name": "Stonebound Weapon",
               "remaining": 1793.8,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 20
             },
             {
@@ -3992,7 +4100,7 @@
               "name": "Stonebound Armor",
               "remaining": 1793.8,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 40
             },
             {
@@ -4002,7 +4110,7 @@
               "name": "Stonebound Guard",
               "remaining": 1793.8,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 0.15
             },
             {
@@ -4012,7 +4120,7 @@
               "name": "Stonebound Vigor",
               "remaining": 1793.8,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 20
             },
             {
@@ -4029,7 +4137,7 @@
               "name": "Stormcast",
               "remaining": 11.4,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 1
             },
             {
@@ -4046,7 +4154,7 @@
               "name": "Stormcast",
               "remaining": 11.4,
               "school": "nature",
-              "sourceId": 1007,
+              "sourceId": 1011,
               "value": 0.5
             }
           ],
@@ -4061,7 +4169,7 @@
           "fiveSecondRule": 6.1,
           "healPower": 29,
           "hp": 853,
-          "id": 1007,
+          "id": 1011,
           "inCombat": true,
           "kind": "player",
           "level": 20,
@@ -4078,7 +4186,7 @@
             "speed": 2.6
           },
           "onGround": true,
-          "overpowerUntil": 14.95,
+          "overpowerUntil": 17.35,
           "petMode": "defensive",
           "pos": {
             "x": -94,
@@ -4103,7 +4211,7 @@
             "str": 37
           },
           "swingTimer": 1.813636,
-          "targetId": 1010,
+          "targetId": 1014,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -4135,7 +4243,7 @@
           "fiveSecondRule": 1.55,
           "healPower": 31,
           "hp": 733,
-          "id": 1008,
+          "id": 1012,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -4167,7 +4275,7 @@
             "sta": 58,
             "str": 37
           },
-          "targetId": 1009,
+          "targetId": 1013,
           "templateId": "shaman",
           "weapon": {
             "max": 5,
@@ -4186,7 +4294,7 @@
               "name": "Battle Stance",
               "remaining": 3584.7,
               "school": "physical",
-              "sourceId": 1009
+              "sourceId": 1013
             }
           ],
           "blockChance": 0.05,
@@ -4199,8 +4307,8 @@
           "fallStartY": -2,
           "fiveSecondRule": 114.3,
           "healPower": 5,
-          "hp": 762,
-          "id": 1009,
+          "hp": 770,
+          "id": 1013,
           "kind": "player",
           "level": 20,
           "lootFfaTimer": "Infinity",
@@ -4249,8 +4357,8 @@
           "fallStartY": -2,
           "fiveSecondRule": 99,
           "hostile": true,
-          "hp": 999281,
-          "id": 1010,
+          "hp": 999467,
+          "id": 1014,
           "inCombat": true,
           "kind": "mob",
           "leashAnchor": {
@@ -4276,16 +4384,16 @@
             "z": -50
           },
           "stats": {},
-          "tappedById": 1006,
+          "tappedById": 1010,
           "templateId": "training_dummy",
           "threat": [
             [
-              1006,
-              251
+              1010,
+              139
             ],
             [
-              1007,
-              1052.5
+              1011,
+              899.75
             ]
           ],
           "weapon": {

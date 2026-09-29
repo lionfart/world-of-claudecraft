@@ -118,23 +118,42 @@ const build = await buildItemArtAudit({
   // `node scripts/item_art_audit.mjs --verify-only` run directly on the
   // merged tree, not guessed or derived from either parent.
   expected: {
-    // 829 + the crucible-raid-weapons-2026-08-28 batch (9 painted weapons)
-    // + the ignivar-varkhul-drop-renders-2026-08-28 batch (2 rendered
-    // legendaries) + the crucible-set-icons-2026-08-29 wave (all 192
-    // non-weapon Crucible pieces; the art-pending ledger is now empty).
-    // + the OSSBrain v0.41 batch's own painted piece, carried through the
-    // base merge alongside the release-side Crucible waves.
-    // The Territory War extension adds three painted siege-tool icons.
-    catalogCount: 1290,
-    // 844 + the 201 Crucible raid loot definitions (192 of them art-pending)
-    // + the base's 2 Varkhul legendary definitions, + the release sync's 7
-    // bank-storage painted bags.
-    liveItemCount: 1308,
+    // OSSBrain PR #3781 reconcile: the release's own arm reached 1281 / 1299
+    // (the Masterwrought completion, Field Kit, Crucible professions, and
+    // Nythraxis/Bramblehide waves) and the OSSBrain candidate's arm reached
+    // 1071 / 1089 (its two disjoint reins items, reins_goblin_rocket_sled and
+    // reins_rallycart_rxt, on the shared 1069 / 1087 base); both deltas are
+    // additive over that shared base, so 1069 + 212 + 2 = 1283 and
+    // 1087 + 212 + 2 = 1301, plus the Viridian Valestrider's reins on both
+    // sides = 1284 / 1302. Verified with `node scripts/item_art_audit.mjs
+    // --verify-only` against the merged tree.
+    // + the World Quests branch merge (release/v0.43.0 sync): its two painted
+    // puzzle activators and two Eastbrook freight icons join both counts.
+    // + the 15 faction quartermaster items (faction-vendor-icons-2026-09-16),
+    // which landed without moving this block (1302 / 1320), + the two Clue
+    // Scroll items (clue_scroll, treasure_casket; clue-scroll-icons-2026-09-17):
+    // 1304 / 1322, measured with `node scripts/item_art_audit.mjs --verify-only`.
+    // + the 18 faction reward paintings and the five Buried Hoard map-family
+    // paintings: 1327 catalog records and 1345 live definitions, measured with
+    // the same verifier run.
+    // + the 96 Buried Hoard boss loot paintings (hoard-boss-loot-icons-2026-09-20)
+    // and, at the release/v0.44.0 merge into feature/buried-hoards, the
+    // release's Viridian Valestrider reins (1284 / 1302 on its own arm):
+    // 1424 catalog records and 1442 live definitions on 34 sheet pages,
+    // measured with the same verifier run on the merged tree.
+    // Re-measured at the 2026-09-28 release/v0.44.0 merge into
+    // feature/buried-hoards: the release's faction ladder, trinket slot and
+    // Warfare Season 2 compose with the hoard paintings: 1464 / 1482, with the
+    // release's 135 pending rows (trinkets and Season 2), on 36 sheet pages.
+    // The operator fork adds seven painted Territory War equipment/resource icons.
+    catalogCount: 1471,
+    liveItemCount: 1489,
+    pendingArtCount: 135,
     generatedHeroicDefinitions: 78,
     heroicDefinitionsWithOwnWebp: 59,
     heroicWeaponArtAliases: 19,
-    sheetPageCount: 31,
-    groupCount: 25,
+    sheetPageCount: 36,
+    groupCount: 26,
   },
 });
 assertItemArtAuditPass(build);

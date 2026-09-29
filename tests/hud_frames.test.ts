@@ -168,10 +168,17 @@ describe('hud.ts unit-frame text sites route through unitFrameCurrentMaxText', (
     );
   });
 
-  // Player and target resource text plus the shared target-detail frame are
-  // the remaining direct current/max sites; health routes through the mode-aware formatter.
-  it('calls unitFrameCurrentMaxText at all three direct current/max sites', () => {
-    const calls = src.match(/unitFrameCurrentMaxText\(/g) ?? [];
+  // Player resource lives in hud.ts; target resource lives in the extracted target
+  // descriptor. Both keep the always-on "current / max". The three hp sites still
+  // route through the mode-aware formatter so the Health Text settings apply.
+  it('calls unitFrameCurrentMaxText at the two resource sites', () => {
+    const hudCalls = src.match(/unitFrameCurrentMaxText\(Math\.round/g) ?? [];
+    const targetCalls = targetDescriptor.match(/unitFrameCurrentMaxText\(Math\.round/g) ?? [];
+    expect(hudCalls.length + targetCalls.length).toBe(2);
+  });
+
+  it('calls unitFrameHealthText at the three player/target/target-of-target hp sites', () => {
+    const calls = (src + targetDescriptor).match(/unitFrameHealthText\(/g) ?? [];
     expect(calls.length).toBe(3);
   });
 

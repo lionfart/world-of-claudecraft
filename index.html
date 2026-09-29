@@ -565,6 +565,10 @@
                 <div class="ui-bevel-edge" aria-hidden="true"></div>
                 <div class="bar-text ui-bevel-text" id="totf-hp-text"></div>
               </div>
+              <div class="bar resource ui-bevel" id="totf-resource">
+                <div class="bar-fill ui-bevel-fill" id="totf-res"></div>
+                <div class="bar-text ui-bevel-text" id="totf-res-text"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -777,7 +781,7 @@
           <div id="recipe-tracker"></div>
           <div id="delve-tracker"><div id="delve-body"></div></div>
           <div id="rift-tracker"><div id="rift-body"></div></div>
-          <div id="practice-tracker"></div>
+          <div id="practice-tracker"><div id="practice-body"></div></div>
           <div id="hub-lesson-coach"></div>
           <div id="gathering-goal-tracker" class="gathering-goal-panel">
             <div id="gathering-goal-body"></div>
@@ -1941,9 +1945,11 @@
         <div id="dfinder-proposal-popup" class="panel ui-panel"></div>
         <div id="bg-proposal-popup" class="panel ui-panel"></div>
         <div id="leaderboard-window" class="window panel ui-window"></div>
+        <div id="world-quest-leaderboard-window" class="window panel"></div>
         <div id="guild-board-window" class="window panel"></div>
         <div id="rift-forge-window" class="window panel"></div>
         <div id="daily-rewards-window" class="window panel ui-window"></div>
+        <div id="weekly-quests-window" class="window panel"></div>
         <div id="claudium-window" class="window panel ui-window"></div>
         <div id="market-window" class="window panel ui-window"></div>
         <div id="woc-market-window" class="window panel ui-window"></div>
@@ -2336,6 +2342,7 @@
           </div>
         </div>
         <div id="tooltip" class="panel"></div>
+        <div id="unit-tooltip-anchor" class="panel"></div>
 
         <div id="error-msg"></div>
         <div id="quest-banner" aria-hidden="true"></div>
@@ -2370,8 +2377,10 @@
             >
               Release Spirit
             </button>
+            <button type="button" class="btn ui-btn ui-btn--lg" id="death-recap-btn" data-i18n="hud.core.deathRecap">Recap</button>
           </div>
         </div>
+        <div id="death-recap-dialog" class="window panel" role="dialog" aria-modal="true" aria-labelledby="death-recap-title" style="display: none"></div>
         <!-- Ghost (spirit released): runs freely; this small non-blocking prompt appears
          only when in reach of the corpse or the Pale Keeper. -->
         <div id="ghost-prompt" data-pad-nav-root>
@@ -2392,6 +2401,7 @@
             The Pale Keeper (Keeper's Toll)
           </button>
         </div>
+        <div id="ghost-hint" class="ui-cin" role="status" aria-live="polite" data-i18n="hudChrome.death.ghostHint">Run to the location of your death or talk to the Pale Keeper to revive</div>
         <div id="interact-affordance" role="status" aria-live="polite"></div>
       </div>
 
@@ -4274,6 +4284,7 @@
                   >
                     New Character
                   </button>
+                  <button type="button" class="btn btn-secondary" id="btn-charselect-woc-market" data-i18n="hudChrome.wocMarket.launcherLabel" hidden>$WOC Exchange</button>
                 </div>
               </div>
               <!-- Right: selected character showcase -->
@@ -4306,6 +4317,7 @@
                   </div>
                 </div>
               </div>
+              <div id="charselect-woc-market" class="cs-news-panel cs-woc-market-panel" role="region" aria-labelledby="charselect-woc-market-title" hidden></div>
               <!-- One-shot appearance redesign for pre-creator characters. Docks
                  where the news panel sits (same class) and replaces it while
                  open; the 3D stage previews the new look live. -->
@@ -5525,7 +5537,7 @@
                 <span data-i18n="nav.donate">Donate</span>
               </a>
             </div>
-            <div id="game-version">v0.42.1</div>
+            <div id="game-version">v0.44.0</div>
           </div>
           <div class="footer-legal-row">
             <a
