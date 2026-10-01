@@ -1056,15 +1056,20 @@ describe('client HTML shell', () => {
     expect(supportHtml).toContain('href="/data-deletion">Data Deletion page</a>');
     expect(supportHtml).toContain('"@type": "ContactPage"');
     expect(flatHtml).toContain(
-      'href="/World-of-ClaudeCraft-Whitepaper-v1.0.pdf" class="footer-link" data-i18n="footer.whitepaper"',
+      'href="/World-of-ClaudeCraft-Whitepaper-v1.0.pdf" class="footer-link" target="_blank" rel="noopener noreferrer" data-i18n="footer.whitepaper"',
     );
     expect(html.indexOf('data-i18n="footer.whitepaper"')).toBeLessThan(
       html.indexOf('data-i18n="footer.terms"'),
     );
     expect(existsSync(whitepaperUrl)).toBe(true);
     expect(statSync(whitepaperUrl).size).toBeGreaterThan(0);
-    expect(flatHtml).toContain('href="/terms" class="footer-link" data-i18n="footer.terms"');
-    expect(flatHtml).toContain('href="/privacy" class="footer-link" data-i18n="footer.privacy"');
+    expect(flatHtml).toContain(
+      'href="/terms" class="footer-link" target="_blank" rel="noopener noreferrer" data-i18n="footer.terms"',
+    );
+    expect(flatHtml).toContain(
+      'href="/privacy" class="footer-link" target="_blank" rel="noopener noreferrer" data-i18n="footer.privacy"',
+    );
+    expect(mainTs).toContain('syncFooterLegalLinks();');
     expect(viteConfig).toContain("['/privacy', '/privacy.html']");
     expect(viteConfig).toContain("['/terms', '/terms.html']");
     expect(viteConfig).toContain("['/data-deletion', '/data-deletion.html']");

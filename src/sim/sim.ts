@@ -443,7 +443,7 @@ import * as petCommands from './pet/pet_commands';
 import type { MatchPetSnapshot } from './pet/pet_match_return';
 import type { PetReturnSnapshot } from './pet/pet_return';
 import { floorHeightAt } from './physics/character';
-import { advancePlayerDodge, evadeIncomingAttack, tryStartPlayerDodge } from './player_dodge';
+import { evadeIncomingAttack, tryStartPlayerDodge } from './player_dodge';
 import {
   isSwimming as isSwimmingImpl,
   moveSpeedMult as moveSpeedMultImpl,

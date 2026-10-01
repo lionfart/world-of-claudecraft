@@ -537,8 +537,9 @@ const MONOLITHS: MonolithRow[] = [
     // (Reuben's call): both parent pins for the record, the release 18081 and the
     // branch 18235; the two sides' additions compose to 18093 by wc -l on the merged
     // tree (after biome). Exact count, zero slack.
-    // v0.44.0 feature union plus the retained Territory HUD: measured merged tree.
-    ceiling: 18754,
+    // v0.44.2 feature union retains Territory HUD; upstream extractions remove
+    // 60 lines from the fork's 18754-line pin. Exact merged count, zero slack.
+    ceiling: 18694,
     seam: 'pure view core + thin painter on PainterHost (src/ui/CLAUDE.md)',
   },
   {
@@ -1692,8 +1693,9 @@ const MONOLITHS: MonolithRow[] = [
     // (Reuben's call): both parent pins for the record, the release 9827 and the
     // branch 9965; the two sides' additions compose to 9840 by wc -l on the merged
     // tree (after biome). Exact count, zero slack.
-    // v0.44.0 feature union plus the retained Territory server: measured merged tree.
-    ceiling: 9885,
+    // v0.44.2 viewer/flair extractions remove 17 lines from the retained
+    // Territory server's 9885-line pin. Exact merged count, zero slack.
+    ceiling: 9868,
     seam: 'a sibling server module; see the hot-path seams in server/CLAUDE.md',
   },
   {

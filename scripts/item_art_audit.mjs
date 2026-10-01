@@ -146,8 +146,8 @@ const build = await buildItemArtAudit({
     // Warfare Season 2 compose with the hoard paintings: 1464 / 1482, with the
     // release's 135 pending rows (trinkets and Season 2), on 36 sheet pages.
     // The operator fork adds seven painted Territory War equipment/resource icons.
-    catalogCount: 1471,
-    liveItemCount: 1489,
+    catalogCount: 1472,
+    liveItemCount: 1490,
     pendingArtCount: 135,
     generatedHeroicDefinitions: 78,
     heroicDefinitionsWithOwnWebp: 59,

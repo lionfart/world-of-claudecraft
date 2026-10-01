@@ -76,10 +76,12 @@ describe('/play login panel drops Continue with Discord (operator fork)', () => 
 
 describe('/play footer carries the legal links', () => {
   it('play.html links the Terms of Service and Privacy Policy', () => {
-    expect(playHtml).toContain('href="/terms"');
-    expect(playHtml).toContain('data-i18n="footer.terms"');
-    expect(playHtml).toContain('href="/privacy"');
-    expect(playHtml).toContain('data-i18n="footer.privacy"');
+    expect(playHtml).toContain(
+      'href="/terms" class="footer-link" target="_blank" rel="noopener noreferrer" data-i18n="footer.terms"',
+    );
+    expect(playHtml).toContain(
+      'href="/privacy" class="footer-link" target="_blank" rel="noopener noreferrer" data-i18n="footer.privacy"',
+    );
   });
 });
 

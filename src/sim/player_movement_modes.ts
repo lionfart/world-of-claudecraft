@@ -5,13 +5,14 @@
 import { advanceClimb, tryStartClimb } from './climb';
 import { advanceHeroicLeap } from './combat/heroic_leap';
 import { advanceValkyrsCalling } from './combat/paladin_valkyrs_calling';
-import type { PlayerMotionDeps } from './player_motion';
+import { advancePlayerDodge } from './player_dodge';
+import { type PlayerMotionDeps, stepPlayerMotion } from './player_motion';
 import { riftPlayerLift } from './rift/runs';
 import type { PlayerMeta } from './sim';
 import type { SimContext } from './sim_context';
 import { clearAfkOnMove } from './social/away';
 import { stepPassenger } from './transport_ferry';
-import type { Entity } from './types';
+import { type Entity, emptyMoveInput } from './types';
 import { advanceGliderMovement } from './world_quest_glider';
 import { advanceWispMazeMovement } from './world_quest_wisp_maze';
 
@@ -41,6 +42,12 @@ export function advanceExclusiveMovement(
     meta.lastActiveTick = ctx.tickCount;
     // Deliberate locomotion clears AFK, but not Do Not Disturb.
     clearAfkOnMove(ctx, meta, p);
+  }
+  // Dodge owns horizontal movement; the normal kernel still settles gravity
+  // against the floor with no walking input, as in the original fork driver.
+  if (advancePlayerDodge(ctx, p)) {
+    stepPlayerMotion(motionDeps, p, emptyMoveInput());
+    return true;
   }
   if (advanceValkyrsCalling(ctx, p)) return true;
   // A ferry passenger walks the sailing deck (transport_ferry.ts stepPassenger).
